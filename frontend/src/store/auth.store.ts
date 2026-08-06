@@ -19,8 +19,17 @@ export const useAuthStore = create<AuthState>((set) => {
   const storedToken = localStorage.getItem('token')
   const storedUser = localStorage.getItem('user')
   
+  let parsedUser = null
+  if (storedUser && storedUser !== 'undefined') {
+    try {
+      parsedUser = JSON.parse(storedUser)
+    } catch (e) {
+      console.error('Failed to parse user from localStorage', e)
+    }
+  }
+  
   return {
-    user: storedUser ? JSON.parse(storedUser) : null,
+    user: parsedUser,
     token: storedToken,
     isAuthenticated: !!storedToken,
     

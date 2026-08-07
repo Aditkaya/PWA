@@ -14,13 +14,12 @@
 }
 
 .izin-modal-content {
-  background: var(--surface-light);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--panel-bg);
+  border: 1px solid var(--glass-border);
   border-radius: 20px;
   width: 100%;
   max-width: 400px;
-  max-height: 90vh;
-  overflow-y: auto;
+  max-height: 85vh;
   display: flex;
   flex-direction: column;
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
@@ -28,12 +27,13 @@
 }
 
 .izin-modal-header {
+  flex-shrink: 0;
   display: flex;
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-  background: rgba(255, 255, 255, 0.02);
+  border-bottom: 1px solid var(--glass-border);
+  background: var(--glass-bg);
 }
 
 .izin-modal-header h3 {
@@ -55,6 +55,8 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  overflow-y: auto;
+  padding-bottom: 40px;
 }
 
 .applicant-info {
@@ -68,7 +70,7 @@
 .applicant-name {
   font-weight: 700;
   font-size: 1.05rem;
-  color: white;
+  color: var(--text-primary);
   margin-bottom: 2px;
 }
 
@@ -105,11 +107,11 @@
 .form-group input[type="date"],
 .form-group input[type="time"],
 .form-group textarea {
-  background: rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: var(--bg-color);
+  border: 1px solid var(--glass-border);
   border-radius: 12px;
   padding: 12px 14px;
-  color: white;
+  color: var(--text-primary);
   font-family: inherit;
   font-size: 0.95rem;
   transition: border-color 0.2s;
@@ -121,9 +123,44 @@
   border-color: var(--accent-color);
 }
 
+.form-group input[type="file"] {
+  background: var(--bg-color);
+  border: 1px dashed var(--text-secondary);
+  border-radius: 12px;
+  padding: 12px;
+  color: var(--text-secondary);
+  font-family: inherit;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.form-group input[type="file"]:hover {
+  border-color: var(--accent-color);
+  background: var(--glass-bg);
+}
+
+.form-group input[type="file"]::file-selector-button {
+  background: rgba(56, 189, 248, 0.15); /* Light blue background */
+  color: var(--accent-color);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  padding: 8px 16px;
+  border-radius: 8px;
+  margin-right: 12px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 0.85rem;
+  transition: all 0.2s;
+}
+
+.form-group input[type="file"]::file-selector-button:hover {
+  background: var(--accent-color);
+  color: white;
+}
+
 .input-readonly {
-  background: rgba(255, 255, 255, 0.05) !important;
-  color: #94a3b8 !important;
+  background: var(--glass-bg) !important;
+  color: var(--text-secondary) !important;
   cursor: not-allowed;
 }
 
@@ -139,12 +176,12 @@
   align-items: center;
   gap: 8px;
   font-size: 0.85rem;
-  color: white !important;
-  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary) !important;
+  background: var(--glass-bg);
   padding: 10px 12px;
   border-radius: 10px;
   cursor: pointer;
-  border: 1px solid transparent;
+  border: 1px solid var(--glass-border);
   transition: all 0.2s;
 }
 

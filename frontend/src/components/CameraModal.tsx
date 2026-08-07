@@ -1,6 +1,10 @@
 import { useRef, useEffect, useState } from 'react';
+import { createPortal } from 'react-dom';
 import * as faceapi from 'face-api.js';
 import { Camera, X, Loader2, AlertCircle, Zap, RefreshCw, MapPin } from 'lucide-react';
+import { useLangStore } from '../store/lang.store';
+import { translations } from '../utils/translations';
+import { useToast } from '../contexts/ToastContext';
 import '../styles/cameramodal.css';
 
 interface CameraModalProps {
@@ -30,16 +34,37 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [statusMsg, setStatusMsg] = useState('');
+  const [logoImage, setLogoImage] = useState<HTMLImageElement | null>(null);
   
+  // Liveness States
+  const [isLivenessPassed, setIsLivenessPassed] = useState(false);
+  const [livenessMsg, setLivenessMsg] = useState('');
+  
+  const { lang } = useLangStore();
+  const t = translations[lang];
+  const { showToast } = useToast();
+
   const [currentTime, setCurrentTime] = useState(new Date());
   
   // Location States
   const [locationCoords, setLocationCoords] = useState<{lat: number, lng: number} | null>(null);
-  const [address, setAddress] = useState('Sedang mencari lokasi akurat...');
+  const [address, setAddress] = useState(t.findingLocation);
   const [outOfRangeMessage, setOutOfRangeMessage] = useState('');
   const [allowedLocations, setAllowedLocations] = useState<any[]>([]);
 
-  // Fetch Allowed Locations once
+  // Reset states when opened
+  useEffect(() => {
+    if (isOpen) {
+      setIsLivenessPassed(false);
+      setLivenessMsg(t.pleaseSmile || '');
+      setErrorMsg('');
+      setStatusMsg('');
+      setIsProcessing(false);
+      setIsCameraReady(false); // Add this reset
+    }
+  }, [isOpen, t.pleaseSmile]);
+
+  // Fetch Allowed Locations once & preload logo
   useEffect(() => {
     if (isOpen) {
       fetch('http://localhost:8000/api/lokasi')
@@ -48,6 +73,10 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
           if (data.data) setAllowedLocations(data.data);
         })
         .catch(err => console.error('Failed to fetch lokasi:', err));
+
+      const img = new Image();
+      img.src = '/logo.png';
+      img.onload = () => setLogoImage(img);
     }
   }, [isOpen]);
 
@@ -82,7 +111,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
               }
             }
             if (minDistance > 0 && minDistance !== Infinity) {
-              setOutOfRangeMessage(`Di luar radius: ${minDistance}m`);
+              setOutOfRangeMessage(`${t.outOfRange}: ${minDistance}m`);
             } else {
               setOutOfRangeMessage('');
             }
@@ -92,7 +121,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
 
           // Reverse Geocoding (Only run once or if address is still default to prevent API spam)
           setAddress((prevAddress) => {
-            if (prevAddress === 'Sedang mencari lokasi akurat...' || prevAddress === 'Gagal mengambil detail alamat') {
+            if (prevAddress === t.findingLocation || prevAddress === t.gpsFailed) {
               fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
                 .then(res => res.json())
                 .then(data => {
@@ -101,25 +130,80 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
                   }
                 })
                 .catch(err => console.error("Geocoding error", err));
-              return 'Sedang menerjemahkan alamat...';
+              return t.translatingAddress;
             }
             return prevAddress;
           });
         },
         (error) => {
           console.error("Geolocation error", error);
-          setAddress('Gagal mendapatkan lokasi GPS');
+          setAddress(t.gpsFailed);
         },
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
       );
     } else {
-      setAddress('GPS tidak didukung di perangkat ini');
+      setAddress(t.gpsNotSupported);
     }
 
     return () => {
       if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
     };
   }, [isOpen, allowedLocations, attendanceType]);
+
+  // Set initial liveness message when camera is ready
+  useEffect(() => {
+    if (isCameraReady && !isLivenessPassed) {
+      setLivenessMsg(t.pleaseSmile);
+    }
+  }, [isCameraReady, t.pleaseSmile, isLivenessPassed]);
+
+  // Liveness Detection Loop
+  useEffect(() => {
+    if (!isCameraReady || !videoRef.current || isLivenessPassed || isProcessing) return;
+
+    let timeoutId: number | NodeJS.Timeout;
+    let isCancelled = false;
+    
+    const detectLiveness = async () => {
+      if (isCancelled) return;
+      
+      const video = videoRef.current;
+      if (!video || video.paused || video.ended) {
+        if (!isCancelled) timeoutId = setTimeout(detectLiveness, 300);
+        return;
+      }
+
+      try {
+        const detection = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceExpressions();
+        if (detection) {
+          const smileProbability = detection.expressions.happy;
+          if (smileProbability > 0.8) {
+            setIsLivenessPassed(true);
+            setLivenessMsg(t.smileDetected);
+            
+            // Auto capture
+            setTimeout(() => {
+              if (!isCancelled) captureAndValidate();
+            }, 500);
+            return; // stop looping
+          }
+        }
+      } catch (err) {
+        // ignore errors during loop to keep it running silently
+      }
+      
+      if (!isCancelled) {
+        timeoutId = setTimeout(detectLiveness, 300);
+      }
+    };
+
+    detectLiveness();
+
+    return () => {
+      isCancelled = true;
+      clearTimeout(timeoutId);
+    };
+  }, [isCameraReady, isLivenessPassed, isProcessing]);
 
   // Load Models
   useEffect(() => {
@@ -129,13 +213,14 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       try {
         await Promise.all([
           faceapi.nets.ssdMobilenetv1.loadFromUri('/models'),
-          faceapi.nets.faceLandmark68Net.loadFromUri('/models')
+          faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
+          faceapi.nets.faceExpressionNet.loadFromUri('/models')
         ]);
         
         setIsModelsLoaded(true);
       } catch (err) {
         console.error("Error loading models", err);
-        setErrorMsg('Gagal memuat modul pendeteksi wajah.');
+        setErrorMsg(t.modelFailed);
       }
     };
 
@@ -164,7 +249,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       }
     } catch (err) {
       console.error("Camera access denied", err);
-      setErrorMsg('Akses kamera ditolak.');
+      setErrorMsg(t.cameraDenied);
     }
   };
 
@@ -184,7 +269,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     if (!videoRef.current || !canvasRef.current) return;
 
     setIsProcessing(true);
-    setStatusMsg('Mendeteksi wajah...');
+    setStatusMsg(t.detectingFace);
 
     const video = videoRef.current;
     
@@ -218,6 +303,14 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       ctx.fill();
     } else {
       ctx.fillRect(padding, boxY, canvas.width - (padding * 2), boxHeight);
+    }
+
+    // Draw logo inside the box (top-right of the box)
+    if (logoImage) {
+      const logoWidth = 80;
+      const logoHeight = (logoImage.height / logoImage.width) * logoWidth;
+      // Position: right edge of the box minus 16px padding, top edge of the box plus 16px padding
+      ctx.drawImage(logoImage, canvas.width - padding - logoWidth - 16, boxY + 16, logoWidth, logoHeight);
     }
 
     // Draw Watermark Text
@@ -256,7 +349,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     const detection = await faceapi.detectSingleFace(video).withFaceLandmarks();
 
     if (detection) {
-      setStatusMsg('Wajah terdeteksi! Menyimpan absensi...');
+      setStatusMsg(t.faceDetected);
       setTimeout(() => {
         stopCamera();
         onCapture(imageSrc, locationCoords ? { address, lat: locationCoords.lat, lng: locationCoords.lng, outOfRangeMessage } : undefined);
@@ -265,14 +358,16 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       }, 1000);
     } else {
       setStatusMsg('');
-      alert('Wajah tidak terdeteksi. Pastikan wajah berada di dalam lingkaran dengan cahaya yang cukup.');
+      showToast(t.noFace, 'error');
       setIsProcessing(false);
+      setIsLivenessPassed(false);
+      setLivenessMsg(t.pleaseSmile);
     }
   };
 
   if (!isOpen) return null;
 
-  return (
+  return createPortal(
     <div className="camera-modal-overlay fade-in">
       <div className="camera-modal-content">
         
@@ -295,22 +390,35 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
 
         {/* Top Controls */}
         <div className="camera-top-controls">
-          <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
-              <button onClick={handleClose} className="close-btn" disabled={isProcessing}>
-                <X size={20} />
-              </button>
-              <div className="instruction-box">
-                Posisikan wajah Anda pada lingkaran lalu ambil foto selfie.
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
+            <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', flexDirection: 'column' }}>
+              <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
+                <button onClick={handleClose} className="close-btn" disabled={isProcessing}>
+                  <X size={20} />
+                </button>
+                {isLivenessPassed ? (
+                  <div style={{ padding: '8px 16px', background: 'rgba(34, 197, 94, 0.9)', color: 'white', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <AlertCircle size={16} /> {livenessMsg}
+                  </div>
+                ) : (
+                  <div style={{ padding: '8px 16px', background: 'rgba(234, 179, 8, 0.9)', color: 'white', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    <AlertCircle size={16} /> {livenessMsg}
+                  </div>
+                )}
               </div>
+              
+              {outOfRangeMessage && (
+                <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.8)', border: '1px solid #ef4444', color: 'white', padding: '10px 14px', borderRadius: '8px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', backdropFilter: 'blur(4px)', alignSelf: 'stretch' }}>
+                  <AlertCircle size={24} style={{ flexShrink: 0 }} />
+                  <span>{t.warning}: {outOfRangeMessage}. {t.distanceRecorded}</span>
+                </div>
+              )}
             </div>
-            
-            {outOfRangeMessage && (
-              <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.8)', border: '1px solid #ef4444', color: 'white', padding: '10px 14px', borderRadius: '8px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', backdropFilter: 'blur(4px)', alignSelf: 'stretch' }}>
-                <AlertCircle size={24} style={{ flexShrink: 0 }} />
-                <span>Peringatan: {outOfRangeMessage}. Data jarak akan dicatat.</span>
-              </div>
-            )}
+
+            {/* Live Logo Overlay */}
+            <div className="live-logo-overlay">
+              <img src="/logo.png" alt="Company Logo" style={{ height: '72px', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
+            </div>
           </div>
         </div>
 
@@ -338,13 +446,13 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
           <div className="location-box">
             <p className="company-name">
               <MapPin size={12} style={{ display: 'inline', marginRight: '4px' }} />
-              Lokasi Absensi Anda
+              {t.yourLocation}
             </p>
             <p>{address}</p>
             <p>
               {locationCoords 
                 ? `${locationCoords.lat.toFixed(8)} | ${locationCoords.lng.toFixed(8)}` 
-                : 'Menunggu titik koordinat...'}
+                : t.waitingCoords}
             </p>
             <p>
               {currentTime.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} {' '}
@@ -359,9 +467,10 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
             </button>
 
             <button 
-              className="btn-capture-circle" 
-              onClick={captureAndValidate}
-              disabled={!isCameraReady || isProcessing || !!errorMsg}
+              className={`btn-capture-circle ${isLivenessPassed ? 'ready' : 'waiting'}`}
+              onClick={captureAndValidate} 
+              disabled={isProcessing || !isLivenessPassed}
+              style={{ opacity: isLivenessPassed ? 1 : 0.5, cursor: isLivenessPassed ? 'pointer' : 'not-allowed', background: 'none', border: 'none', padding: 0 }}
             >
               <div className="btn-capture-inner">
                 <Camera size={24} fill="white" />
@@ -375,6 +484,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
         </div>
 
       </div>
-    </div>
+    </div>,
+    document.body
   );
 }

@@ -1,8 +1,15 @@
 import { useState, useEffect } from 'react'
-import { Clock, Coffee, LogOut, LogIn, CalendarDays, Sun, Plane, AlertCircle, Info } from 'lucide-react'
+import { Clock, Coffee, LogOut, LogIn, CalendarDays, Sun, Plane, AlertCircle, Info, XCircle } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import CameraModal from '../../components/CameraModal'
 import IzinModal from '../../components/IzinModal'
+import CutiModal from '../../components/CutiModal'
+import PermitOutModal from '../../components/PermitOutModal'
+import { useLangStore } from '../../store/lang.store'
+import { useModeStore } from '../../store/mode.store'
+import { translations } from '../../utils/translations'
+import { useToast } from '../../contexts/ToastContext'
+import './dashboard.css'
 
 interface HistoryItem {
   id: number
@@ -19,24 +26,47 @@ export default function Dashboard() {
   const [userGroup, setUserGroup] = useState<string>('')
   const [userProfile, setUserProfile] = useState<any>(null)
   
+  const { lang } = useLangStore()
+  const { isOvertimeMode } = useModeStore()
+  const t = translations[lang]
+  const { showToast } = useToast()
+  
   // Custom Alert States
-  const [alertState, setAlertState] = useState<{show: boolean, type: 'warning' | 'info', title: string, message: string}>({
+  const [alertState, setAlertState] = useState<{show: boolean, type: 'warning' | 'info' | 'error', title: string, message: string}>({
     show: false, type: 'warning', title: '', message: ''
   })
 
   // Izin Modal States
   const [isIzinModalOpen, setIsIzinModalOpen] = useState(false)
   const [izinModalType, setIzinModalType] = useState('Izin 1/2 Hari')
+  const [isCutiModalOpen, setIsCutiModalOpen] = useState(false)
 
   
   // Camera Modal States
   const [isCameraOpen, setIsCameraOpen] = useState(false)
+  const [isPermitOutOpen, setIsPermitOutOpen] = useState(false)
   const [attendanceType, setAttendanceType] = useState('')
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000)
     return () => clearInterval(timer)
   }, [])
+
+  const getGreeting = () => {
+    const hour = time.getHours();
+    if (hour < 11) return t.morning;
+    if (hour < 15) return t.afternoon;
+    if (hour < 18) return t.evening;
+    return t.night;
+  };
+
+  const getFirstName = () => {
+    if (!userProfile?.nama_lengkap) return 'Karyawan';
+    const names = userProfile.nama_lengkap.trim().split(' ');
+    if (names.length === 0 || !names[0]) return 'Karyawan';
+    const first = names[0];
+    return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
+  };
 
   const fetchHistoryAndProfile = async () => {
     if (!user?.id) return
@@ -67,15 +97,31 @@ export default function Dashboard() {
   const now = new Date()
   const todayString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   const todayCheckIn = historyData.find(h => h.date === todayString && (h.type.toLowerCase().includes('in') || h.type.toLowerCase().includes('masuk')))
+  const todayCheckOut = historyData.find(h => h.date === todayString && (h.type.toLowerCase().includes('out') || h.type.toLowerCase().includes('pulang')) && !h.type.toLowerCase().includes('permit') && !h.type.toLowerCase().includes('lembur'))
   
   // Checking break status (if they have break out but no break in)
-  const todayBreakOut = historyData.find(h => h.date === todayString && h.type.toLowerCase().includes('istirahat keluar'))
-  const todayBreakIn = historyData.find(h => h.date === todayString && h.type.toLowerCase().includes('istirahat masuk'))
+  const todayBreakOut = historyData.find(h => h.date === todayString && (h.type.toLowerCase().includes('istirahat keluar') || h.type.toLowerCase().includes('break out')))
+  const todayBreakIn = historyData.find(h => h.date === todayString && (h.type.toLowerCase().includes('istirahat masuk') || h.type.toLowerCase().includes('break in')))
+  // Multiple permit tracking
+  const permitOuts = historyData.filter(h => h.date === todayString && h.type.toLowerCase().includes('izin keluar'))
+  const permitIns = historyData.filter(h => h.date === todayString && h.type.toLowerCase().includes('izin masuk'))
+  
+  const todayOvertimeIn = historyData.find(h => h.date === todayString && h.type.toLowerCase().includes('mulai lembur'))
+  const todayOvertimeOut = historyData.find(h => h.date === todayString && h.type.toLowerCase().includes('selesai lembur'))
+
+  const isCurrentlyOnPermit = permitOuts.length > permitIns.length
+  const lastPermitOut = isCurrentlyOnPermit ? permitOuts[0] : null
+  const lastPermitIn = permitIns[0]
+  
   const hasFullDayLeave = userProfile?.has_full_day_leave || false
 
   const handleAttendanceClick = (type: string) => {
     setAttendanceType(type)
-    setIsCameraOpen(true)
+    if (type.toLowerCase().includes('izin keluar') || type.toLowerCase().includes('permit out')) {
+      setIsPermitOutOpen(true)
+    } else {
+      setIsCameraOpen(true)
+    }
   }
 
   const handleCapture = async (imageSrc: string, locationData?: {address: string, lat: number, lng: number, outOfRangeMessage?: string}) => {
@@ -104,20 +150,52 @@ export default function Dashboard() {
       })
 
       if (response.ok) {
-        alert('Absen ' + attendanceType + ' berhasil dicatat!')
+        showToast(t.attendanceRecorded.replace('{type}', attendanceType), 'success')
         fetchHistoryAndProfile() // Refresh data
       } else {
-        alert('Gagal mencatat absensi')
+        showToast(t.attendanceFailed, 'error')
       }
     } catch (error) {
       console.error("Attendance Error:", error)
-      alert('Terjadi kesalahan sistem')
+      showToast(t.systemError, 'error')
     }
     setIsCameraOpen(false)
   }
 
+  const handlePermitOutSubmit = async (keterangan: string, locationData: {lat: number, lng: number, address: string} | null) => {
+    if (!user?.id) return
+    
+    try {
+      const formData = new FormData()
+      formData.append('user_id', user.id.toString())
+      formData.append('tipe', attendanceType)
+      formData.append('keterangan', keterangan)
+      
+      if (locationData) {
+        formData.append('latitude', locationData.lat.toString())
+        formData.append('longitude', locationData.lng.toString())
+        formData.append('detail_lokasi', locationData.address)
+      }
+
+      const response = await fetch('http://localhost:8000/api/attendance/break', {
+        method: 'POST',
+        body: formData,
+      })
+
+      if (response.ok) {
+        showToast(t.attendanceRecorded.replace('{type}', attendanceType), 'success')
+        fetchHistoryAndProfile() // Refresh data
+      } else {
+        showToast(t.attendanceFailed, 'error')
+      }
+    } catch (error) {
+      console.error("Attendance Error:", error)
+      showToast(t.systemError, 'error')
+    }
+  }
+
   return (
-    <div className="dashboard fade-in">
+    <div className={`dashboard fade-in ${isOvertimeMode ? 'overtime-active' : ''}`}>
       <CameraModal 
         isOpen={isCameraOpen} 
         onClose={() => setIsCameraOpen(false)} 
@@ -125,9 +203,16 @@ export default function Dashboard() {
         attendanceType={attendanceType}
       />
 
+      {isOvertimeMode && (
+        <div className="overtime-badge fade-in">
+          <Clock size={16} />
+          {t.activeOvertimeBadge}
+        </div>
+      )}
+
       <div className="greeting-card glass-panel">
-        <h2>Selamat Pagi, Karyawan!</h2>
-        <p>{hasFullDayLeave ? 'Status Anda hari ini: Izin (Tidak Masuk).' : 'Mari mulai hari dengan produktif dan penuh semangat.'}</p>
+        <h2>{getGreeting()}, {getFirstName()}!</h2>
+        <p>{hasFullDayLeave ? t.statusLeave : (isOvertimeMode ? t.statusOvertime : t.statusActive)}</p>
       </div>
 
       <div className="clock-section">
@@ -138,90 +223,118 @@ export default function Dashboard() {
       </div>
 
       <div className="action-section">
-        <button 
-          className="btn-attendance check-in" 
-          disabled={hasFullDayLeave || !!todayCheckIn}
-          onClick={() => handleAttendanceClick('Check In')}
-        >
-          <Clock size={22} strokeWidth={2} />
-          <span>{todayCheckIn ? `Masuk: ${todayCheckIn.time}` : 'Check In'}</span>
-        </button>
-        <button 
-          className="btn-attendance check-out" 
-          disabled={hasFullDayLeave || !todayCheckIn}
-          onClick={() => handleAttendanceClick('Check Out')}
-        >
-          <Clock size={22} strokeWidth={2} />
-          <span>Check Out</span>
-        </button>
-        <button 
-          className="btn-attendance break-out" 
-          disabled={hasFullDayLeave || !todayCheckIn || !!todayBreakOut}
-          onClick={() => handleAttendanceClick('Istirahat Keluar')}
-        >
-          <Coffee size={22} strokeWidth={2} />
-          <span>{todayBreakOut ? `Istirahat: ${todayBreakOut.time}` : 'Istirahat Keluar'}</span>
-        </button>
-        <button 
-          className="btn-attendance break-in" 
-          disabled={hasFullDayLeave || !todayBreakOut || !!todayBreakIn}
-          onClick={() => handleAttendanceClick('Istirahat Masuk')}
-        >
-          <Coffee size={22} strokeWidth={2} />
-          <span>{todayBreakIn ? `Kembali: ${todayBreakIn.time}` : 'Istirahat Masuk'}</span>
-        </button>
-        <button className="btn-attendance permit-out" disabled={hasFullDayLeave}>
-          <LogOut size={22} strokeWidth={2} />
-          <span>Izin Keluar</span>
-        </button>
-        <button className="btn-attendance permit-in" disabled>
-          <LogIn size={22} strokeWidth={2} />
-          <span>Izin Masuk</span>
-        </button>
+        {isOvertimeMode ? (
+          <>
+            <button 
+              className="btn-attendance overtime-in" 
+              disabled={hasFullDayLeave || !!todayOvertimeIn}
+              onClick={() => handleAttendanceClick('Mulai Lembur')}
+            >
+              <Clock size={24} strokeWidth={1.25} />
+              <span>{todayOvertimeIn ? `${t.startOvertime}: ${todayOvertimeIn.time}` : t.startOvertime}</span>
+            </button>
+            <button 
+              className="btn-attendance overtime-out" 
+              disabled={hasFullDayLeave || !todayOvertimeIn || !!todayOvertimeOut}
+              onClick={() => handleAttendanceClick('Selesai Lembur')}
+            >
+              <Clock size={24} strokeWidth={1.25} />
+              <span>{todayOvertimeOut ? `${t.endOvertime}: ${todayOvertimeOut.time}` : t.endOvertime}</span>
+            </button>
+          </>
+        ) : (
+          <>
+            <button 
+              className="btn-attendance check-in" 
+              disabled={hasFullDayLeave || !!todayCheckIn}
+              onClick={() => handleAttendanceClick('Check In')}
+            >
+              <Clock size={24} strokeWidth={1.25} />
+              <span>{todayCheckIn ? `${t.masuk}: ${todayCheckIn.time}` : t.checkIn}</span>
+            </button>
+            <button 
+              className="btn-attendance check-out" 
+              disabled={hasFullDayLeave || !todayCheckIn || !!todayCheckOut}
+              onClick={() => handleAttendanceClick('Pulang')}
+            >
+              <Clock size={24} strokeWidth={1.25} />
+              <span>{todayCheckOut ? `${t.pulang}: ${todayCheckOut.time}` : t.checkOut}</span>
+            </button>
+            <button 
+              className="btn-attendance break-out" 
+              disabled={hasFullDayLeave || !todayCheckIn || !!todayBreakOut}
+              onClick={() => handleAttendanceClick('Istirahat Keluar')}
+            >
+              <Coffee size={24} strokeWidth={1.25} />
+              <span>{todayBreakOut ? `${t.istirahat}: ${todayBreakOut.time}` : t.breakOut}</span>
+            </button>
+            <button 
+              className="btn-attendance break-in" 
+              disabled={hasFullDayLeave || !todayBreakOut || !!todayBreakIn}
+              onClick={() => handleAttendanceClick('Istirahat Masuk')}
+            >
+              <Coffee size={24} strokeWidth={1.25} />
+              <span>{todayBreakIn ? `${t.kembali}: ${todayBreakIn.time}` : t.breakIn}</span>
+            </button>
+            <button 
+              className="btn-attendance permit-out" 
+              disabled={hasFullDayLeave || !todayCheckIn || isCurrentlyOnPermit}
+              onClick={() => handleAttendanceClick('Izin Keluar')}
+            >
+              <LogOut size={24} strokeWidth={1.25} />
+              <span>{lastPermitOut ? `${t.keluar}: ${lastPermitOut.time}` : t.permitOut}</span>
+            </button>
+            <button 
+              className="btn-attendance permit-in" 
+              disabled={hasFullDayLeave || !isCurrentlyOnPermit}
+              onClick={() => handleAttendanceClick('Izin Masuk')}
+            >
+              <LogIn size={24} strokeWidth={1.25} />
+              <span>{lastPermitIn ? `${t.kembali}: ${lastPermitIn.time}` : t.permitIn}</span>
+            </button>
+          </>
+        )}
       </div>
 
-      <div className="leave-section glass-panel">
-        <h3 className="section-title">Pengajuan Cuti & Izin</h3>
-        <div className="leave-grid">
-          <button className="btn-leave" onClick={() => {
-            setIzinModalType('Izin Full Day')
-            setIsIzinModalOpen(true)
-          }}>
-            <CalendarDays size={20} strokeWidth={2} />
-            <span>Izin Full Day</span>
-          </button>
-          <button className="btn-leave" onClick={() => {
-            setIzinModalType('Izin 1/2 Hari')
-            setIsIzinModalOpen(true)
-          }}>
-            <Sun size={20} strokeWidth={2} />
-            <span>Izin 1/2 Hari</span>
-          </button>
-          <button 
-            className="btn-leave" 
-            onClick={() => {
-              if (userGroup && userGroup.toUpperCase().includes('CUTI')) {
-                setAlertState({
-                  show: true,
-                  type: 'info',
-                  title: 'Segera Hadir',
-                  message: 'Fitur form pengajuan Cuti Tahunan sedang dalam tahap pengembangan.'
-                })
-              } else {
-                setAlertState({
-                  show: true,
-                  type: 'warning',
-                  title: 'Akses Ditolak',
-                  message: 'ANDA BELUM BISA MELAKUKAN CUTI'
-                })
-              }
-            }}
-          >
-            <Plane size={20} strokeWidth={2} />
-            <span>Cuti Tahunan</span>
-          </button>
+      {!isOvertimeMode && (
+        <div className="leave-section glass-panel">
+          <h3 className="section-title">{t.leavePermit}</h3>
+          <div className="leave-grid">
+            <button className="btn-leave" onClick={() => {
+              setIzinModalType('Izin Full Day')
+              setIsIzinModalOpen(true)
+            }}>
+              <CalendarDays size={24} strokeWidth={1.25} />
+              <span>{t.fullDayPermit}</span>
+            </button>
+            <button className="btn-leave" onClick={() => {
+              setIzinModalType('Izin 1/2 Hari')
+              setIsIzinModalOpen(true)
+            }}>
+              <Sun size={24} strokeWidth={1.25} />
+              <span>{t.halfDayPermit}</span>
+            </button>
+            <button 
+              className="btn-leave" 
+              onClick={() => {
+                if (userGroup && userGroup.toUpperCase().includes('CUTI')) {
+                  setIsCutiModalOpen(true)
+                } else {
+                  setAlertState({
+                    show: true,
+                    type: 'info',
+                    title: t.accessDenied,
+                    message: t.notEligibleLeave
+                  })
+                }
+              }}
+            >
+              <Plane size={24} strokeWidth={1.25} />
+              <span>{t.annualLeave}</span>
+            </button>
+          </div>
         </div>
-      </div>
+      )}
 
       <div className="copyright-footer">
         <span>&copy; {new Date().getFullYear()} PT ALEXINDO YAKINPRIMA JAKARTA</span>
@@ -232,7 +345,9 @@ export default function Dashboard() {
         <div className="custom-alert-overlay" onClick={() => setAlertState({ ...alertState, show: false })}>
           <div className="custom-alert-box" onClick={(e) => e.stopPropagation()}>
             <div className={`custom-alert-icon ${alertState.type}`}>
-              {alertState.type === 'warning' ? <AlertCircle size={28} /> : <Info size={28} />}
+              {alertState.type === 'error' ? <XCircle size={28} /> : 
+               alertState.type === 'warning' ? <AlertCircle size={28} /> : 
+               <Info size={28} />}
             </div>
             <h3 className="custom-alert-title">{alertState.title}</h3>
             <p className="custom-alert-message">{alertState.message}</p>
@@ -240,7 +355,7 @@ export default function Dashboard() {
               className="custom-alert-button"
               onClick={() => setAlertState({ ...alertState, show: false })}
             >
-              Mengerti
+              {t.gotIt}
             </button>
           </div>
         </div>
@@ -255,12 +370,24 @@ export default function Dashboard() {
           setAlertState({
             show: true,
             type: 'info',
-            title: 'Berhasil',
-            message: 'Permohonan izin Anda telah berhasil dikirim dan menunggu persetujuan.'
+            title: t.success,
+            message: t.permitSuccessMessage
           })
         }}
+      />
+
+      <CutiModal
+        isOpen={isCutiModalOpen}
+        onClose={() => setIsCutiModalOpen(false)}
+        userProfile={userProfile}
+      />
+
+      <PermitOutModal
+        isOpen={isPermitOutOpen}
+        onClose={() => setIsPermitOutOpen(false)}
+        onSubmit={handlePermitOutSubmit}
+        type={attendanceType}
       />
     </div>
   )
 }
-

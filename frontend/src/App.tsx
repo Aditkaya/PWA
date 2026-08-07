@@ -5,10 +5,12 @@ import History from './pages/History/History'
 import Profile from './pages/Profile/Profile'
 import Login from './pages/Login/Login'
 import PrivateRoute from './routes/PrivateRoute'
+import { ToastProvider } from './contexts/ToastContext'
 
 function App() {
   return (
-    <BrowserRouter>
+    <ToastProvider>
+      <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
         
@@ -24,6 +26,7 @@ function App() {
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </BrowserRouter>
+    </ToastProvider>
   )
 }
 export default App

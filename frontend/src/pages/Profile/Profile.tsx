@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react'
 import { User, Mail, Briefcase, Phone, MapPin, Key, ChevronRight, Loader2, Camera, X } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
+import { useLangStore } from '../../store/lang.store'
+import { translations } from '../../utils/translations'
+import { useToast } from '../../contexts/ToastContext'
 
 interface KaryawanData {
   nik: string
@@ -20,6 +23,10 @@ export default function Profile() {
   const [uploading, setUploading] = useState(false)
   const [isViewerOpen, setIsViewerOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  const { lang } = useLangStore()
+  const t = translations[lang]
+  const { showToast } = useToast()
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -60,11 +67,11 @@ export default function Profile() {
         const result = await response.json()
         setProfileData(prev => prev ? { ...prev, avatar_url: result.avatar_url } : null)
       } else {
-        alert("Gagal mengunggah foto")
+        showToast(t.failUpload || 'Gagal mengupload foto', 'error')
       }
     } catch (error) {
       console.error("Upload error:", error)
-      alert("Terjadi kesalahan saat mengunggah foto")
+      showToast(t.errorUpload || 'Terjadi kesalahan sistem', 'error')
     } finally {
       setUploading(false)
     }
@@ -95,9 +102,9 @@ export default function Profile() {
     )
   }
 
-  const name = profileData?.nama_lengkap || user?.username || 'Karyawan'
+  const name = profileData?.nama_lengkap || user?.username || t.employee
   const initials = name.substring(0, 2).toUpperCase()
-  const role = profileData ? `${profileData.pekerjaan || 'Staf'} - ${profileData.divisi || 'Umum'}` : 'Staf - Umum'
+  const role = profileData ? `${profileData.pekerjaan || 'Staf'} - ${profileData.divisi || 'Umum'}` : t.staffGeneral
 
   return (
     <div className="profile-page fade-in">
@@ -144,7 +151,7 @@ export default function Profile() {
       </div>
 
       <div className="profile-section glass-panel">
-        <h3 className="section-title">Informasi Pribadi</h3>
+        <h3 className="section-title">{t.personalInfo}</h3>
         
         <div className="info-list">
           <div className="info-item">
@@ -152,7 +159,7 @@ export default function Profile() {
               <Briefcase size={20} />
             </div>
             <div className="info-content">
-              <span className="info-label">NIK / ID Karyawan</span>
+              <span className="info-label">{t.employeeId}</span>
               <span className="info-value">{profileData?.nik || '-'}</span>
             </div>
           </div>
@@ -162,7 +169,7 @@ export default function Profile() {
               <Mail size={20} />
             </div>
             <div className="info-content">
-              <span className="info-label">Email</span>
+              <span className="info-label">{t.email}</span>
               <span className="info-value">{profileData?.email || '-'}</span>
             </div>
           </div>
@@ -172,7 +179,7 @@ export default function Profile() {
               <Phone size={20} />
             </div>
             <div className="info-content">
-              <span className="info-label">Nomor Telepon</span>
+              <span className="info-label">{t.phone}</span>
               <span className="info-value">{profileData?.no_hp || '-'}</span>
             </div>
           </div>
@@ -182,7 +189,7 @@ export default function Profile() {
               <MapPin size={20} />
             </div>
             <div className="info-content">
-              <span className="info-label">Alamat Cabang</span>
+              <span className="info-label">{t.branchAddress}</span>
               <span className="info-value">{profileData?.cabang || '-'}</span>
             </div>
           </div>
@@ -190,19 +197,19 @@ export default function Profile() {
       </div>
 
       <div className="profile-section glass-panel">
-        <h3 className="section-title">Pengaturan Akun</h3>
+        <h3 className="section-title">{t.accountSettings}</h3>
         <div className="settings-list">
           <button className="setting-btn">
             <div className="setting-btn-left">
               <User size={20} />
-              <span>Edit Profil</span>
+              <span>{t.editProfile}</span>
             </div>
             <ChevronRight size={20} />
           </button>
           <button className="setting-btn">
             <div className="setting-btn-left">
               <Key size={20} />
-              <span>Ubah Kata Sandi</span>
+              <span>{t.changePassword}</span>
             </div>
             <ChevronRight size={20} />
           </button>

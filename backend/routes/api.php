@@ -59,22 +59,45 @@ if ($uri === '/api/profile' && $method === 'GET') {
     
     try {
         $pdo = new PDO($dsn, $user, $pass, $options);
-        $stmt = $pdo->prepare("SELECT k.* FROM karyawans k JOIN users u ON u.karyawan_id = k.id WHERE u.id = ?");
+        // Combine data from users and karyawans
+        $stmt = $pdo->prepare("
+            SELECT u.id as user_id, u.username, k.*, k.id as karyawan_id 
+            FROM users u 
+            LEFT JOIN karyawans k ON u.karyawan_id = k.id 
+            WHERE u.id = ?
+        ");
         $stmt->execute([$user_id]);
-        $karyawan = $stmt->fetch();
+        $profile = $stmt->fetch();
         
-        if ($karyawan) {
+        if ($profile) {
+            // Setup avatar url
             $avatar_path = "/uploads/avatars/avatar_{$user_id}.jpg";
             if (file_exists(__DIR__ . '/..' . $avatar_path)) {
-                $karyawan['avatar_url'] = 'http://localhost:8000' . $avatar_path . '?v=' . time();
+                $profile['avatar_url'] = 'http://localhost:8000' . $avatar_path . '?v=' . time();
             } else {
-                $karyawan['avatar_url'] = null;
+                $profile['avatar_url'] = null;
             }
+
+            // Check full day leave
+            $profile['has_full_day_leave'] = false;
+            if ($profile['karyawan_id']) {
+                $today = date('Y-m-d');
+                $stmtLeave = $pdo->prepare("SELECT id FROM permohonan_izins WHERE karyawan_id = ? AND jenis_izin = 'Tidak Masuk' AND ? BETWEEN tanggal_mulai AND tanggal_selesai LIMIT 1");
+                $stmtLeave->execute([$profile['karyawan_id'], $today]);
+                if ($stmtLeave->fetch()) {
+                    $profile['has_full_day_leave'] = true;
+                }
+            }
+            
+            // To ensure compatibility with frontend components that expect 'id' to be user_id or karyawan_id,
+            // we will explicitly return id as user_id to fix IzinModal passing wrong user_id
+            $profile['id'] = $profile['user_id'];
+
             http_response_code(200);
-            echo json_encode(['data' => $karyawan]);
+            echo json_encode(['data' => $profile]);
         } else {
             http_response_code(404);
-            echo json_encode(['message' => 'Data karyawan tidak ditemukan']);
+            echo json_encode(['message' => 'User tidak ditemukan']);
         }
     } catch (\PDOException $e) {
         http_response_code(500);
@@ -123,7 +146,136 @@ if ($uri === '/api/profile/upload' && $method === 'POST') {
     exit();
 }
 
-if ($uri === '/api/profile' && $method === 'GET') {
+
+
+if ($uri === '/api/izin' && $method === 'POST') {
+    $karyawan_id = !empty($_POST['karyawan_id']) ? $_POST['karyawan_id'] : null;
+    $nik = !empty($_POST['nik']) ? $_POST['nik'] : '-';
+    $nama = !empty($_POST['nama']) ? $_POST['nama'] : 'Tanpa Nama';
+    $divisi = !empty($_POST['divisi']) ? $_POST['divisi'] : '-';
+    $jenis_izin = $_POST['jenis_izin'] ?? null;
+    $tanggal_mulai = $_POST['tanggal_mulai'] ?? null;
+    $tanggal_selesai = $_POST['tanggal_selesai'] ?? null;
+    $waktu = !empty($_POST['waktu']) ? $_POST['waktu'] : null;
+    $alasan = $_POST['alasan'] ?? '';
+
+    if (!$jenis_izin || !$tanggal_mulai) {
+        http_response_code(400);
+        echo json_encode(['message' => 'Data jenis izin dan tanggal mulai harus diisi']);
+        exit();
+    }
+
+    $host = '127.0.0.1';
+    $db   = 'aypsis';
+    $user = 'root';
+    $pass = '';
+    $charset = 'utf8mb4';
+    $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+    $options = [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES   => false,
+    ];
+
+    try {
+        $pdo = new PDO($dsn, $user, $pass, $options);
+        
+        $user_id = $_POST['user_id'] ?? null;
+        if (!$karyawan_id && $user_id) {
+            $stmtUser = $pdo->prepare("SELECT karyawan_id FROM users WHERE id = ?");
+            $stmtUser->execute([$user_id]);
+            $userData = $stmtUser->fetch();
+            if ($userData && $userData['karyawan_id']) {
+                $karyawan_id = $userData['karyawan_id'];
+            }
+        }
+
+        $lampiran_path = null;
+        if (isset($_FILES['lampiran']) && $_FILES['lampiran']['error'] === UPLOAD_ERR_OK) {
+            $upload_dir = __DIR__ . '/../uploads/surat_sakit/';
+            if (!is_dir($upload_dir)) {
+                mkdir($upload_dir, 0777, true);
+            }
+            $file = $_FILES['lampiran'];
+            if ($file['size'] <= 5242880) {
+                $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
+                $filename = 'surat_sakit_' . $karyawan_id . '_' . time() . '.' . $ext;
+                if (move_uploaded_file($file['tmp_name'], $upload_dir . $filename)) {
+                    $lampiran_path = 'uploads/surat_sakit/' . $filename;
+                }
+            }
+        }
+
+        $stmt = $pdo->prepare("INSERT INTO permohonan_izins (karyawan_id, nik, nama, divisi, jenis_izin, tanggal_mulai, tanggal_selesai, waktu, alasan, lampiran, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())");
+        $stmt->execute([$karyawan_id, $nik, $nama, $divisi, $jenis_izin, $tanggal_mulai, $tanggal_selesai, $waktu, $alasan, $lampiran_path]);
+        
+        http_response_code(200);
+        echo json_encode(['message' => 'Permohonan izin berhasil diajukan']);
+    } catch (\PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['message' => 'Database error: ' . $e->getMessage()]);
+    }
+    exit();
+}
+
+if ($uri === '/api/cuti' && $method === 'POST') {
+    $host = '127.0.0.1';
+    $db   = 'aypsis';
+    $user = 'root';
+    $pass = '';
+    $charset = 'utf8mb4';
+    $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+    $options = [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES   => false,
+    ];
+
+    try {
+        $pdo = new PDO($dsn, $user, $pass, $options);
+        
+        $karyawan_id = !empty($_POST['karyawan_id']) ? $_POST['karyawan_id'] : null;
+        $user_id = $_POST['user_id'] ?? null;
+        if (!$karyawan_id && $user_id) {
+            $stmtUser = $pdo->prepare("SELECT karyawan_id FROM users WHERE id = ?");
+            $stmtUser->execute([$user_id]);
+            $userData = $stmtUser->fetch();
+            if ($userData && $userData['karyawan_id']) {
+                $karyawan_id = $userData['karyawan_id'];
+            }
+        }
+        $tanggal_mulai = $_POST['tanggal_mulai'] ?? '';
+        $tanggal_selesai = $_POST['tanggal_selesai'] ?? '';
+        $jenis_cuti = $_POST['jenis_cuti'] ?? '';
+        $keterangan = $_POST['keterangan'] ?? '';
+
+        if (empty($tanggal_mulai) || empty($tanggal_selesai) || empty($jenis_cuti) || empty($keterangan)) {
+            http_response_code(400);
+            echo json_encode(['message' => 'Lengkapi semua field tanggal, jenis, dan keterangan!']);
+            exit;
+        }
+
+        $stmt = $pdo->prepare("
+            INSERT INTO cutis (karyawan_id, tanggal_mulai, tanggal_selesai, jenis_cuti, keterangan, status, created_at, updated_at) 
+            VALUES (:karyawan_id, :tanggal_mulai, :tanggal_selesai, :jenis_cuti, :keterangan, 'Pending', NOW(), NOW())
+        ");
+        $stmt->execute([
+            'karyawan_id' => $karyawan_id,
+            'tanggal_mulai' => $tanggal_mulai,
+            'tanggal_selesai' => $tanggal_selesai,
+            'jenis_cuti' => $jenis_cuti,
+            'keterangan' => $keterangan
+        ]);
+
+        echo json_encode(['message' => 'Success']);
+    } catch (\PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['message' => 'Database error: ' . $e->getMessage()]);
+    }
+    exit();
+}
+
+if ($uri === '/api/permohonan' && $method === 'GET') {
     $user_id = $_GET['user_id'] ?? null;
     if (!$user_id) {
         http_response_code(400);
@@ -142,77 +294,34 @@ if ($uri === '/api/profile' && $method === 'GET') {
         PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
         PDO::ATTR_EMULATE_PREPARES   => false,
     ];
-    
+
     try {
         $pdo = new PDO($dsn, $user, $pass, $options);
-        $stmt = $pdo->prepare("
-            SELECT u.id, u.username, k.id as karyawan_id, k.nik, k.nama_lengkap, k.divisi, k.grup 
-            FROM users u
-            LEFT JOIN karyawans k ON u.karyawan_id = k.id
-            WHERE u.id = ?
-        ");
-        $stmt->execute([$user_id]);
-        $profile = $stmt->fetch();
         
-        if ($profile) {
-            $profile['has_full_day_leave'] = false;
-            if ($profile['karyawan_id']) {
-                $today = date('Y-m-d');
-                $stmtLeave = $pdo->prepare("SELECT id FROM permohonan_izins WHERE karyawan_id = ? AND jenis_izin = 'Tidak Masuk' AND ? BETWEEN tanggal_mulai AND tanggal_selesai LIMIT 1");
-                $stmtLeave->execute([$profile['karyawan_id'], $today]);
-                if ($stmtLeave->fetch()) {
-                    $profile['has_full_day_leave'] = true;
-                }
-            }
-            echo json_encode(['data' => $profile]);
-        } else {
-            http_response_code(404);
-            echo json_encode(['message' => 'User tidak ditemukan']);
+        $stmtUser = $pdo->prepare("SELECT karyawan_id FROM users WHERE id = ?");
+        $stmtUser->execute([$user_id]);
+        $userData = $stmtUser->fetch();
+        $karyawan_id = $userData ? $userData['karyawan_id'] : null;
+
+        if (!$karyawan_id) {
+            echo json_encode(['data' => []]);
+            exit;
         }
-    } catch (\PDOException $e) {
-        http_response_code(500);
-        echo json_encode(['message' => 'Database error: ' . $e->getMessage()]);
-    }
-    exit();
-}
 
-if ($uri === '/api/izin' && $method === 'POST') {
-    $karyawan_id = $_POST['karyawan_id'] ?? null;
-    $nik = $_POST['nik'] ?? null;
-    $nama = $_POST['nama'] ?? null;
-    $divisi = $_POST['divisi'] ?? null;
-    $jenis_izin = $_POST['jenis_izin'] ?? null;
-    $tanggal_mulai = $_POST['tanggal_mulai'] ?? null;
-    $tanggal_selesai = $_POST['tanggal_selesai'] ?? null;
-    $waktu = $_POST['waktu'] ?? null;
-    $alasan = $_POST['alasan'] ?? null;
+        $stmtIzin = $pdo->prepare("SELECT id, 'Izin' as tipe, jenis_izin as jenis, tanggal_mulai, tanggal_selesai, alasan as keterangan, status, created_at FROM permohonan_izins WHERE karyawan_id = ? ORDER BY created_at DESC");
+        $stmtIzin->execute([$karyawan_id]);
+        $izin = $stmtIzin->fetchAll();
 
-    if (!$karyawan_id || !$nama || !$jenis_izin || !$tanggal_mulai) {
-        http_response_code(400);
-        echo json_encode(['message' => 'Data permohonan tidak lengkap']);
-        exit();
-    }
+        $stmtCuti = $pdo->prepare("SELECT id, 'Cuti' as tipe, jenis_cuti as jenis, tanggal_mulai, tanggal_selesai, keterangan, status, created_at FROM cutis WHERE karyawan_id = ? ORDER BY created_at DESC");
+        $stmtCuti->execute([$karyawan_id]);
+        $cuti = $stmtCuti->fetchAll();
 
-    $host = '127.0.0.1';
-    $db   = 'aypsis';
-    $user = 'root';
-    $pass = '';
-    $charset = 'utf8mb4';
-    $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
-    $options = [
-        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
-        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
-        PDO::ATTR_EMULATE_PREPARES   => false,
-    ];
+        $allData = array_merge($izin, $cuti);
+        usort($allData, function($a, $b) {
+            return strtotime($b['created_at']) - strtotime($a['created_at']);
+        });
 
-    try {
-        $pdo = new PDO($dsn, $user, $pass, $options);
-        
-        $stmt = $pdo->prepare("INSERT INTO permohonan_izins (karyawan_id, nik, nama, divisi, jenis_izin, tanggal_mulai, tanggal_selesai, waktu, alasan, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())");
-        $stmt->execute([$karyawan_id, $nik, $nama, $divisi, $jenis_izin, $tanggal_mulai, $tanggal_selesai, $waktu, $alasan]);
-        
-        http_response_code(200);
-        echo json_encode(['message' => 'Permohonan izin berhasil diajukan']);
+        echo json_encode(['data' => $allData]);
     } catch (\PDOException $e) {
         http_response_code(500);
         echo json_encode(['message' => 'Database error: ' . $e->getMessage()]);
@@ -269,7 +378,7 @@ if ($uri === '/api/history' && $method === 'GET') {
     try {
         $pdo = new PDO($dsn, $user, $pass, $options);
         $stmt = $pdo->prepare("
-        SELECT a.id, DATE(a.waktu) as date, a.tipe as type, TIME_FORMAT(a.waktu, '%H:%i') as time, IFNULL(a.status, 'Selesai') as status, a.foto, a.detail_lokasi as location, a.latitude as lat, a.longitude as lng
+        SELECT a.id, DATE(a.waktu) as date, a.tipe as type, TIME_FORMAT(a.waktu, '%H:%i') as time, IFNULL(a.status, 'Selesai') as status, a.foto, a.detail_lokasi as location, a.latitude as lat, a.longitude as lng, a.keterangan
         FROM absensis a
         JOIN users u ON a.karyawan_id = u.karyawan_id
         WHERE u.id = ?
@@ -295,10 +404,11 @@ if ($uri === '/api/attendance/break' && $method === 'POST') {
     $latitude = $_POST['latitude'] ?? null;
     $longitude = $_POST['longitude'] ?? null;
     $detail_lokasi = $_POST['detail_lokasi'] ?? null;
+    $keterangan = $_POST['keterangan'] ?? null;
 
-    if (!$user_id || !$tipe || !$foto_base64) {
+    if (!$user_id || !$tipe) {
         http_response_code(400);
-        echo json_encode(['message' => 'Data tidak lengkap']);
+        echo json_encode(['message' => 'Data user_id dan tipe diperlukan']);
         exit();
     }
 
@@ -323,13 +433,17 @@ if ($uri === '/api/attendance/break' && $method === 'POST') {
             mkdir($upload_dir, 0777, true);
         }
         
-        $image_parts = explode(";base64,", $foto_base64);
-        if (count($image_parts) == 2) {
-            $image_base64 = base64_decode($image_parts[1]);
-            $filename = 'break_' . $user_id . '_' . time() . '.jpg';
-            $file_path = $upload_dir . $filename;
-            file_put_contents($file_path, $image_base64);
-            $db_photo_path = 'uploads/attendance/' . $filename;
+        if ($foto_base64) {
+            $image_parts = explode(";base64,", $foto_base64);
+            if (count($image_parts) == 2) {
+                $image_base64 = base64_decode($image_parts[1]);
+                $filename = 'break_' . $user_id . '_' . time() . '.jpg';
+                $file_path = $upload_dir . $filename;
+                file_put_contents($file_path, $image_base64);
+                $db_photo_path = 'uploads/attendance/' . $filename;
+            } else {
+                $db_photo_path = null;
+            }
         } else {
             $db_photo_path = null;
         }
@@ -347,8 +461,8 @@ if ($uri === '/api/attendance/break' && $method === 'POST') {
         $nik = $userData['nik'] ?? '-'; // Fallback if missing
 
         // Insert into absensis
-        $stmt = $pdo->prepare("INSERT INTO absensis (karyawan_id, nik, waktu, tipe, status, foto, latitude, longitude, detail_lokasi) VALUES (?, ?, NOW(), ?, 'Selesai', ?, ?, ?, ?)");
-        $stmt->execute([$karyawan_id, $nik, $tipe, $db_photo_path, $latitude, $longitude, $detail_lokasi]);
+        $stmt = $pdo->prepare("INSERT INTO absensis (karyawan_id, nik, waktu, tipe, status, foto, latitude, longitude, detail_lokasi, keterangan) VALUES (?, ?, NOW(), ?, 'Selesai', ?, ?, ?, ?, ?)");
+        $stmt->execute([$karyawan_id, $nik, $tipe, $db_photo_path, $latitude, $longitude, $detail_lokasi, $keterangan]);
 
         http_response_code(200);
         echo json_encode(['message' => 'Absensi berhasil']);

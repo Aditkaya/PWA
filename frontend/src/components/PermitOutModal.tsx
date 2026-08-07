@@ -1,0 +1,133 @@
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
+import { X, FileText, CheckCircle, MapPin } from 'lucide-react';
+import { useLangStore } from '../store/lang.store';
+import { translations } from '../utils/translations';
+import { useToast } from '../contexts/ToastContext';
+import '../styles/izinmodal.css';
+
+interface PermitOutModalProps {
+  isOpen: boolean;
+  onClose: () => void;
+  onSubmit: (keterangan: string, locationData: {lat: number, lng: number, address: string} | null) => void;
+  type: string;
+}
+
+export default function PermitOutModal({ isOpen, onClose, onSubmit, type }: PermitOutModalProps) {
+  const [reason, setReason] = useState('');
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [submitted, setSubmitted] = useState(false);
+  
+  const { lang } = useLangStore();
+  const t = translations[lang];
+  const { showToast } = useToast();
+
+  const [locationCoords, setLocationCoords] = useState<{lat: number, lng: number} | null>(null);
+  const [address, setAddress] = useState(t.findingLocation);
+
+  useEffect(() => {
+    if (isOpen) {
+      setReason('');
+      setSubmitted(false);
+      setIsSubmitting(false);
+      setAddress(t.findingLocation);
+
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            const lat = position.coords.latitude;
+            const lng = position.coords.longitude;
+            setLocationCoords({ lat, lng });
+
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+              .then(res => res.json())
+              .then(data => {
+                if (data && data.display_name) {
+                  setAddress(data.display_name);
+                }
+              })
+              .catch(() => setAddress('Location found'));
+          },
+          () => {
+            setAddress(t.gpsFailed);
+          },
+          { enableHighAccuracy: true, timeout: 10000 }
+        );
+      } else {
+        setAddress(t.gpsNotSupported);
+      }
+    }
+  }, [isOpen, t.findingLocation, t.gpsFailed, t.gpsNotSupported]);
+
+  if (!isOpen) return null;
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!reason.trim()) {
+      showToast(t.fillAllFields, 'error');
+      return;
+    }
+
+    setIsSubmitting(true);
+    // Submit without delay
+    onSubmit(reason, locationCoords ? { lat: locationCoords.lat, lng: locationCoords.lng, address } : null);
+    setIsSubmitting(false);
+    setSubmitted(true);
+    setTimeout(() => {
+      onClose();
+    }, 1500);
+  };
+
+  return createPortal(
+    <div className="modal-overlay fade-in">
+      <div className="modal-content glass-panel scale-in">
+        <button className="close-btn" onClick={onClose}><X size={24} /></button>
+        
+        {submitted ? (
+          <div className="success-state fade-in">
+            <CheckCircle size={60} color="#10b981" />
+            <h2>{t.sent}</h2>
+          </div>
+        ) : (
+          <>
+            <h2 className="modal-title">
+              <FileText size={24} className="title-icon" />
+              {type}
+            </h2>
+            
+            <form onSubmit={handleSubmit} className="izin-form">
+              <div className="form-group" style={{ marginBottom: '15px' }}>
+                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  <MapPin size={16} /> Lokasi
+                </label>
+                <div style={{ background: 'var(--glass-bg)', padding: '10px', borderRadius: '10px', fontSize: '0.85rem' }}>
+                  {address}
+                </div>
+              </div>
+
+              <div className="form-group">
+                <label>{t.descReason}</label>
+                <textarea 
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder={lang === 'id' ? "Keterangan keluar..." : "Reason for leaving..."}
+                  rows={4}
+                  required
+                />
+              </div>
+
+              <button 
+                type="submit" 
+                className="btn-submit"
+                disabled={isSubmitting || !reason.trim()}
+              >
+                {isSubmitting ? t.submitting : t.submitLeave}
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>,
+    document.body
+  );
+}

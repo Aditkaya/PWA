@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { X, Calendar, Clock, FileText, CheckCircle } from 'lucide-react';
 import { useLangStore } from '../store/lang.store';

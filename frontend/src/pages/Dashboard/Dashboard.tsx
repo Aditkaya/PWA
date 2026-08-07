@@ -72,14 +72,14 @@ export default function Dashboard() {
     if (!user?.id) return
     try {
       // Fetch History
-      const histRes = await fetch(`http://localhost:8000/api/history?user_id=${user.id}`)
+      const histRes = await fetch(`/api/history?user_id=${user.id}`)
       if (histRes.ok) {
         const histData = await histRes.json()
         setHistoryData(histData.data)
       }
       
       // Fetch Profile
-      const profRes = await fetch(`http://localhost:8000/api/profile?user_id=${user.id}`)
+      const profRes = await fetch(`/api/profile?user_id=${user.id}`)
       if (profRes.ok) {
         const profData = await profRes.json()
         setUserProfile(profData.data)
@@ -144,7 +144,7 @@ export default function Dashboard() {
         formData.append('detail_lokasi', detailLokasi)
       }
 
-      const response = await fetch('http://localhost:8000/api/attendance/break', {
+      const response = await fetch('/api/attendance/break', {
         method: 'POST',
         body: formData,
       })
@@ -177,7 +177,7 @@ export default function Dashboard() {
         formData.append('detail_lokasi', locationData.address)
       }
 
-      const response = await fetch('http://localhost:8000/api/attendance/break', {
+      const response = await fetch('/api/attendance/break', {
         method: 'POST',
         body: formData,
       })

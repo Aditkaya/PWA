@@ -33,7 +33,7 @@ export default function Profile() {
       if (!user?.id) return
       
       try {
-        const response = await fetch(`http://localhost:8000/api/profile?user_id=${user.id}`)
+        const response = await fetch(`/api/profile?user_id=${user.id}`)
         if (response.ok) {
           const result = await response.json()
           setProfileData(result.data)
@@ -58,7 +58,7 @@ export default function Profile() {
     formData.append('user_id', user.id.toString())
 
     try {
-      const response = await fetch('http://localhost:8000/api/profile/upload', {
+      const response = await fetch('/api/profile/upload', {
         method: 'POST',
         body: formData,
       })

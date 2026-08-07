@@ -28,7 +28,7 @@ export default function DashboardLayout() {
 
   useEffect(() => {
     if (user?.id) {
-      fetch(`http://localhost:8000/api/profile?user_id=${user.id}`)
+      fetch(`/api/profile?user_id=${user.id}`)
         .then(res => res.json())
         .then(data => {
           if (data.data) {

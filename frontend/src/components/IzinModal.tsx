@@ -57,7 +57,7 @@ export default function IzinModal({ isOpen, onClose, userProfile, defaultType = 
         formData.append('lampiran', lampiranFile);
       }
 
-      const response = await fetch('http://localhost:8000/api/izin', {
+      const response = await fetch('/api/izin', {
         method: 'POST',
         body: formData,
       });

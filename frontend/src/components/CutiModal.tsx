@@ -43,7 +43,7 @@ export default function CutiModal({ isOpen, onClose, userProfile }: CutiModalPro
       formData.append('jenis_cuti', jenisCuti);
       formData.append('keterangan', alasan);
 
-      const response = await fetch('http://localhost:8000/api/cuti', {
+      const response = await fetch('/api/cuti', {
         method: 'POST',
         body: formData
       });

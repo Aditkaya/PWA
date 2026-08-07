@@ -67,7 +67,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   // Fetch Allowed Locations once & preload logo
   useEffect(() => {
     if (isOpen) {
-      fetch('http://localhost:8000/api/lokasi')
+      fetch('/api/lokasi')
         .then(res => res.json())
         .then(data => {
           if (data.data) setAllowedLocations(data.data);
@@ -149,6 +149,37 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
     };
   }, [isOpen, allowedLocations, attendanceType]);
+
+  const refreshLocation = () => {
+    setAddress(t.findingLocation);
+    setLocationCoords(null);
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          setLocationCoords({ lat, lng });
+          
+          fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+            .then(res => res.json())
+            .then(data => {
+              if (data && data.display_name) {
+                setAddress(data.display_name);
+              }
+            })
+            .catch(err => {
+              console.error("Geocoding error", err);
+              setAddress(t.gpsFailed);
+            });
+        },
+        (error) => {
+          console.error("Geolocation error", error);
+          setAddress(t.gpsFailed);
+        },
+        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+      );
+    }
+  };
 
   // Set initial liveness message when camera is ready
   useEffect(() => {
@@ -477,7 +508,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
               </div>
             </button>
 
-            <button className="icon-btn">
+            <button className="icon-btn" onClick={refreshLocation} title="Refresh Lokasi">
               <RefreshCw size={24} />
             </button>
           </div>

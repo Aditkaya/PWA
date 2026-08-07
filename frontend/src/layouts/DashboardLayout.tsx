@@ -61,14 +61,10 @@ export default function DashboardLayout() {
   return (
     <div className="layout-container">
       <header className="navbar" style={{ position: 'sticky', top: 0, zIndex: 10 }}>
-        {/* Logo Centered Absolutely */}
-        <div style={{ position: 'absolute', left: '50%', transform: 'translateX(-50%)', display: 'flex', alignItems: 'center', gap: '8px', zIndex: -1 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <img src="/logo.png" alt="Logo" style={{ height: '42px', objectFit: 'contain' }} />
           <h2 style={{ fontSize: '1.1rem', lineHeight: '1.2' }}>ALEXINDO YAKINPRIMA</h2>
         </div>
-        
-        {/* Invisible spacer to maintain flex alignment on left */}
-        <div style={{ width: '40px' }}></div>
 
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           {isInstallable && (

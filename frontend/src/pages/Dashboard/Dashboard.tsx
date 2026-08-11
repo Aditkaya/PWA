@@ -46,6 +46,7 @@ export default function Dashboard() {
   const [isCameraOpen, setIsCameraOpen] = useState(false)
   const [isPermitOutOpen, setIsPermitOutOpen] = useState(false)
   const [attendanceType, setAttendanceType] = useState('')
+  const [permitReason, setPermitReason] = useState('')
 
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000)
@@ -117,6 +118,7 @@ export default function Dashboard() {
 
   const handleAttendanceClick = (type: string) => {
     setAttendanceType(type)
+    setPermitReason('')
     if (type.toLowerCase().includes('izin keluar') || type.toLowerCase().includes('permit out')) {
       setIsPermitOutOpen(true)
     } else {
@@ -143,6 +145,10 @@ export default function Dashboard() {
         }
         formData.append('detail_lokasi', detailLokasi)
       }
+      
+      if (permitReason) {
+        formData.append('keterangan', permitReason)
+      }
 
       const response = await fetch('/api/attendance/break', {
         method: 'POST',
@@ -160,38 +166,18 @@ export default function Dashboard() {
       showToast(t.systemError, 'error')
     }
     setIsCameraOpen(false)
+    setPermitReason('')
   }
 
   const handlePermitOutSubmit = async (keterangan: string, locationData: {lat: number, lng: number, address: string} | null) => {
-    if (!user?.id) return
+    // Simpan keterangan dan buka kamera
+    setPermitReason(keterangan);
+    setIsPermitOutOpen(false);
     
-    try {
-      const formData = new FormData()
-      formData.append('user_id', user.id.toString())
-      formData.append('tipe', attendanceType)
-      formData.append('keterangan', keterangan)
-      
-      if (locationData) {
-        formData.append('latitude', locationData.lat.toString())
-        formData.append('longitude', locationData.lng.toString())
-        formData.append('detail_lokasi', locationData.address)
-      }
-
-      const response = await fetch('/api/attendance/break', {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (response.ok) {
-        showToast(t.attendanceRecorded.replace('{type}', attendanceType), 'success')
-        fetchHistoryAndProfile() // Refresh data
-      } else {
-        showToast(t.attendanceFailed, 'error')
-      }
-    } catch (error) {
-      console.error("Attendance Error:", error)
-      showToast(t.systemError, 'error')
-    }
+    // Beri sedikit jeda agar modal tutup dulu, baru buka kamera
+    setTimeout(() => {
+      setIsCameraOpen(true);
+    }, 100);
   }
 
   return (

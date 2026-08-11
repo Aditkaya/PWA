@@ -1,13 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 import { VitePWA } from 'vite-plugin-pwa'
-import basicSsl from '@vitejs/plugin-basic-ssl'
 
 // https://vite.dev/config/
 export default defineConfig({
   plugins: [
     react(),
-    basicSsl(),
     VitePWA({
       strategies: 'injectManifest',
       srcDir: 'src',
@@ -47,15 +45,14 @@ export default defineConfig({
     })
   ],
   server: {
-    host: true, // Allow external IP access
     proxy: {
       '/api': {
         target: 'http://localhost:8000',
-        changeOrigin: true
+        changeOrigin: true,
       },
       '/uploads': {
         target: 'http://localhost:8000',
-        changeOrigin: true
+        changeOrigin: true,
       }
     }
   }

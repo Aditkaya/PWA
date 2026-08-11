@@ -150,37 +150,6 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     };
   }, [isOpen, allowedLocations, attendanceType]);
 
-  const refreshLocation = () => {
-    setAddress(t.findingLocation);
-    setLocationCoords(null);
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition(
-        (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          setLocationCoords({ lat, lng });
-          
-          fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
-            .then(res => res.json())
-            .then(data => {
-              if (data && data.display_name) {
-                setAddress(data.display_name);
-              }
-            })
-            .catch(err => {
-              console.error("Geocoding error", err);
-              setAddress(t.gpsFailed);
-            });
-        },
-        (error) => {
-          console.error("Geolocation error", error);
-          setAddress(t.gpsFailed);
-        },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
-      );
-    }
-  };
-
   // Set initial liveness message when camera is ready
   useEffect(() => {
     if (isCameraReady && !isLivenessPassed) {
@@ -321,58 +290,143 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     ctx.restore();
 
+    let mapImage: HTMLImageElement | null = null;
+    let mapOffsetX = 0;
+    let mapOffsetY = 0;
+
+    if (locationCoords) {
+      const zoom = 15;
+      const n = Math.pow(2, zoom);
+      const latRad = locationCoords.lat * Math.PI / 180;
+      const x = (locationCoords.lng + 180) / 360 * n;
+      const y = (1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n;
+
+      const tileX = Math.floor(x);
+      const tileY = Math.floor(y);
+
+      mapOffsetX = (x - tileX) * 256;
+      mapOffsetY = (y - tileY) * 256;
+
+      const tileUrl = `https://tile.openstreetmap.org/${zoom}/${tileX}/${tileY}.png`;
+
+      try {
+        mapImage = await new Promise((resolve, reject) => {
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.onload = () => resolve(img);
+          img.onerror = () => reject(new Error('Failed to load map'));
+          img.src = tileUrl;
+        });
+      } catch (err) {
+        console.warn("Could not load map tile for watermark", err);
+      }
+    }
+
     // Draw Watermark Background
-    const padding = 20;
-    // Calculate box height dynamically or set fixed
-    const boxHeight = 130; 
+    const s = Math.max(canvas.width, canvas.height) / 800; // scaling factor
+    const padding = 15 * s;
+    const boxWidth = Math.min(320 * s, canvas.width - (padding * 2));
+    let boxHeight = mapImage ? 175 * s : 105 * s; 
+    if (outOfRangeMessage) {
+      boxHeight += 15 * s;
+    }
     const boxY = canvas.height - boxHeight - padding;
     
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     if (ctx.roundRect) {
       ctx.beginPath();
-      ctx.roundRect(padding, boxY, canvas.width - (padding * 2), boxHeight, 12);
+      ctx.roundRect(padding, boxY, boxWidth, boxHeight, 8 * s);
       ctx.fill();
     } else {
-      ctx.fillRect(padding, boxY, canvas.width - (padding * 2), boxHeight);
+      ctx.fillRect(padding, boxY, boxWidth, boxHeight);
     }
 
     // Draw logo inside the box (top-right of the box)
     if (logoImage) {
-      const logoWidth = 80;
+      const logoWidth = 40 * s;
       const logoHeight = (logoImage.height / logoImage.width) * logoWidth;
-      // Position: right edge of the box minus 16px padding, top edge of the box plus 16px padding
-      ctx.drawImage(logoImage, canvas.width - padding - logoWidth - 16, boxY + 16, logoWidth, logoHeight);
+      ctx.drawImage(logoImage, padding + boxWidth - logoWidth - (12 * s), boxY + (12 * s), logoWidth, logoHeight);
     }
 
     // Draw Watermark Text
     ctx.fillStyle = 'white';
     ctx.textAlign = 'left';
     
-    let currentY = boxY + 24;
+    let currentY = boxY + (22 * s);
     
-    ctx.font = 'bold 12px sans-serif';
-    ctx.fillText('PT ALEXINDO YAKINPRIMA JAKARTA', padding + 16, currentY);
-    currentY += 18;
+    ctx.font = `bold ${11 * s}px sans-serif`;
+    ctx.fillText('PT ALEXINDO YAKINPRIMA JAKARTA', padding + (12 * s), currentY);
+    currentY += 15 * s;
     
-    ctx.font = '10px sans-serif';
-    // Handle long address wrapping simply by slicing or just let it run off (in a real app we'd wrap text)
+    ctx.font = `${9.5 * s}px sans-serif`;
     const shortAddress = address.length > 50 ? address.substring(0, 50) + '...' : address;
-    ctx.fillText(shortAddress, padding + 16, currentY);
-    currentY += 18;
+    ctx.fillText(shortAddress, padding + (12 * s), currentY);
+    currentY += 15 * s;
     
     if (locationCoords) {
-      ctx.fillText(`${locationCoords.lat.toFixed(8)} | ${locationCoords.lng.toFixed(8)}`, padding + 16, currentY);
+      ctx.fillText(`${locationCoords.lat.toFixed(8)} | ${locationCoords.lng.toFixed(8)}`, padding + (12 * s), currentY);
     }
-    currentY += 18;
+    currentY += 15 * s;
+
+    if (outOfRangeMessage) {
+      ctx.fillStyle = '#ef4444'; // Red for warning
+      ctx.font = `bold ${9 * s}px sans-serif`;
+      ctx.fillText(`${t.warning}: ${outOfRangeMessage}. ${t.distanceRecorded}`, padding + (12 * s), currentY);
+      currentY += 15 * s;
+      ctx.fillStyle = 'white'; // Reset to white
+    }
 
     const dateStr = currentTime.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' });
     const timeStr = currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':');
-    ctx.fillText(`${dateStr} ${timeStr}`, padding + 16, currentY);
-    currentY += 20;
+    ctx.fillText(`${dateStr} ${timeStr}`, padding + (12 * s), currentY);
+    currentY += 16 * s;
 
     ctx.fillStyle = '#06b6d4';
-    ctx.font = 'bold 10px sans-serif';
-    ctx.fillText('© AYPSIS Attendance', padding + 16, currentY);
+    ctx.font = `bold ${9.5 * s}px sans-serif`;
+    ctx.fillText('© AYPSIS Attendance', padding + (12 * s), currentY);
+
+    if (mapImage) {
+      const mapW = boxWidth - (24 * s);
+      const mapH = 60 * s;
+      const mapStartY = currentY + (4 * s);
+      
+      const aspect = mapW / mapH;
+      let sWidth = 150; 
+      let sHeight = sWidth / aspect;
+
+      if (sHeight > 256) {
+         sHeight = 256;
+         sWidth = sHeight * aspect;
+      }
+      if (sWidth > 256) {
+         sWidth = 256;
+         sHeight = sWidth / aspect;
+      }
+
+      let sx = mapOffsetX - sWidth / 2;
+      let sy = mapOffsetY - sHeight / 2;
+
+      sx = Math.max(0, Math.min(256 - sWidth, sx));
+      sy = Math.max(0, Math.min(256 - sHeight, sy));
+
+      // Draw Map
+      ctx.drawImage(mapImage, sx, sy, sWidth, sHeight, padding + (12 * s), mapStartY, mapW, mapH);
+
+      // Draw Red Dot at precise center
+      const relX = mapOffsetX - sx;
+      const relY = mapOffsetY - sy;
+      const destX = padding + (12 * s) + (relX / sWidth) * mapW;
+      const destY = mapStartY + (relY / sHeight) * mapH;
+      
+      ctx.fillStyle = '#ef4444'; // red-500
+      ctx.beginPath();
+      ctx.arc(destX, destY, 4 * s, 0, Math.PI * 2);
+      ctx.fill();
+      
+      ctx.lineWidth = 1.5 * s;
+      ctx.strokeStyle = 'white';
+      ctx.stroke();
+    }
 
     const imageSrc = canvas.toDataURL('image/jpeg', 0.8);
 
@@ -448,7 +502,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
 
             {/* Live Logo Overlay */}
             <div className="live-logo-overlay">
-              <img src="/logo.png" alt="Company Logo" style={{ height: '72px', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
+              <img src="/logo.png" alt="Company Logo" style={{ height: '48px', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
             </div>
           </div>
         </div>
@@ -490,6 +544,20 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
               {currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':')}
             </p>
             <p className="brand-text">© AYPSIS Attendance</p>
+            
+            {/* Google Maps Embed */}
+            {locationCoords && (
+              <div style={{ marginTop: '6px', borderRadius: '4px', overflow: 'hidden' }}>
+                <iframe
+                  width="100%"
+                  height="80"
+                  style={{ border: 0 }}
+                  loading="lazy"
+                  allowFullScreen
+                  src={`https://maps.google.com/maps?q=${locationCoords.lat},${locationCoords.lng}&hl=id&z=15&output=embed`}
+                ></iframe>
+              </div>
+            )}
           </div>
 
           <div className="action-bar">
@@ -508,7 +576,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
               </div>
             </button>
 
-            <button className="icon-btn" onClick={refreshLocation} title="Refresh Lokasi">
+            <button className="icon-btn">
               <RefreshCw size={24} />
             </button>
           </div>

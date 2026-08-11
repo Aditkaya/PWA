@@ -15,8 +15,6 @@ interface PermitOutModalProps {
 
 export default function PermitOutModal({ isOpen, onClose, onSubmit, type }: PermitOutModalProps) {
   const [reason, setReason] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
-  const [submitted, setSubmitted] = useState(false);
   
   const { lang } = useLangStore();
   const t = translations[lang];
@@ -28,8 +26,6 @@ export default function PermitOutModal({ isOpen, onClose, onSubmit, type }: Perm
   useEffect(() => {
     if (isOpen) {
       setReason('');
-      setSubmitted(false);
-      setIsSubmitting(false);
       setAddress(t.findingLocation);
 
       if (navigator.geolocation) {
@@ -68,64 +64,52 @@ export default function PermitOutModal({ isOpen, onClose, onSubmit, type }: Perm
       return;
     }
 
-    setIsSubmitting(true);
-    // Submit without delay
+    // Submit instantly and let parent handle closing
     onSubmit(reason, locationCoords ? { lat: locationCoords.lat, lng: locationCoords.lng, address } : null);
-    setIsSubmitting(false);
-    setSubmitted(true);
-    setTimeout(() => {
-      onClose();
-    }, 1500);
   };
 
   return createPortal(
-    <div className="modal-overlay fade-in">
-      <div className="modal-content glass-panel scale-in">
-        <button className="close-btn" onClick={onClose}><X size={24} /></button>
-        
-        {submitted ? (
-          <div className="success-state fade-in">
-            <CheckCircle size={60} color="#10b981" />
-            <h2>{t.sent}</h2>
+    <div className="izin-modal-overlay fade-in" onClick={onClose}>
+      <div className="izin-modal-content" onClick={(e) => e.stopPropagation()}>
+        <div className="izin-modal-header">
+          <div>
+            <h3>{type}</h3>
+            <p>PT. ALEXINDO YAKINPRIMA</p>
           </div>
-        ) : (
-          <>
-            <h2 className="modal-title">
-              <FileText size={24} className="title-icon" />
-              {type}
-            </h2>
-            
-            <form onSubmit={handleSubmit} className="izin-form">
-              <div className="form-group" style={{ marginBottom: '15px' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                  <MapPin size={16} /> Lokasi
-                </label>
-                <div style={{ background: 'var(--glass-bg)', padding: '10px', borderRadius: '10px', fontSize: '0.85rem' }}>
-                  {address}
-                </div>
-              </div>
+          <button className="close-btn" onClick={onClose}>
+            <X size={24} />
+          </button>
+        </div>
+        
+        <form onSubmit={handleSubmit} className="izin-modal-form">
+          <div className="form-group" style={{ marginBottom: '15px' }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+              <MapPin size={16} /> Lokasi
+            </label>
+            <div style={{ background: 'var(--glass-bg)', padding: '10px', borderRadius: '10px', fontSize: '0.85rem' }}>
+              {address}
+            </div>
+          </div>
 
-              <div className="form-group">
-                <label>{t.descReason}</label>
-                <textarea 
-                  value={reason}
-                  onChange={(e) => setReason(e.target.value)}
-                  placeholder={lang === 'id' ? "Keterangan keluar..." : "Reason for leaving..."}
-                  rows={4}
-                  required
-                />
-              </div>
+          <div className="form-group">
+            <label>{t.descReason}</label>
+            <textarea 
+              value={reason}
+              onChange={(e) => setReason(e.target.value)}
+              placeholder={lang === 'id' ? "Keterangan keluar..." : "Reason for leaving..."}
+              rows={4}
+              required
+            />
+          </div>
 
-              <button 
-                type="submit" 
-                className="btn-submit"
-                disabled={isSubmitting || !reason.trim()}
-              >
-                {isSubmitting ? t.submitting : t.submitLeave}
-              </button>
-            </form>
-          </>
-        )}
+          <button 
+            type="submit" 
+            className="btn-submit"
+            disabled={!reason.trim()}
+          >
+            {t.submitLeave}
+          </button>
+        </form>
       </div>
     </div>,
     document.body

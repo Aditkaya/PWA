@@ -9,10 +9,10 @@ class LoginController {
     private $db;
 
     public function __construct() {
-        $host = '127.0.0.1';
+        $host = 'localhost';
         $db   = 'aypsis';
-        $user = 'root';
-        $pass = '';
+        $user = 'aypsis_web';
+        $pass = 'WebPass2025#!';
         $charset = 'utf8mb4';
 
         $dsn = "mysql:host=$host;dbname=$db;charset=$charset";

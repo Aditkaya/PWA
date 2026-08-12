@@ -45,10 +45,10 @@ if ($uri === '/api/profile' && $method === 'GET') {
         exit();
     }
     
-    $host = '127.0.0.1';
+    $host = 'localhost';
     $db   = 'aypsis';
-    $user = 'root';
-    $pass = '';
+    $user = 'aypsis_web';
+    $pass = 'WebPass2025#!';
     $charset = 'utf8mb4';
     $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
     $options = [
@@ -165,10 +165,10 @@ if ($uri === '/api/izin' && $method === 'POST') {
         exit();
     }
 
-    $host = '127.0.0.1';
+    $host = 'localhost';
     $db   = 'aypsis';
-    $user = 'root';
-    $pass = '';
+    $user = 'aypsis_web';
+    $pass = 'WebPass2025#!';
     $charset = 'utf8mb4';
     $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
     $options = [
@@ -219,10 +219,10 @@ if ($uri === '/api/izin' && $method === 'POST') {
 }
 
 if ($uri === '/api/cuti' && $method === 'POST') {
-    $host = '127.0.0.1';
+    $host = 'localhost';
     $db   = 'aypsis';
-    $user = 'root';
-    $pass = '';
+    $user = 'aypsis_web';
+    $pass = 'WebPass2025#!';
     $charset = 'utf8mb4';
     $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
     $options = [
@@ -283,10 +283,10 @@ if ($uri === '/api/permohonan' && $method === 'GET') {
         exit();
     }
     
-    $host = '127.0.0.1';
+    $host = 'localhost';
     $db   = 'aypsis';
-    $user = 'root';
-    $pass = '';
+    $user = 'aypsis_web';
+    $pass = 'WebPass2025#!';
     $charset = 'utf8mb4';
     $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
     $options = [
@@ -338,10 +338,10 @@ if ($uri === '/api/permohonan' && $method === 'GET') {
 }
 
 if ($uri === '/api/lokasi' && $method === 'GET') {
-    $host = '127.0.0.1';
+    $host = 'localhost';
     $db   = 'aypsis';
-    $user = 'root';
-    $pass = '';
+    $user = 'aypsis_web';
+    $pass = 'WebPass2025#!';
     $charset = 'utf8mb4';
     $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
     $options = [
@@ -371,10 +371,10 @@ if ($uri === '/api/history' && $method === 'GET') {
         exit();
     }
     
-    $host = '127.0.0.1';
+    $host = 'localhost';
     $db   = 'aypsis';
-    $user = 'root';
-    $pass = '';
+    $user = 'aypsis_web';
+    $pass = 'WebPass2025#!';
     $charset = 'utf8mb4';
     $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
     $options = [
@@ -420,10 +420,10 @@ if ($uri === '/api/attendance/break' && $method === 'POST') {
         exit();
     }
 
-    $host = '127.0.0.1';
+    $host = 'localhost';
     $db   = 'aypsis';
-    $user = 'root';
-    $pass = '';
+    $user = 'aypsis_web';
+    $pass = 'WebPass2025#!';
     $charset = 'utf8mb4';
     $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
     $options = [
@@ -498,10 +498,10 @@ if ($uri === '/api/attendance/lupa' && $method === 'POST') {
         exit();
     }
 
-    $host = '127.0.0.1';
+    $host = 'localhost';
     $db   = 'aypsis';
-    $user = 'root';
-    $pass = '';
+    $user = 'aypsis_web';
+    $pass = 'WebPass2025#!';
     $charset = 'utf8mb4';
     $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
     $options = [
@@ -556,10 +556,10 @@ if ($uri === '/api/attendance/lembur' && $method === 'POST') {
         exit();
     }
 
-    $host = '127.0.0.1';
+    $host = 'localhost';
     $db   = 'aypsis';
-    $user = 'root';
-    $pass = '';
+    $user = 'aypsis_web';
+    $pass = 'WebPass2025#!';
     $charset = 'utf8mb4';
     $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
     $options = [
@@ -610,10 +610,10 @@ if ($uri === '/api/attendance/lembur' && $method === 'POST') {
 }
 
 if ($uri === '/api/health' && $method === 'GET') {
-    $host = '127.0.0.1';
+    $host = 'localhost';
     $db   = 'aypsis';
-    $user = 'root';
-    $pass = '';
+    $user = 'aypsis_web';
+    $pass = 'WebPass2025#!';
     $charset = 'utf8mb4';
     $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
     $options = [

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, FileText, CheckCircle, MapPin } from 'lucide-react';
+import { X, MapPin } from 'lucide-react';
 import { useLangStore } from '../store/lang.store';
 import { translations } from '../utils/translations';
 import { useToast } from '../contexts/ToastContext';

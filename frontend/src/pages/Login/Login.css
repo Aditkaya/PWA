@@ -38,6 +38,48 @@
   font-size: 0.9rem;
 }
 
+.db-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+  font-size: 0.85rem;
+}
+
+.status-indicator {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  display: inline-block;
+}
+
+.status-success .status-indicator {
+  background-color: #22c55e;
+  box-shadow: 0 0 8px #22c55e;
+}
+
+.status-error .status-indicator {
+  background-color: #ef4444;
+  box-shadow: 0 0 8px #ef4444;
+}
+
+.status-loading .status-indicator {
+  background-color: #eab308;
+  box-shadow: 0 0 8px #eab308;
+  animation: pulse 1.5s infinite;
+}
+
+.status-success small { color: #22c55e; }
+.status-error small { color: #ef4444; }
+.status-loading small { color: #eab308; }
+
+@keyframes pulse {
+  0% { opacity: 0.5; }
+  50% { opacity: 1; }
+  100% { opacity: 0.5; }
+}
+
 .form-group {
   margin-bottom: 20px;
 }

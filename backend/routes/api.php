@@ -316,7 +316,15 @@ if ($uri === '/api/permohonan' && $method === 'GET') {
         $stmtCuti->execute([$karyawan_id]);
         $cuti = $stmtCuti->fetchAll();
 
-        $allData = array_merge($izin, $cuti);
+        $stmtLupa = $pdo->prepare("SELECT id, 'Lupa Absen' as tipe, tipe_absen as jenis, tanggal as tanggal_mulai, tanggal as tanggal_selesai, alasan as keterangan, status, created_at FROM persetujuan_absensi_lupas WHERE karyawan_id = ? ORDER BY created_at DESC");
+        $stmtLupa->execute([$karyawan_id]);
+        $lupa = $stmtLupa->fetchAll();
+
+        $stmtLembur = $pdo->prepare("SELECT id, 'Lembur' as tipe, 'Pengajuan Lembur' as jenis, tanggal as tanggal_mulai, tanggal as tanggal_selesai, keterangan, status, created_at FROM persetujuan_absensi_lemburs WHERE karyawan_id = ? ORDER BY created_at DESC");
+        $stmtLembur->execute([$karyawan_id]);
+        $lembur = $stmtLembur->fetchAll();
+
+        $allData = array_merge($izin, $cuti, $lupa, $lembur);
         usort($allData, function($a, $b) {
             return strtotime($b['created_at']) - strtotime($a['created_at']);
         });
@@ -469,6 +477,160 @@ if ($uri === '/api/attendance/break' && $method === 'POST') {
     } catch (\PDOException $e) {
         http_response_code(500);
         echo json_encode(['message' => 'Database error: ' . $e->getMessage()]);
+    }
+    exit();
+}
+
+if ($uri === '/api/attendance/lupa' && $method === 'POST') {
+    $user_id = $_POST['user_id'] ?? null;
+    $tanggal = $_POST['tanggal'] ?? null;
+    $tipe_absen = $_POST['tipe_absen'] ?? null;
+    $waktu = $_POST['waktu'] ?? null;
+    $alasan = $_POST['alasan'] ?? null;
+
+    if ($user_id === null || $user_id === '' || 
+        $tanggal === null || $tanggal === '' || 
+        $tipe_absen === null || $tipe_absen === '' || 
+        $waktu === null || $waktu === '' || 
+        $alasan === null || $alasan === '') {
+        http_response_code(400);
+        echo json_encode(['message' => 'Lengkapi semua form! Data yang diterima: ' . json_encode($_POST)]);
+        exit();
+    }
+
+    $host = '127.0.0.1';
+    $db   = 'aypsis';
+    $user = 'root';
+    $pass = '';
+    $charset = 'utf8mb4';
+    $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+    $options = [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES   => false,
+    ];
+
+    try {
+        $pdo = new PDO($dsn, $user, $pass, $options);
+        
+        $stmtUser = $pdo->prepare("SELECT karyawan_id FROM users WHERE id = ?");
+        $stmtUser->execute([$user_id]);
+        $userData = $stmtUser->fetch();
+        if (!$userData || !$userData['karyawan_id']) {
+            http_response_code(404);
+            echo json_encode(['message' => 'Karyawan tidak ditemukan']);
+            exit();
+        }
+        $karyawan_id = $userData['karyawan_id'];
+
+        $stmt = $pdo->prepare("INSERT INTO persetujuan_absensi_lupas (karyawan_id, tanggal, tipe_absen, waktu, alasan, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'pending', NOW(), NOW())");
+        $stmt->execute([$karyawan_id, $tanggal, $tipe_absen, $waktu, $alasan]);
+
+        http_response_code(200);
+        echo json_encode(['message' => 'Pengajuan Lupa Absen berhasil dikirim']);
+    } catch (\PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['message' => 'Database error: ' . $e->getMessage()]);
+    }
+    exit();
+}
+
+if ($uri === '/api/attendance/lembur' && $method === 'POST') {
+    $user_id = $_POST['user_id'] ?? null;
+    $tanggal = $_POST['tanggal'] ?? null;
+    $jam_mulai = $_POST['jam_mulai'] ?? null;
+    $jam_selesai = $_POST['jam_selesai'] ?? null;
+    $keterangan = $_POST['keterangan'] ?? null;
+    $foto_base64 = $_POST['foto_base64'] ?? null;
+    $latitude = $_POST['latitude'] ?? null;
+    $longitude = $_POST['longitude'] ?? null;
+    $detail_lokasi = $_POST['detail_lokasi'] ?? null;
+
+    if ($user_id === null || $user_id === '' || 
+        $tanggal === null || $tanggal === '' || 
+        $jam_mulai === null || $jam_mulai === '' || 
+        $jam_selesai === null || $jam_selesai === '' || 
+        $keterangan === null || $keterangan === '') {
+        http_response_code(400);
+        echo json_encode(['message' => 'Lengkapi semua form! Data yang diterima: ' . json_encode($_POST)]);
+        exit();
+    }
+
+    $host = '127.0.0.1';
+    $db   = 'aypsis';
+    $user = 'root';
+    $pass = '';
+    $charset = 'utf8mb4';
+    $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+    $options = [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES   => false,
+    ];
+
+    try {
+        $pdo = new PDO($dsn, $user, $pass, $options);
+        
+        $stmtUser = $pdo->prepare("SELECT karyawan_id FROM users WHERE id = ?");
+        $stmtUser->execute([$user_id]);
+        $userData = $stmtUser->fetch();
+        if (!$userData || !$userData['karyawan_id']) {
+            http_response_code(404);
+            echo json_encode(['message' => 'Karyawan tidak ditemukan']);
+            exit();
+        }
+        $karyawan_id = $userData['karyawan_id'];
+
+        $db_photo_path = null;
+        if ($foto_base64) {
+            $upload_dir = __DIR__ . '/../uploads/attendance/';
+            if (!is_dir($upload_dir)) {
+                mkdir($upload_dir, 0777, true);
+            }
+            $image_parts = explode(";base64,", $foto_base64);
+            if (count($image_parts) == 2) {
+                $image_base64 = base64_decode($image_parts[1]);
+                $filename = 'lembur_' . $user_id . '_' . time() . '.jpg';
+                $file_path = $upload_dir . $filename;
+                file_put_contents($file_path, $image_base64);
+                $db_photo_path = 'uploads/attendance/' . $filename;
+            }
+        }
+
+        $stmt = $pdo->prepare("INSERT INTO persetujuan_absensi_lemburs (karyawan_id, tanggal, jam_mulai, jam_selesai, keterangan, foto, detail_lokasi, latitude, longitude, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())");
+        $stmt->execute([$karyawan_id, $tanggal, $jam_mulai, $jam_selesai, $keterangan, $db_photo_path, $detail_lokasi, $latitude, $longitude]);
+
+        http_response_code(200);
+        echo json_encode(['message' => 'Pengajuan Lembur berhasil dikirim']);
+    } catch (\PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['message' => 'Database error: ' . $e->getMessage()]);
+    }
+    exit();
+}
+
+if ($uri === '/api/health' && $method === 'GET') {
+    $host = '127.0.0.1';
+    $db   = 'aypsis';
+    $user = 'root';
+    $pass = '';
+    $charset = 'utf8mb4';
+    $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+    $options = [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES   => false,
+    ];
+
+    try {
+        $pdo = new PDO($dsn, $user, $pass, $options);
+        // Test query
+        $stmt = $pdo->query("SELECT 1");
+        http_response_code(200);
+        echo json_encode(['status' => 'connected', 'message' => 'Database connection successful']);
+    } catch (\PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['status' => 'error', 'message' => 'Database connection failed: ' . $e->getMessage()]);
     }
     exit();
 }

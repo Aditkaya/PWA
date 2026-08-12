@@ -5,6 +5,8 @@ import CameraModal from '../../components/CameraModal'
 import IzinModal from '../../components/IzinModal'
 import CutiModal from '../../components/CutiModal'
 import PermitOutModal from '../../components/PermitOutModal'
+import LupaAbsenModal from '../../components/LupaAbsenModal'
+import LemburModal from '../../components/LemburModal'
 import { useLangStore } from '../../store/lang.store'
 import { useModeStore } from '../../store/mode.store'
 import { translations } from '../../utils/translations'
@@ -40,6 +42,8 @@ export default function Dashboard() {
   const [isIzinModalOpen, setIsIzinModalOpen] = useState(false)
   const [izinModalType, setIzinModalType] = useState('Izin 1/2 Hari')
   const [isCutiModalOpen, setIsCutiModalOpen] = useState(false)
+  const [isLupaAbsenModalOpen, setIsLupaAbsenModalOpen] = useState(false)
+  const [isLemburModalOpen, setIsLemburModalOpen] = useState(false)
 
   
   // Camera Modal States
@@ -98,17 +102,27 @@ export default function Dashboard() {
   const now = new Date()
   const todayString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   const todayCheckIn = historyData.find(h => h.date === todayString && (h.type.toLowerCase().includes('in') || h.type.toLowerCase().includes('masuk')))
-  const todayCheckOut = historyData.find(h => h.date === todayString && (h.type.toLowerCase().includes('out') || h.type.toLowerCase().includes('pulang')) && !h.type.toLowerCase().includes('permit') && !h.type.toLowerCase().includes('lembur'))
+  
+  const isTodayRecord = (h: HistoryItem) => {
+    if (h.date !== todayString) return false;
+    if (todayCheckIn) {
+      return h.time >= todayCheckIn.time;
+    }
+    // If no check-in today, assume anything before 06:00 is from yesterday's night shift
+    return h.time >= '06:00';
+  };
+
+  const todayCheckOut = historyData.find(h => isTodayRecord(h) && (h.type.toLowerCase().includes('out') || h.type.toLowerCase().includes('pulang')) && !h.type.toLowerCase().includes('permit') && !h.type.toLowerCase().includes('lembur'))
   
   // Checking break status (if they have break out but no break in)
-  const todayBreakOut = historyData.find(h => h.date === todayString && (h.type.toLowerCase().includes('istirahat keluar') || h.type.toLowerCase().includes('break out')))
-  const todayBreakIn = historyData.find(h => h.date === todayString && (h.type.toLowerCase().includes('istirahat masuk') || h.type.toLowerCase().includes('break in')))
+  const todayBreakOut = historyData.find(h => isTodayRecord(h) && (h.type.toLowerCase().includes('istirahat keluar') || h.type.toLowerCase().includes('break out')))
+  const todayBreakIn = historyData.find(h => isTodayRecord(h) && (h.type.toLowerCase().includes('istirahat masuk') || h.type.toLowerCase().includes('break in')))
   // Multiple permit tracking
-  const permitOuts = historyData.filter(h => h.date === todayString && h.type.toLowerCase().includes('izin keluar'))
-  const permitIns = historyData.filter(h => h.date === todayString && h.type.toLowerCase().includes('izin masuk'))
+  const permitOuts = historyData.filter(h => isTodayRecord(h) && h.type.toLowerCase().includes('izin keluar'))
+  const permitIns = historyData.filter(h => isTodayRecord(h) && h.type.toLowerCase().includes('izin masuk'))
   
-  const todayOvertimeIn = historyData.find(h => h.date === todayString && h.type.toLowerCase().includes('mulai lembur'))
-  const todayOvertimeOut = historyData.find(h => h.date === todayString && h.type.toLowerCase().includes('selesai lembur'))
+  const todayOvertimeIn = historyData.find(h => isTodayRecord(h) && h.type.toLowerCase().includes('mulai lembur'))
+  const todayOvertimeOut = historyData.find(h => isTodayRecord(h) && h.type.toLowerCase().includes('selesai lembur'))
 
   const isCurrentlyOnPermit = permitOuts.length > permitIns.length
   const lastPermitOut = isCurrentlyOnPermit ? permitOuts[0] : null
@@ -121,6 +135,8 @@ export default function Dashboard() {
     setPermitReason('')
     if (type.toLowerCase().includes('izin keluar') || type.toLowerCase().includes('permit out')) {
       setIsPermitOutOpen(true)
+    } else if (type === 'Mulai Lembur') {
+      setIsLemburModalOpen(true)
     } else {
       setIsCameraOpen(true)
     }
@@ -150,16 +166,41 @@ export default function Dashboard() {
         formData.append('keterangan', permitReason)
       }
 
-      const response = await fetch('/api/attendance/break', {
-        method: 'POST',
-        body: formData,
-      })
-
-      if (response.ok) {
-        showToast(t.attendanceRecorded.replace('{type}', attendanceType), 'success')
-        fetchHistoryAndProfile() // Refresh data
+      if (attendanceType === 'Mulai Lembur') {
+        // Use the lembur API endpoint
+        const now = new Date()
+        formData.append('tanggal', now.toISOString().split('T')[0])
+        formData.append('jam_mulai', now.toTimeString().slice(0, 5))
+        formData.append('jam_selesai', '00:00') // Placeholder as it was removed from UI
+        // Keterangan is already appended above, but we can ensure it's there
+        if (!formData.has('keterangan')) {
+          formData.append('keterangan', permitReason)
+        }
+        // For foto we need to make sure the backend accepts it
+        const response = await fetch('/api/attendance/lembur', {
+          method: 'POST',
+          body: formData,
+        })
+        
+        if (response.ok) {
+          showToast('Pengajuan Lembur berhasil dikirim', 'success')
+          fetchHistoryAndProfile() // Refresh data
+        } else {
+          showToast(t.attendanceFailed, 'error')
+        }
       } else {
-        showToast(t.attendanceFailed, 'error')
+        // Default attendance logic
+        const response = await fetch('/api/attendance/break', {
+          method: 'POST',
+          body: formData,
+        })
+
+        if (response.ok) {
+          showToast(t.attendanceRecorded.replace('{type}', attendanceType), 'success')
+          fetchHistoryAndProfile() // Refresh data
+        } else {
+          showToast(t.attendanceFailed, 'error')
+        }
       }
     } catch (error) {
       console.error("Attendance Error:", error)
@@ -169,7 +210,15 @@ export default function Dashboard() {
     setPermitReason('')
   }
 
-  const handlePermitOutSubmit = async (keterangan: string, locationData: {lat: number, lng: number, address: string} | null) => {
+  const handleLemburSubmit = (keterangan: string) => {
+    setPermitReason(keterangan);
+    setIsLemburModalOpen(false);
+    setTimeout(() => {
+      setIsCameraOpen(true);
+    }, 100);
+  }
+
+  const handlePermitOutSubmit = async (keterangan: string, _locationData: {lat: number, lng: number, address: string} | null) => {
     // Simpan keterangan dan buka kamera
     setPermitReason(keterangan);
     setIsPermitOutOpen(false);
@@ -318,6 +367,13 @@ export default function Dashboard() {
               <Plane size={24} strokeWidth={1.25} />
               <span>{t.annualLeave}</span>
             </button>
+            <button 
+              className="btn-leave" 
+              onClick={() => setIsLupaAbsenModalOpen(true)}
+            >
+              <Clock size={24} strokeWidth={1.25} />
+              <span>Lupa Absen</span>
+            </button>
           </div>
         </div>
       )}
@@ -366,6 +422,19 @@ export default function Dashboard() {
         isOpen={isCutiModalOpen}
         onClose={() => setIsCutiModalOpen(false)}
         userProfile={userProfile}
+      />
+
+      <LupaAbsenModal
+        isOpen={isLupaAbsenModalOpen}
+        onClose={() => setIsLupaAbsenModalOpen(false)}
+        userProfile={userProfile}
+      />
+
+      <LemburModal
+        isOpen={isLemburModalOpen}
+        onClose={() => setIsLemburModalOpen(false)}
+        userProfile={userProfile}
+        onSubmit={handleLemburSubmit}
       />
 
       <PermitOutModal

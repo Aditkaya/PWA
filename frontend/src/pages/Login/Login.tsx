@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../../store/auth.store'
+import api from '../../services/axios'
 import './Login.css'
 
 export default function Login() {
@@ -8,8 +9,24 @@ export default function Login() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [dbStatus, setDbStatus] = useState<{connected: boolean | null, message: string}>({ connected: null, message: 'Checking database connection...' })
   const navigate = useNavigate()
   const { login } = useAuthStore()
+
+  useEffect(() => {
+    const checkDb = async () => {
+      try {
+        await api.get('/health')
+        setDbStatus({ connected: true, message: 'Database Connected' })
+      } catch (err: any) {
+        setDbStatus({ 
+          connected: false, 
+          message: err.response?.data?.message || err.message || 'Database connection failed' 
+        })
+      }
+    }
+    checkDb()
+  }, [])
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -32,6 +49,11 @@ export default function Login() {
         <div className="login-header">
           <h1>AbsensiApp</h1>
           <p>Silakan masuk ke akun Anda</p>
+          
+          <div className={`db-status ${dbStatus.connected === true ? 'status-success' : dbStatus.connected === false ? 'status-error' : 'status-loading'}`}>
+            <span className="status-indicator"></span>
+            <small>{dbStatus.message}</small>
+          </div>
         </div>
         
         <form onSubmit={handleSubmit}>

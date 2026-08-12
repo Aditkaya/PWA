@@ -16,11 +16,31 @@ $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 // Serve static files (like uploaded images) with CORS headers
 $file_path = __DIR__ . '/..' . $uri;
 if (file_exists($file_path) && is_file($file_path)) {
-    $mime = mime_content_type($file_path);
-    if ($mime === false) {
-        $ext = strtolower(pathinfo($file_path, PATHINFO_EXTENSION));
-        $mimes = ['jpg' => 'image/jpeg', 'jpeg' => 'image/jpeg', 'png' => 'image/png'];
-        $mime = $mimes[$ext] ?? 'application/octet-stream';
+    $ext = strtolower(pathinfo($file_path, PATHINFO_EXTENSION));
+    $mimes = [
+        'css' => 'text/css',
+        'js' => 'application/javascript',
+        'mjs' => 'application/javascript',
+        'json' => 'application/json',
+        'html' => 'text/html',
+        'jpg' => 'image/jpeg',
+        'jpeg' => 'image/jpeg',
+        'png' => 'image/png',
+        'svg' => 'image/svg+xml',
+        'ico' => 'image/x-icon',
+        'woff' => 'font/woff',
+        'woff2' => 'font/woff2',
+        'ttf' => 'font/ttf',
+        'webmanifest' => 'application/manifest+json'
+    ];
+    
+    if (isset($mimes[$ext])) {
+        $mime = $mimes[$ext];
+    } else {
+        $mime = mime_content_type($file_path);
+        if ($mime === false) {
+            $mime = 'application/octet-stream';
+        }
     }
     header("Content-Type: $mime");
     readfile($file_path);

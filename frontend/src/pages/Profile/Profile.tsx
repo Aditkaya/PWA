@@ -188,7 +188,13 @@ export default function Profile() {
           <button className="viewer-close-btn" onClick={() => setIsViewerOpen(false)}>
             <X size={28} />
           </button>
-          <img src={profileData.avatar_url} alt="Profile Full" className="viewer-image" onClick={(e) => e.stopPropagation()} />
+          <img 
+            src={profileData.avatar_url} 
+            alt="Profile Full" 
+            className="viewer-image" 
+            onClick={(e) => e.stopPropagation()} 
+            style={{ borderRadius: '50%', objectFit: 'cover', width: '250px', height: '250px' }}
+          />
         </div>
       )}
 

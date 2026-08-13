@@ -167,9 +167,130 @@ if ($uri === '/api/profile/upload' && $method === 'POST') {
     exit();
 }
 
+// --- UPDATE PROFILE ---
+if ($uri === '/api/profile' && $method === 'PUT') {
+    $data = json_decode(file_get_contents('php://input'), true);
+    $user_id     = $data['user_id'] ?? null;
+    $nama_lengkap = $data['nama_lengkap'] ?? null;
+    $email       = $data['email'] ?? null;
+    $no_hp       = $data['no_hp'] ?? null;
+
+    if (!$user_id) {
+        http_response_code(400);
+        echo json_encode(['message' => 'User ID diperlukan']);
+        exit();
+    }
+
+    $host = 'localhost';
+    $db   = 'aypsis';
+    $isLocal = ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NAME'] === '127.0.0.1');
+    $user = $isLocal ? 'root' : 'aypsis_web';
+    $pass = $isLocal ? '' : 'WebPass2025#!';
+    $charset = 'utf8mb4';
+    $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+    $options = [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES   => false,
+    ];
+
+    try {
+        $pdo = new PDO($dsn, $user, $pass, $options);
+        // Get karyawan_id from user
+        $stmt = $pdo->prepare("SELECT karyawan_id FROM users WHERE id = ?");
+        $stmt->execute([$user_id]);
+        $userData = $stmt->fetch();
+
+        if (!$userData || !$userData['karyawan_id']) {
+            http_response_code(404);
+            echo json_encode(['message' => 'Data karyawan tidak ditemukan']);
+            exit();
+        }
+
+        $karyawan_id = $userData['karyawan_id'];
+        $stmt = $pdo->prepare("UPDATE karyawans SET nama_lengkap = ?, email = ?, no_hp = ? WHERE id = ?");
+        $stmt->execute([$nama_lengkap, $email, $no_hp, $karyawan_id]);
+
+        http_response_code(200);
+        echo json_encode(['message' => 'Profil berhasil diperbarui']);
+    } catch (\PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['message' => 'Database error: ' . $e->getMessage()]);
+    }
+    exit();
+}
+
+// --- CHANGE PASSWORD ---
+if ($uri === '/api/profile/password' && $method === 'PUT') {
+    $data = json_decode(file_get_contents('php://input'), true);
+    $user_id      = $data['user_id'] ?? null;
+    $old_password = $data['old_password'] ?? null;
+    $new_password = $data['new_password'] ?? null;
+
+    if (!$user_id || !$old_password || !$new_password) {
+        http_response_code(400);
+        echo json_encode(['message' => 'Semua field wajib diisi']);
+        exit();
+    }
+
+    $host = 'localhost';
+    $db   = 'aypsis';
+    $isLocal = ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NAME'] === '127.0.0.1');
+    $user = $isLocal ? 'root' : 'aypsis_web';
+    $pass = $isLocal ? '' : 'WebPass2025#!';
+    $charset = 'utf8mb4';
+    $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+    $options = [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES   => false,
+    ];
+
+    try {
+        $pdo = new PDO($dsn, $user, $pass, $options);
+        $stmt = $pdo->prepare("SELECT password FROM users WHERE id = ?");
+        $stmt->execute([$user_id]);
+        $userData = $stmt->fetch();
+
+        if (!$userData) {
+            http_response_code(404);
+            echo json_encode(['message' => 'User tidak ditemukan']);
+            exit();
+        }
+
+        // Verify old password (supports bcrypt, md5, and plain)
+        $isValid = false;
+        if (password_verify($old_password, $userData['password'])) {
+            $isValid = true;
+        } elseif (md5($old_password) === $userData['password']) {
+            $isValid = true;
+        } elseif ($old_password === $userData['password']) {
+            $isValid = true;
+        }
+
+        if (!$isValid) {
+            http_response_code(401);
+            echo json_encode(['message' => 'Password lama tidak sesuai']);
+            exit();
+        }
+
+        $hashed = password_hash($new_password, PASSWORD_BCRYPT);
+        $stmt = $pdo->prepare("UPDATE users SET password = ? WHERE id = ?");
+        $stmt->execute([$hashed, $user_id]);
+
+        http_response_code(200);
+        echo json_encode(['message' => 'Password berhasil diperbarui']);
+    } catch (\PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['message' => 'Database error: ' . $e->getMessage()]);
+    }
+    exit();
+}
+
 
 
 if ($uri === '/api/izin' && $method === 'POST') {
+
     $karyawan_id = !empty($_POST['karyawan_id']) ? $_POST['karyawan_id'] : null;
     $nik = !empty($_POST['nik']) ? $_POST['nik'] : '-';
     $nama = !empty($_POST['nama']) ? $_POST['nama'] : 'Tanpa Nama';

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
-import { User, Mail, Briefcase, Phone, MapPin, Key, ChevronRight, Loader2, Camera, X } from 'lucide-react'
+import { User, Mail, Briefcase, Phone, MapPin, Key, ChevronRight, Loader2, Camera, X, Save, Eye, EyeOff } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useLangStore } from '../../store/lang.store'
 import { translations } from '../../utils/translations'
@@ -16,62 +16,129 @@ interface KaryawanData {
   avatar_url?: string
 }
 
+type ModalType = 'editProfile' | 'changePassword' | null
+
 export default function Profile() {
   const { user } = useAuthStore()
   const [profileData, setProfileData] = useState<KaryawanData | null>(null)
   const [loading, setLoading] = useState(true)
   const [uploading, setUploading] = useState(false)
   const [isViewerOpen, setIsViewerOpen] = useState(false)
+  const [activeModal, setActiveModal] = useState<ModalType>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Edit profile form state
+  const [editForm, setEditForm] = useState({ nama_lengkap: '', email: '', no_hp: '' })
+  const [savingProfile, setSavingProfile] = useState(false)
+
+  // Change password form state
+  const [pwForm, setPwForm] = useState({ old_password: '', new_password: '', confirm_password: '' })
+  const [showPw, setShowPw] = useState({ old: false, new: false, confirm: false })
+  const [savingPw, setSavingPw] = useState(false)
 
   const { lang } = useLangStore()
   const t = translations[lang]
   const { showToast } = useToast()
 
-  useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user?.id) return
-      
-      try {
-        const response = await fetch(`/api/profile?user_id=${user.id}`)
-        if (response.ok) {
-          const result = await response.json()
-          setProfileData(result.data)
-        }
-      } catch (error) {
-        console.error("Failed to fetch profile", error)
-      } finally {
-        setLoading(false)
+  const fetchProfile = async () => {
+    if (!user?.id) return
+    try {
+      const response = await fetch(`/api/profile?user_id=${user.id}`)
+      if (response.ok) {
+        const result = await response.json()
+        setProfileData(result.data)
       }
+    } catch (error) {
+      console.error("Failed to fetch profile", error)
+    } finally {
+      setLoading(false)
     }
+  }
 
-    fetchProfile()
-  }, [user])
+  useEffect(() => { fetchProfile() }, [user])
+
+  const openEditProfile = () => {
+    setEditForm({
+      nama_lengkap: profileData?.nama_lengkap || '',
+      email: profileData?.email || '',
+      no_hp: profileData?.no_hp || '',
+    })
+    setActiveModal('editProfile')
+  }
+
+  const handleSaveProfile = async () => {
+    if (!user?.id) return
+    setSavingProfile(true)
+    try {
+      const res = await fetch('/api/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id, ...editForm }),
+      })
+      const result = await res.json()
+      if (res.ok) {
+        showToast('Profil berhasil diperbarui!', 'success')
+        setActiveModal(null)
+        fetchProfile()
+      } else {
+        showToast(result.message || 'Gagal memperbarui profil', 'error')
+      }
+    } catch {
+      showToast('Terjadi kesalahan sistem', 'error')
+    } finally {
+      setSavingProfile(false)
+    }
+  }
+
+  const handleSavePassword = async () => {
+    if (!user?.id) return
+    if (pwForm.new_password !== pwForm.confirm_password) {
+      showToast('Konfirmasi password tidak cocok', 'error')
+      return
+    }
+    if (pwForm.new_password.length < 6) {
+      showToast('Password baru minimal 6 karakter', 'error')
+      return
+    }
+    setSavingPw(true)
+    try {
+      const res = await fetch('/api/profile/password', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id, old_password: pwForm.old_password, new_password: pwForm.new_password }),
+      })
+      const result = await res.json()
+      if (res.ok) {
+        showToast('Password berhasil diperbarui!', 'success')
+        setActiveModal(null)
+        setPwForm({ old_password: '', new_password: '', confirm_password: '' })
+      } else {
+        showToast(result.message || 'Gagal memperbarui password', 'error')
+      }
+    } catch {
+      showToast('Terjadi kesalahan sistem', 'error')
+    } finally {
+      setSavingPw(false)
+    }
+  }
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !user?.id) return
-
     setUploading(true)
     const formData = new FormData()
     formData.append('avatar', file)
     formData.append('user_id', user.id.toString())
-
     try {
-      const response = await fetch('/api/profile/upload', {
-        method: 'POST',
-        body: formData,
-      })
-      
+      const response = await fetch('/api/profile/upload', { method: 'POST', body: formData })
       if (response.ok) {
         const result = await response.json()
         setProfileData(prev => prev ? { ...prev, avatar_url: result.avatar_url } : null)
       } else {
-        showToast(t.failUpload || 'Gagal mengupload foto', 'error')
+        showToast('Gagal mengupload foto', 'error')
       }
-    } catch (error) {
-      console.error("Upload error:", error)
-      showToast(t.errorUpload || 'Terjadi kesalahan sistem', 'error')
+    } catch {
+      showToast('Terjadi kesalahan sistem', 'error')
     } finally {
       setUploading(false)
     }
@@ -79,18 +146,14 @@ export default function Profile() {
 
   const triggerUpload = (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (fileInputRef.current && !uploading) {
-      fileInputRef.current.click()
-    }
+    if (fileInputRef.current && !uploading) fileInputRef.current.click()
   }
 
   const handleAvatarClick = () => {
     if (profileData?.avatar_url) {
       setIsViewerOpen(true)
     } else {
-      if (fileInputRef.current && !uploading) {
-        fileInputRef.current.click()
-      }
+      if (fileInputRef.current && !uploading) fileInputRef.current.click()
     }
   }
 
@@ -106,6 +169,17 @@ export default function Profile() {
   const initials = name.substring(0, 2).toUpperCase()
   const role = profileData ? `${profileData.pekerjaan || 'Staf'} - ${profileData.divisi || 'Umum'}` : t.staffGeneral
 
+  const inputStyle: React.CSSProperties = {
+    width: '100%', padding: '11px 14px', borderRadius: '10px', border: '1px solid var(--glass-border)',
+    background: 'var(--glass-bg)', color: 'var(--text-primary)', fontSize: '0.9rem',
+    outline: 'none', boxSizing: 'border-box', transition: 'border-color 0.2s',
+  }
+
+  const labelStyle: React.CSSProperties = {
+    display: 'block', fontSize: '0.78rem', fontWeight: 600,
+    color: 'var(--text-secondary)', marginBottom: '6px', letterSpacing: '0.3px',
+  }
+
   return (
     <div className="profile-page fade-in">
       {/* Photo Viewer Modal */}
@@ -115,6 +189,91 @@ export default function Profile() {
             <X size={28} />
           </button>
           <img src={profileData.avatar_url} alt="Profile Full" className="viewer-image" onClick={(e) => e.stopPropagation()} />
+        </div>
+      )}
+
+      {/* Edit Profile Modal */}
+      {activeModal === 'editProfile' && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ background: 'var(--panel-bg)', border: '1px solid var(--glass-border)', borderRadius: '20px', padding: '28px 24px', width: '100%', maxWidth: '400px', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }} className="fade-in">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Edit Profil</h3>
+              <button onClick={() => setActiveModal(null)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px' }}>
+                <X size={22} />
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div>
+                <label style={labelStyle}>Nama Lengkap</label>
+                <input style={inputStyle} value={editForm.nama_lengkap} onChange={e => setEditForm(p => ({ ...p, nama_lengkap: e.target.value }))} placeholder="Masukkan nama lengkap" />
+              </div>
+              <div>
+                <label style={labelStyle}>Email</label>
+                <input style={inputStyle} type="email" value={editForm.email} onChange={e => setEditForm(p => ({ ...p, email: e.target.value }))} placeholder="Masukkan email" />
+              </div>
+              <div>
+                <label style={labelStyle}>No. HP / WhatsApp</label>
+                <input style={inputStyle} type="tel" value={editForm.no_hp} onChange={e => setEditForm(p => ({ ...p, no_hp: e.target.value }))} placeholder="Masukkan nomor HP" />
+              </div>
+              <button
+                onClick={handleSaveProfile}
+                disabled={savingProfile}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '13px', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 700, fontSize: '0.95rem', cursor: savingProfile ? 'not-allowed' : 'pointer', opacity: savingProfile ? 0.7 : 1, marginTop: '4px' }}
+              >
+                {savingProfile ? <Loader2 size={18} className="animate-spin" /> : <Save size={18} />}
+                {savingProfile ? 'Menyimpan...' : 'Simpan Perubahan'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Change Password Modal */}
+      {activeModal === 'changePassword' && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ background: 'var(--panel-bg)', border: '1px solid var(--glass-border)', borderRadius: '20px', padding: '28px 24px', width: '100%', maxWidth: '400px', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }} className="fade-in">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Ganti Password</h3>
+              <button onClick={() => { setActiveModal(null); setPwForm({ old_password: '', new_password: '', confirm_password: '' }) }} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px' }}>
+                <X size={22} />
+              </button>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {(['old', 'new', 'confirm'] as const).map((field) => {
+                const labels = { old: 'Password Lama', new: 'Password Baru', confirm: 'Konfirmasi Password Baru' }
+                const keys = { old: 'old_password', new: 'new_password', confirm: 'confirm_password' } as const
+                return (
+                  <div key={field}>
+                    <label style={labelStyle}>{labels[field]}</label>
+                    <div style={{ position: 'relative' }}>
+                      <input
+                        style={{ ...inputStyle, paddingRight: '44px' }}
+                        type={showPw[field] ? 'text' : 'password'}
+                        value={pwForm[keys[field]]}
+                        onChange={e => setPwForm(p => ({ ...p, [keys[field]]: e.target.value }))}
+                        placeholder={`Masukkan ${labels[field].toLowerCase()}`}
+                      />
+                      <button
+                        type="button"
+                        onClick={() => setShowPw(p => ({ ...p, [field]: !p[field] }))}
+                        style={{ position: 'absolute', right: '12px', top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '2px' }}
+                      >
+                        {showPw[field] ? <EyeOff size={17} /> : <Eye size={17} />}
+                      </button>
+                    </div>
+                  </div>
+                )
+              })}
+              <button
+                onClick={handleSavePassword}
+                disabled={savingPw}
+                style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '8px', padding: '13px', background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 700, fontSize: '0.95rem', cursor: savingPw ? 'not-allowed' : 'pointer', opacity: savingPw ? 0.7 : 1, marginTop: '4px' }}
+              >
+                {savingPw ? <Loader2 size={18} className="animate-spin" /> : <Key size={18} />}
+                {savingPw ? 'Menyimpan...' : 'Perbarui Password'}
+              </button>
+            </div>
+          </div>
         </div>
       )}
 
@@ -155,9 +314,7 @@ export default function Profile() {
         
         <div className="info-list">
           <div className="info-item">
-            <div className="info-icon">
-              <Briefcase size={20} />
-            </div>
+            <div className="info-icon"><Briefcase size={20} /></div>
             <div className="info-content">
               <span className="info-label">{t.employeeId}</span>
               <span className="info-value">{profileData?.nik || '-'}</span>
@@ -165,9 +322,7 @@ export default function Profile() {
           </div>
           
           <div className="info-item">
-            <div className="info-icon">
-              <Mail size={20} />
-            </div>
+            <div className="info-icon"><Mail size={20} /></div>
             <div className="info-content">
               <span className="info-label">{t.email}</span>
               <span className="info-value">{profileData?.email || '-'}</span>
@@ -175,9 +330,7 @@ export default function Profile() {
           </div>
           
           <div className="info-item">
-            <div className="info-icon">
-              <Phone size={20} />
-            </div>
+            <div className="info-icon"><Phone size={20} /></div>
             <div className="info-content">
               <span className="info-label">{t.phone}</span>
               <span className="info-value">{profileData?.no_hp || '-'}</span>
@@ -185,9 +338,7 @@ export default function Profile() {
           </div>
 
           <div className="info-item">
-            <div className="info-icon">
-              <MapPin size={20} />
-            </div>
+            <div className="info-icon"><MapPin size={20} /></div>
             <div className="info-content">
               <span className="info-label">{t.branchAddress}</span>
               <span className="info-value">{profileData?.cabang || '-'}</span>
@@ -199,14 +350,14 @@ export default function Profile() {
       <div className="profile-section glass-panel">
         <h3 className="section-title">{t.accountSettings}</h3>
         <div className="settings-list">
-          <button className="setting-btn">
+          <button className="setting-btn" onClick={openEditProfile}>
             <div className="setting-btn-left">
               <User size={20} />
               <span>{t.editProfile}</span>
             </div>
             <ChevronRight size={20} />
           </button>
-          <button className="setting-btn">
+          <button className="setting-btn" onClick={() => setActiveModal('changePassword')}>
             <div className="setting-btn-left">
               <Key size={20} />
               <span>{t.changePassword}</span>

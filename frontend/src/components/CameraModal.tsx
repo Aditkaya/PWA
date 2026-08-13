@@ -199,7 +199,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       }
     };
 
-    detectLiveness();
+    timeoutId = setTimeout(detectLiveness, 1000);
 
     return () => {
       isCancelled = true;

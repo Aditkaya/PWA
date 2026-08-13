@@ -95,31 +95,46 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     let watchId: number;
 
     if (navigator.geolocation) {
-      watchId = navigator.geolocation.watchPosition(
-        async (position) => {
-          const lat = position.coords.latitude;
-          const lng = position.coords.longitude;
-          setLocationCoords({ lat, lng });
+      const handleSuccess = (position: GeolocationPosition) => {
+        const lat = position.coords.latitude;
+        const lng = position.coords.longitude;
+        setLocationCoords({ lat, lng });
 
-          // Reverse Geocoding (Only run once or if address is still default to prevent API spam)
-          setAddress((prevAddress) => {
-            if (prevAddress === t.findingLocation || prevAddress === t.gpsFailed) {
-              fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
-                .then(res => res.json())
-                .then(data => {
-                  if (data && data.display_name) {
-                    setAddress(data.display_name);
-                  }
-                })
-                .catch(err => console.error("Geocoding error", err));
-              return t.translatingAddress;
-            }
-            return prevAddress;
-          });
-        },
+        // Reverse Geocoding (Only run once or if address is still default to prevent API spam)
+        setAddress((prevAddress) => {
+          if (prevAddress === t.findingLocation || prevAddress === t.gpsFailed) {
+            fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+              .then(res => res.json())
+              .then(data => {
+                if (data && data.display_name) {
+                  setAddress(data.display_name);
+                }
+              })
+              .catch(err => console.error("Geocoding error", err));
+            return t.translatingAddress;
+          }
+          return prevAddress;
+        });
+      };
+
+      watchId = navigator.geolocation.watchPosition(
+        handleSuccess,
         (error) => {
-          console.error("Geolocation error", error);
-          setAddress(t.gpsFailed);
+          console.warn("High accuracy geolocation failed. Retrying with low accuracy...", error);
+          if (error.code === 2 || error.code === 3) {
+            // POSITION_UNAVAILABLE (2) or TIMEOUT (3)
+            navigator.geolocation.clearWatch(watchId);
+            watchId = navigator.geolocation.watchPosition(
+              handleSuccess,
+              (fallbackError) => {
+                console.error("Fallback geolocation error", fallbackError);
+                setAddress(t.gpsFailed);
+              },
+              { enableHighAccuracy: false, timeout: 30000, maximumAge: 10000 }
+            );
+          } else {
+            setAddress(t.gpsFailed);
+          }
         },
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
       );

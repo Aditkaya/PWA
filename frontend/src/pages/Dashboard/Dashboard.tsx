@@ -25,6 +25,7 @@ export default function Dashboard() {
   const [time, setTime] = useState(new Date())
   const { user } = useAuthStore()
   const [historyData, setHistoryData] = useState<HistoryItem[]>([])
+  const [permohonanData, setPermohonanData] = useState<any[]>([])
   const [userGroup, setUserGroup] = useState<string>('')
   const [userProfile, setUserProfile] = useState<any>(null)
   
@@ -83,6 +84,13 @@ export default function Dashboard() {
         setHistoryData(histData.data)
       }
       
+      // Fetch Permohonan
+      const permRes = await fetch(`/api/permohonan?user_id=${user.id}`)
+      if (permRes.ok) {
+        const permData = await permRes.json()
+        setPermohonanData(permData.data)
+      }
+
       // Fetch Profile
       const profRes = await fetch(`/api/profile?user_id=${user.id}`)
       if (profRes.ok) {
@@ -121,7 +129,15 @@ export default function Dashboard() {
   const permitOuts = historyData.filter(h => isTodayRecord(h) && h.type.toLowerCase().includes('izin keluar'))
   const permitIns = historyData.filter(h => isTodayRecord(h) && h.type.toLowerCase().includes('izin masuk'))
   
-  const todayOvertimeIn = historyData.find(h => isTodayRecord(h) && h.type.toLowerCase().includes('mulai lembur'))
+  const todayOvertimeInHistory = historyData.find(h => isTodayRecord(h) && h.type.toLowerCase().includes('mulai lembur'))
+  const todayLemburRequest = permohonanData.find(p => p.tipe === 'Lembur' && p.tanggal_mulai === todayString)
+  const isLemburPending = todayLemburRequest && todayLemburRequest.status.toLowerCase() === 'pending'
+  const isLemburApproved = todayLemburRequest && (todayLemburRequest.status.toLowerCase() === 'disetujui' || todayLemburRequest.status.toLowerCase() === 'approved')
+  
+  // Combine history and permohonan data for Mulai Lembur
+  const todayOvertimeIn = todayOvertimeInHistory || (todayLemburRequest && (isLemburPending || isLemburApproved) ? { time: new Date(todayLemburRequest.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(/\./g, ':') } : null)
+  const isOvertimeInApproved = !!todayOvertimeInHistory || isLemburApproved
+
   const todayOvertimeOut = historyData.find(h => isTodayRecord(h) && h.type.toLowerCase().includes('selesai lembur'))
 
   const isCurrentlyOnPermit = permitOuts.length > permitIns.length
@@ -266,11 +282,15 @@ export default function Dashboard() {
               onClick={() => handleAttendanceClick('Mulai Lembur')}
             >
               <Clock size={24} strokeWidth={1.25} />
-              <span>{todayOvertimeIn ? `${t.startOvertime}: ${todayOvertimeIn.time}` : t.startOvertime}</span>
+              <span>
+                {todayOvertimeIn 
+                  ? (isLemburPending ? `Menunggu Approval` : `${t.startOvertime}: ${todayOvertimeIn.time}`) 
+                  : t.startOvertime}
+              </span>
             </button>
             <button 
               className="btn-attendance overtime-out" 
-              disabled={hasFullDayLeave || !todayOvertimeIn || !!todayOvertimeOut}
+              disabled={hasFullDayLeave || !isOvertimeInApproved || !!todayOvertimeOut}
               onClick={() => handleAttendanceClick('Selesai Lembur')}
             >
               <Clock size={24} strokeWidth={1.25} />

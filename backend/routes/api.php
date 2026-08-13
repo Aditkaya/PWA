@@ -94,7 +94,7 @@ if ($uri === '/api/profile' && $method === 'GET') {
             // Setup avatar url
             $avatar_path = "/uploads/avatars/avatar_{$user_id}.jpg";
             if (file_exists(__DIR__ . '/..' . $avatar_path)) {
-                $profile['avatar_url'] = 'http://localhost:8000' . $avatar_path . '?v=' . time();
+                $profile['avatar_url'] = $avatar_path . '?v=' . time();
             } else {
                 $profile['avatar_url'] = null;
             }
@@ -158,7 +158,7 @@ if ($uri === '/api/profile/upload' && $method === 'POST') {
         http_response_code(200);
         echo json_encode([
             'message' => 'Berhasil mengunggah foto',
-            'avatar_url' => 'http://localhost:8000/uploads/avatars/' . $filename . '?v=' . time()
+            'avatar_url' => '/uploads/avatars/' . $filename . '?v=' . time()
         ]);
     } else {
         http_response_code(500);

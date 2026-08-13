@@ -60,7 +60,7 @@ export default function Login() {
         
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label htmlFor="username">namename</label>
+            <label htmlFor="username">Username</label>
             <input 
               type="text" 
               id="username"

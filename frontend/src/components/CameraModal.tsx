@@ -550,7 +550,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
               <div style={{ marginTop: '6px', borderRadius: '4px', overflow: 'hidden' }}>
                 <iframe
                   width="100%"
-                  height="80"
+                  height="50"
                   style={{ border: 0 }}
                   loading="lazy"
                   allowFullScreen

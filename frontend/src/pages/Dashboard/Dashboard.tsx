@@ -136,7 +136,7 @@ export default function Dashboard() {
   
   // Combine history and permohonan data for Mulai Lembur
   const todayOvertimeIn = todayOvertimeInHistory || (todayLemburRequest && (isLemburPending || isLemburApproved) ? { time: new Date(todayLemburRequest.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(/\./g, ':') } : null)
-  const isOvertimeInApproved = !!todayOvertimeInHistory || isLemburApproved
+  const isOvertimeStarted = !!todayOvertimeIn;
 
   const todayOvertimeOut = historyData.find(h => isTodayRecord(h) && (h.type.toLowerCase().includes('selesai lembur') || h.type.toLowerCase() === 'lembur_pulang' || h.type.toLowerCase() === 'pulang lembur'))
 
@@ -290,7 +290,7 @@ export default function Dashboard() {
             </button>
             <button 
               className="btn-attendance overtime-out" 
-              disabled={hasFullDayLeave || !isOvertimeInApproved || !!todayOvertimeOut}
+              disabled={hasFullDayLeave || !isOvertimeStarted || !!todayOvertimeOut}
               onClick={() => handleAttendanceClick('Selesai Lembur')}
             >
               <Clock size={24} strokeWidth={1.25} />

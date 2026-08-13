@@ -129,7 +129,7 @@ export default function Dashboard() {
   const permitOuts = historyData.filter(h => isTodayRecord(h) && h.type.toLowerCase().includes('izin keluar'))
   const permitIns = historyData.filter(h => isTodayRecord(h) && h.type.toLowerCase().includes('izin masuk'))
   
-  const todayOvertimeInHistory = historyData.find(h => isTodayRecord(h) && h.type.toLowerCase().includes('mulai lembur'))
+  const todayOvertimeInHistory = historyData.find(h => isTodayRecord(h) && (h.type.toLowerCase().includes('mulai lembur') || h.type.toLowerCase() === 'lembur'))
   const todayLemburRequest = permohonanData.find(p => p.tipe === 'Lembur' && p.tanggal_mulai === todayString)
   const isLemburPending = todayLemburRequest && todayLemburRequest.status.toLowerCase() === 'pending'
   const isLemburApproved = todayLemburRequest && (todayLemburRequest.status.toLowerCase() === 'disetujui' || todayLemburRequest.status.toLowerCase() === 'approved')
@@ -138,7 +138,7 @@ export default function Dashboard() {
   const todayOvertimeIn = todayOvertimeInHistory || (todayLemburRequest && (isLemburPending || isLemburApproved) ? { time: new Date(todayLemburRequest.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(/\./g, ':') } : null)
   const isOvertimeInApproved = !!todayOvertimeInHistory || isLemburApproved
 
-  const todayOvertimeOut = historyData.find(h => isTodayRecord(h) && h.type.toLowerCase().includes('selesai lembur'))
+  const todayOvertimeOut = historyData.find(h => isTodayRecord(h) && (h.type.toLowerCase().includes('selesai lembur') || h.type.toLowerCase() === 'lembur_pulang' || h.type.toLowerCase() === 'pulang lembur'))
 
   const isCurrentlyOnPermit = permitOuts.length > permitIns.length
   const lastPermitOut = isCurrentlyOnPermit ? permitOuts[0] : null

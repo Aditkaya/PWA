@@ -11,8 +11,9 @@ class LoginController {
     public function __construct() {
         $host = 'localhost';
         $db   = 'aypsis';
-        $user = 'aypsis_web';
-        $pass = 'WebPass2025#!';
+        $isLocal = ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NAME'] === '127.0.0.1');
+        $user = $isLocal ? 'root' : 'aypsis_web';
+        $pass = $isLocal ? '' : 'WebPass2025#!';
         $charset = 'utf8mb4';
 
         $dsn = "mysql:host=$host;dbname=$db;charset=$charset";

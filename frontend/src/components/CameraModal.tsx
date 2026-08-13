@@ -26,7 +26,7 @@ function getDistanceFromLatLonInM(lat1: number, lon1: number, lat2: number, lon2
   return Math.round(R * c * 1000); // Distance in meters
 }
 
-export default function CameraModal({ isOpen, onClose, onCapture, attendanceType }: CameraModalProps) {
+export default function CameraModal({ isOpen, onClose, onCapture, attendanceType: _attendanceType }: CameraModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const [isModelsLoaded, setIsModelsLoaded] = useState(false);

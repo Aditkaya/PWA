@@ -290,37 +290,6 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
     ctx.restore();
 
-    let mapImage: HTMLImageElement | null = null;
-    let mapOffsetX = 0;
-    let mapOffsetY = 0;
-
-    if (locationCoords) {
-      const zoom = 15;
-      const n = Math.pow(2, zoom);
-      const latRad = locationCoords.lat * Math.PI / 180;
-      const x = (locationCoords.lng + 180) / 360 * n;
-      const y = (1 - Math.log(Math.tan(latRad) + 1 / Math.cos(latRad)) / Math.PI) / 2 * n;
-
-      const tileX = Math.floor(x);
-      const tileY = Math.floor(y);
-
-      mapOffsetX = (x - tileX) * 256;
-      mapOffsetY = (y - tileY) * 256;
-
-      const tileUrl = `https://tile.openstreetmap.org/${zoom}/${tileX}/${tileY}.png`;
-
-      try {
-        mapImage = await new Promise((resolve, reject) => {
-          const img = new Image();
-          img.crossOrigin = 'anonymous';
-          img.onload = () => resolve(img);
-          img.onerror = () => reject(new Error('Failed to load map'));
-          img.src = tileUrl;
-        });
-      } catch (err) {
-        console.warn("Could not load map tile for watermark", err);
-      }
-    }
 
     // Draw Watermark Background
     const s = Math.max(canvas.width, canvas.height) / 1200; // scaling factor

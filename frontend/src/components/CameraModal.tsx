@@ -61,8 +61,10 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       setStatusMsg('');
       setIsProcessing(false);
       setIsCameraReady(false); // Add this reset
+      setLocationCoords(null);
+      setAddress(t.findingLocation);
     }
-  }, [isOpen, t.pleaseSmile]);
+  }, [isOpen, t.pleaseSmile, t.findingLocation]);
 
   // Fetch Allowed Locations once & preload logo
   useEffect(() => {

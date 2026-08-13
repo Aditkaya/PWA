@@ -408,8 +408,7 @@ if ($uri === '/api/history' && $method === 'GET') {
         $stmt = $pdo->prepare("
         SELECT a.id, DATE(a.waktu) as date, a.tipe as type, TIME_FORMAT(a.waktu, '%H:%i') as time, IFNULL(a.status, 'Selesai') as status, a.foto, a.detail_lokasi as location, a.latitude as lat, a.longitude as lng, a.keterangan
         FROM absensis a
-        JOIN users u ON a.karyawan_id = u.karyawan_id
-        WHERE u.id = ?
+        WHERE a.nik = (SELECT k.nik FROM users u JOIN karyawans k ON u.karyawan_id = k.id WHERE u.id = ?)
         ORDER BY a.waktu DESC
         LIMIT 50
     ");
@@ -489,8 +488,8 @@ if ($uri === '/api/attendance/break' && $method === 'POST') {
         $nik = $userData['nik'] ?? '-'; // Fallback if missing
 
         // Insert into absensis
-        $stmt = $pdo->prepare("INSERT INTO absensis (karyawan_id, nik, waktu, tipe, status, foto, latitude, longitude, detail_lokasi, keterangan) VALUES (?, ?, NOW(), ?, 'Selesai', ?, ?, ?, ?, ?)");
-        $stmt->execute([$karyawan_id, $nik, $tipe, $db_photo_path, $latitude, $longitude, $detail_lokasi, $keterangan]);
+        $stmt = $pdo->prepare("INSERT INTO absensis (nik, waktu, tipe, status, foto, latitude, longitude, detail_lokasi, keterangan) VALUES (?, NOW(), ?, 'Selesai', ?, ?, ?, ?, ?)");
+        $stmt->execute([$nik, $tipe, $db_photo_path, $latitude, $longitude, $detail_lokasi, $keterangan]);
 
         http_response_code(200);
         echo json_encode(['message' => 'Absensi berhasil']);
@@ -651,6 +650,23 @@ if ($uri === '/api/health' && $method === 'GET') {
     } catch (\PDOException $e) {
         http_response_code(500);
         echo json_encode(['status' => 'error', 'message' => 'Database connection failed: ' . $e->getMessage()]);
+    }
+    exit();
+}
+
+if ($uri === '/api/test-db' && $method === 'GET') {
+    $host = 'localhost';
+    $db   = 'aypsis';
+    $user = 'aypsis_web';
+    $pass = 'WebPass2025#!';
+    $charset = 'utf8mb4';
+    $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
+    try {
+        $pdo = new PDO($dsn, $user, $pass, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION, PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC]);
+        $stmt = $pdo->query("SELECT * FROM absensis ORDER BY id DESC LIMIT 5");
+        echo json_encode(['data' => $stmt->fetchAll()]);
+    } catch (\PDOException $e) {
+        echo json_encode(['error' => $e->getMessage()]);
     }
     exit();
 }

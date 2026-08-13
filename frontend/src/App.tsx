@@ -6,10 +6,12 @@ import Profile from './pages/Profile/Profile'
 import Login from './pages/Login/Login'
 import PrivateRoute from './routes/PrivateRoute'
 import { ToastProvider } from './contexts/ToastContext'
+import UpdateNotification from './components/UpdateNotification'
 
 function App() {
   return (
     <ToastProvider>
+      <UpdateNotification />
       <BrowserRouter>
       <Routes>
         <Route path="/login" element={<Login />} />
@@ -30,3 +32,4 @@ function App() {
   )
 }
 export default App
+

@@ -86,7 +86,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     return () => clearInterval(timer);
   }, [isOpen]);
 
-  // Watch Location Real-time
+  // Watch Location Real-time (only sets coords + geocoding, NO radius check here)
   useEffect(() => {
     if (!isOpen) return;
 
@@ -98,26 +98,6 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
           const lat = position.coords.latitude;
           const lng = position.coords.longitude;
           setLocationCoords({ lat, lng });
-
-          // Calculate radius real-time
-          if (allowedLocations.length > 0) {
-            let minDistance = Infinity;
-            for (const loc of allowedLocations) {
-              const dist = getDistanceFromLatLonInM(lat, lng, parseFloat(loc.latitude), parseFloat(loc.longitude));
-              if (dist < minDistance) minDistance = dist;
-              if (dist <= parseFloat(loc.radius)) {
-                minDistance = -1; // Valid location found
-                break;
-              }
-            }
-            if (minDistance > 0 && minDistance !== Infinity) {
-              setOutOfRangeMessage(`${t.outOfRange}: ${minDistance}m`);
-            } else {
-              setOutOfRangeMessage('');
-            }
-          } else {
-            setOutOfRangeMessage('');
-          }
 
           // Reverse Geocoding (Only run once or if address is still default to prevent API spam)
           setAddress((prevAddress) => {
@@ -148,7 +128,28 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     return () => {
       if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
     };
-  }, [isOpen, allowedLocations, attendanceType]);
+  }, [isOpen]);
+
+  // Calculate radius separately — runs whenever coords OR allowedLocations change
+  useEffect(() => {
+    if (!locationCoords || allowedLocations.length === 0) return;
+
+    const { lat, lng } = locationCoords;
+    let minDistance = Infinity;
+    for (const loc of allowedLocations) {
+      const dist = getDistanceFromLatLonInM(lat, lng, parseFloat(loc.latitude), parseFloat(loc.longitude));
+      if (dist < minDistance) minDistance = dist;
+      if (dist <= parseFloat(loc.radius)) {
+        minDistance = -1; // Valid location found
+        break;
+      }
+    }
+    if (minDistance > 0 && minDistance !== Infinity) {
+      setOutOfRangeMessage(`${t.outOfRange}: ${minDistance}m`);
+    } else {
+      setOutOfRangeMessage('');
+    }
+  }, [locationCoords, allowedLocations]);
 
   // Set initial liveness message when camera is ready
   useEffect(() => {

@@ -169,14 +169,16 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
 
   // Set initial liveness message when camera is ready
   useEffect(() => {
-    if (isCameraReady && !isLivenessPassed) {
+    if (isCameraReady && isModelsLoaded && !isLivenessPassed) {
       setLivenessMsg(t.pleaseSmile);
+    } else if (isCameraReady && !isModelsLoaded) {
+      setLivenessMsg("Menyiapkan AI (Mohon tunggu)...");
     }
-  }, [isCameraReady, t.pleaseSmile, isLivenessPassed]);
+  }, [isCameraReady, isModelsLoaded, t.pleaseSmile, isLivenessPassed]);
 
   // Liveness Detection Loop
   useEffect(() => {
-    if (!isCameraReady || !videoRef.current || isLivenessPassed || isProcessing) return;
+    if (!isCameraReady || !isModelsLoaded || !videoRef.current || isLivenessPassed || isProcessing) return;
 
     let timeoutId: number | NodeJS.Timeout;
     let isCancelled = false;
@@ -246,14 +248,14 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
 
   // Start Camera
   useEffect(() => {
-    if (isOpen && isModelsLoaded && !errorMsg) {
+    if (isOpen && !errorMsg) {
       startCamera();
     }
 
     return () => {
       stopCamera();
     };
-  }, [isOpen, isModelsLoaded, errorMsg]);
+  }, [isOpen, errorMsg]);
 
   const startCamera = async () => {
     try {

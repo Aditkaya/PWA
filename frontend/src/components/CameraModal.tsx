@@ -326,7 +326,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     const s = Math.max(canvas.width, canvas.height) / 1200; // scaling factor
     const padding = 15 * s;
     const boxWidth = Math.min(320 * s, canvas.width - (padding * 2));
-    let boxHeight = mapImage ? 175 * s : 105 * s; 
+    let boxHeight = 105 * s;
     if (outOfRangeMessage) {
       boxHeight += 15 * s;
     }
@@ -385,49 +385,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     ctx.font = `bold ${9.5 * s}px sans-serif`;
     ctx.fillText('© AYPSIS Attendance', padding + (12 * s), currentY);
 
-    if (mapImage) {
-      const mapW = boxWidth - (24 * s);
-      const mapH = 60 * s;
-      const mapStartY = currentY + (4 * s);
-      
-      const aspect = mapW / mapH;
-      let sWidth = 150; 
-      let sHeight = sWidth / aspect;
-
-      if (sHeight > 256) {
-         sHeight = 256;
-         sWidth = sHeight * aspect;
-      }
-      if (sWidth > 256) {
-         sWidth = 256;
-         sHeight = sWidth / aspect;
-      }
-
-      let sx = mapOffsetX - sWidth / 2;
-      let sy = mapOffsetY - sHeight / 2;
-
-      sx = Math.max(0, Math.min(256 - sWidth, sx));
-      sy = Math.max(0, Math.min(256 - sHeight, sy));
-
-      // Draw Map
-      ctx.drawImage(mapImage, sx, sy, sWidth, sHeight, padding + (12 * s), mapStartY, mapW, mapH);
-
-      // Draw Red Dot at precise center
-      const relX = mapOffsetX - sx;
-      const relY = mapOffsetY - sy;
-      const destX = padding + (12 * s) + (relX / sWidth) * mapW;
-      const destY = mapStartY + (relY / sHeight) * mapH;
-      
-      ctx.fillStyle = '#ef4444'; // red-500
-      ctx.beginPath();
-      ctx.arc(destX, destY, 4 * s, 0, Math.PI * 2);
-      ctx.fill();
-      
-      ctx.lineWidth = 1.5 * s;
-      ctx.strokeStyle = 'white';
-      ctx.stroke();
-    }
-
+    // Map drawing removed
     const imageSrc = canvas.toDataURL('image/jpeg', 0.8);
 
     // Basic face detection
@@ -544,20 +502,6 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
               {currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':')}
             </p>
             <p className="brand-text">© AYPSIS Attendance</p>
-            
-            {/* Google Maps Embed */}
-            {locationCoords && (
-              <div style={{ marginTop: '6px', borderRadius: '4px', overflow: 'hidden' }}>
-                <iframe
-                  width="100%"
-                  height="50"
-                  style={{ border: 0 }}
-                  loading="lazy"
-                  allowFullScreen
-                  src={`https://maps.google.com/maps?q=${locationCoords.lat},${locationCoords.lng}&hl=id&z=15&output=embed`}
-                ></iframe>
-              </div>
-            )}
           </div>
 
           <div className="action-bar">

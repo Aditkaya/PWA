@@ -323,7 +323,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     }
 
     // Draw Watermark Background
-    const s = Math.max(canvas.width, canvas.height) / 800; // scaling factor
+    const s = Math.max(canvas.width, canvas.height) / 1200; // scaling factor
     const padding = 15 * s;
     const boxWidth = Math.min(320 * s, canvas.width - (padding * 2));
     let boxHeight = mapImage ? 175 * s : 105 * s; 

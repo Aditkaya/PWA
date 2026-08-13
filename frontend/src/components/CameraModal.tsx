@@ -438,10 +438,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
                 )}
               </div>
               
-              {/* DEBUG: Always visible — remove after testing */}
-              <div style={{ backgroundColor: '#ff00ff', color: 'white', padding: '10px 14px', borderRadius: '8px', fontSize: '0.85rem', fontWeight: 'bold', alignSelf: 'stretch' }}>
-                DEBUG v4 | Lokasi: {allowedLocations.length} | Coords: {locationCoords ? 'YES' : 'NO'} | Msg: [{outOfRangeMessage || 'KOSONG'}]
-              </div>
+
 
               {outOfRangeMessage && (
                 <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.8)', border: '1px solid #ef4444', color: 'white', padding: '10px 14px', borderRadius: '8px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', backdropFilter: 'blur(4px)', alignSelf: 'stretch' }}>

@@ -100,7 +100,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
           setLocationCoords({ lat, lng });
 
           // Calculate radius real-time
-          if (['Masuk', 'Pulang'].includes(attendanceType) && allowedLocations.length > 0) {
+          if (allowedLocations.length > 0) {
             let minDistance = Infinity;
             for (const loc of allowedLocations) {
               const dist = getDistanceFromLatLonInM(lat, lng, parseFloat(loc.latitude), parseFloat(loc.longitude));

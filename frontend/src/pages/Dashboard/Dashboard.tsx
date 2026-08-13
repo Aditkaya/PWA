@@ -282,7 +282,7 @@ export default function Dashboard() {
             <button 
               className="btn-attendance check-in" 
               disabled={hasFullDayLeave || !!todayCheckIn}
-              onClick={() => handleAttendanceClick('Check In')}
+              onClick={() => handleAttendanceClick('Masuk')}
             >
               <Clock size={24} strokeWidth={1.25} />
               <span>{todayCheckIn ? `${t.masuk}: ${todayCheckIn.time}` : t.checkIn}</span>

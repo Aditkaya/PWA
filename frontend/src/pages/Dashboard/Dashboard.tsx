@@ -317,7 +317,7 @@ export default function Dashboard() {
             </button>
             <button 
               className="btn-attendance break-out" 
-              disabled={hasFullDayLeave || !todayCheckIn || !!todayBreakOut}
+              disabled={hasFullDayLeave || !todayCheckIn || !!todayBreakOut || !!todayCheckOut}
               onClick={() => handleAttendanceClick('Istirahat Keluar')}
             >
               <Coffee size={24} strokeWidth={1.25} />
@@ -333,7 +333,7 @@ export default function Dashboard() {
             </button>
             <button 
               className="btn-attendance permit-out" 
-              disabled={hasFullDayLeave || !todayCheckIn || isCurrentlyOnPermit}
+              disabled={hasFullDayLeave || !todayCheckIn || isCurrentlyOnPermit || !!todayCheckOut}
               onClick={() => handleAttendanceClick('Izin Keluar')}
             >
               <LogOut size={24} strokeWidth={1.25} />

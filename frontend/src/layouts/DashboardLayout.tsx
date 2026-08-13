@@ -145,7 +145,7 @@ export default function DashboardLayout() {
                   onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                 >
                   <History size={18} />
-                  <span>{isOvertimeMode ? t.normalMode : t.overtimeMode}</span>
+                  <span>{isOvertimeMode ? t.overtimeMode : t.normalMode}</span>
                 </button>
                 <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '4px 0' }} />
                 <button 

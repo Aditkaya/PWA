@@ -67,8 +67,9 @@ if ($uri === '/api/profile' && $method === 'GET') {
     
     $host = 'localhost';
     $db   = 'aypsis';
-    $user = 'aypsis_web';
-    $pass = 'WebPass2025#!';
+    $isLocal = ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NAME'] === '127.0.0.1');
+    $user = $isLocal ? 'root' : 'aypsis_web';
+    $pass = $isLocal ? '' : 'WebPass2025#!';
     $charset = 'utf8mb4';
     $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
     $options = [
@@ -187,8 +188,9 @@ if ($uri === '/api/izin' && $method === 'POST') {
 
     $host = 'localhost';
     $db   = 'aypsis';
-    $user = 'aypsis_web';
-    $pass = 'WebPass2025#!';
+    $isLocal = ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NAME'] === '127.0.0.1');
+    $user = $isLocal ? 'root' : 'aypsis_web';
+    $pass = $isLocal ? '' : 'WebPass2025#!';
     $charset = 'utf8mb4';
     $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
     $options = [
@@ -241,8 +243,9 @@ if ($uri === '/api/izin' && $method === 'POST') {
 if ($uri === '/api/cuti' && $method === 'POST') {
     $host = 'localhost';
     $db   = 'aypsis';
-    $user = 'aypsis_web';
-    $pass = 'WebPass2025#!';
+    $isLocal = ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NAME'] === '127.0.0.1');
+    $user = $isLocal ? 'root' : 'aypsis_web';
+    $pass = $isLocal ? '' : 'WebPass2025#!';
     $charset = 'utf8mb4';
     $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
     $options = [
@@ -305,8 +308,9 @@ if ($uri === '/api/permohonan' && $method === 'GET') {
     
     $host = 'localhost';
     $db   = 'aypsis';
-    $user = 'aypsis_web';
-    $pass = 'WebPass2025#!';
+    $isLocal = ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NAME'] === '127.0.0.1');
+    $user = $isLocal ? 'root' : 'aypsis_web';
+    $pass = $isLocal ? '' : 'WebPass2025#!';
     $charset = 'utf8mb4';
     $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
     $options = [
@@ -360,8 +364,9 @@ if ($uri === '/api/permohonan' && $method === 'GET') {
 if ($uri === '/api/lokasi' && $method === 'GET') {
     $host = 'localhost';
     $db   = 'aypsis';
-    $user = 'aypsis_web';
-    $pass = 'WebPass2025#!';
+    $isLocal = ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NAME'] === '127.0.0.1');
+    $user = $isLocal ? 'root' : 'aypsis_web';
+    $pass = $isLocal ? '' : 'WebPass2025#!';
     $charset = 'utf8mb4';
     $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
     $options = [
@@ -393,8 +398,9 @@ if ($uri === '/api/history' && $method === 'GET') {
     
     $host = 'localhost';
     $db   = 'aypsis';
-    $user = 'aypsis_web';
-    $pass = 'WebPass2025#!';
+    $isLocal = ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NAME'] === '127.0.0.1');
+    $user = $isLocal ? 'root' : 'aypsis_web';
+    $pass = $isLocal ? '' : 'WebPass2025#!';
     $charset = 'utf8mb4';
     $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
     $options = [
@@ -442,8 +448,9 @@ if ($uri === '/api/attendance/break' && $method === 'POST') {
 
     $host = 'localhost';
     $db   = 'aypsis';
-    $user = 'aypsis_web';
-    $pass = 'WebPass2025#!';
+    $isLocal = ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NAME'] === '127.0.0.1');
+    $user = $isLocal ? 'root' : 'aypsis_web';
+    $pass = $isLocal ? '' : 'WebPass2025#!';
     $charset = 'utf8mb4';
     $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
     $options = [
@@ -520,8 +527,9 @@ if ($uri === '/api/attendance/lupa' && $method === 'POST') {
 
     $host = 'localhost';
     $db   = 'aypsis';
-    $user = 'aypsis_web';
-    $pass = 'WebPass2025#!';
+    $isLocal = ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NAME'] === '127.0.0.1');
+    $user = $isLocal ? 'root' : 'aypsis_web';
+    $pass = $isLocal ? '' : 'WebPass2025#!';
     $charset = 'utf8mb4';
     $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
     $options = [
@@ -578,8 +586,9 @@ if ($uri === '/api/attendance/lembur' && $method === 'POST') {
 
     $host = 'localhost';
     $db   = 'aypsis';
-    $user = 'aypsis_web';
-    $pass = 'WebPass2025#!';
+    $isLocal = ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NAME'] === '127.0.0.1');
+    $user = $isLocal ? 'root' : 'aypsis_web';
+    $pass = $isLocal ? '' : 'WebPass2025#!';
     $charset = 'utf8mb4';
     $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
     $options = [
@@ -632,8 +641,9 @@ if ($uri === '/api/attendance/lembur' && $method === 'POST') {
 if ($uri === '/api/health' && $method === 'GET') {
     $host = 'localhost';
     $db   = 'aypsis';
-    $user = 'aypsis_web';
-    $pass = 'WebPass2025#!';
+    $isLocal = ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NAME'] === '127.0.0.1');
+    $user = $isLocal ? 'root' : 'aypsis_web';
+    $pass = $isLocal ? '' : 'WebPass2025#!';
     $charset = 'utf8mb4';
     $dsn = "mysql:host=$host;dbname=$db;charset=$charset";
     $options = [

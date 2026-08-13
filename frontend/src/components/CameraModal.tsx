@@ -1,4 +1,4 @@
-import { useRef, useEffect, useState } from 'react';
+import { useRef, useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import * as faceapi from 'face-api.js';
 import { Camera, X, Loader2, AlertCircle, Zap, RefreshCw, MapPin } from 'lucide-react';
@@ -49,7 +49,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   // Location States
   const [locationCoords, setLocationCoords] = useState<{lat: number, lng: number} | null>(null);
   const [address, setAddress] = useState(t.findingLocation);
-  const [outOfRangeMessage, setOutOfRangeMessage] = useState('');
+
   const [allowedLocations, setAllowedLocations] = useState<any[]>([]);
 
   // Reset states when opened
@@ -130,9 +130,9 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     };
   }, [isOpen]);
 
-  // Calculate radius separately — runs whenever coords OR allowedLocations change
-  useEffect(() => {
-    if (!locationCoords || allowedLocations.length === 0) return;
+  // Calculate radius synchronously during render — guaranteed no race condition
+  const outOfRangeMessage = useMemo(() => {
+    if (!locationCoords || allowedLocations.length === 0) return '';
 
     const { lat, lng } = locationCoords;
     let minDistance = Infinity;
@@ -145,11 +145,10 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       }
     }
     if (minDistance > 0 && minDistance !== Infinity) {
-      setOutOfRangeMessage(`${t.outOfRange}: ${minDistance}m`);
-    } else {
-      setOutOfRangeMessage('');
+      return `${t.outOfRange}: ${minDistance}m`;
     }
-  }, [locationCoords, allowedLocations]);
+    return '';
+  }, [locationCoords, allowedLocations, t.outOfRange]);
 
   // Set initial liveness message when camera is ready
   useEffect(() => {

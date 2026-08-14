@@ -15,8 +15,10 @@ $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $isLocalServer = ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NAME'] === '127.0.0.1');
 if ($isLocalServer) {
     define('UPLOAD_BASE_DIR', 'D:/kerjaan/aypsis/aypsis/aypsis/public');
+    define('AYPSIS_PUBLIC_DIR', 'D:/kerjaan/aypsis/aypsis/aypsis/public');
 } else {
     define('UPLOAD_BASE_DIR', '/var/www/pwa/backend');
+    define('AYPSIS_PUBLIC_DIR', '/var/www/aypsis/public');
 }
 
 // Serve static files (like uploaded images) with CORS headers
@@ -636,6 +638,10 @@ if ($uri === '/api/attendance/break' && $method === 'POST') {
                 $file_path = $upload_dir . $filename;
                 file_put_contents($file_path, $image_base64);
                 $db_photo_path = 'uploads/attendance/' . $tipe_folder . '/' . $filename;
+                // Duplikat ke public AYPSIS agar bisa diakses via Laravel
+                $aypsis_dir = AYPSIS_PUBLIC_DIR . '/uploads/attendance/' . $tipe_folder . '/';
+                if (!is_dir($aypsis_dir)) { mkdir($aypsis_dir, 0755, true); }
+                if (AYPSIS_PUBLIC_DIR !== UPLOAD_BASE_DIR) { file_put_contents($aypsis_dir . $filename, $image_base64); }
             } else {
                 $db_photo_path = null;
             }

@@ -601,6 +601,26 @@ if ($uri === '/api/attendance/break' && $method === 'POST') {
         $karyawan_id = $userData['karyawan_id'];
         $nik = $userData['nik'] ?? $user_id; // Fallback if missing
 
+        // Validasi: Istirahat hanya boleh 1x sehari
+        // Jika tipe = Istirahat Keluar, cek apakah sudah ada Istirahat Masuk hari ini
+        if (strtolower($tipe) === 'istirahat keluar') {
+            $stmtCek = $pdo->prepare("SELECT COUNT(*) as total FROM absensis WHERE karyawan_id = ? AND tipe IN ('Istirahat Keluar', 'Istirahat Masuk') AND DATE(waktu) = CURDATE()");
+            $stmtCek->execute([$karyawan_id]);
+            $cekResult = $stmtCek->fetch();
+            if ($cekResult['total'] >= 2) {
+                // Sudah ada pasangan Istirahat Keluar + Istirahat Masuk, tolak
+                http_response_code(400);
+                echo json_encode(['message' => 'Istirahat hanya dapat dilakukan 1 kali per hari']);
+                exit();
+            }
+            if ($cekResult['total'] >= 1) {
+                // Sudah ada Istirahat Keluar, tidak boleh keluar lagi
+                http_response_code(400);
+                echo json_encode(['message' => 'Anda sudah melakukan Istirahat Keluar hari ini']);
+                exit();
+            }
+        }
+
         // Save image
         $tipe_folder = strtolower(str_replace([' ', '/'], '_', $tipe));
         $upload_dir = UPLOAD_BASE_DIR . '/uploads/attendance/' . $tipe_folder . '/';

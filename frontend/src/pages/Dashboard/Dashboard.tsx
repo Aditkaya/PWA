@@ -317,7 +317,7 @@ export default function Dashboard() {
             </button>
             <button 
               className="btn-attendance break-out" 
-              disabled={hasFullDayLeave || !todayCheckIn || !!todayBreakOut || !!todayCheckOut}
+              disabled={hasFullDayLeave || !todayCheckIn || !!todayBreakOut || !!todayBreakIn || !!todayCheckOut}
               onClick={() => handleAttendanceClick('Istirahat Keluar')}
             >
               <Coffee size={24} strokeWidth={1.25} />

@@ -12,7 +12,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
-define('UPLOAD_BASE_DIR', 'D:/kerjaan/aypsis/aypsis/aypsis/public');
+$isLocalServer = ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NAME'] === '127.0.0.1');
+if ($isLocalServer) {
+    define('UPLOAD_BASE_DIR', 'D:/kerjaan/aypsis/aypsis/aypsis/public');
+} else {
+    define('UPLOAD_BASE_DIR', '/var/www/aypsis');
+}
 
 // Serve static files (like uploaded images) with CORS headers
 $file_path = UPLOAD_BASE_DIR . $uri;

@@ -373,7 +373,53 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     ctx.font = `bold ${9.5 * s}px sans-serif`;
     ctx.fillText('© AYPSIS Attendance', padding + (12 * s), currentY);
 
-    // Map drawing removed
+    if (locationCoords) {
+      try {
+        const zoom = 16;
+        const latRad = locationCoords.lat * Math.PI / 180;
+        const n = Math.pow(2, zoom);
+        const xExact = (locationCoords.lng + 180) / 360 * n;
+        const yExact = (1.0 - Math.asinh(Math.tan(latRad)) / Math.PI) / 2.0 * n;
+        const xtile = Math.floor(xExact);
+        const ytile = Math.floor(yExact);
+        const pixelX = (xExact - xtile) * 256;
+        const pixelY = (yExact - ytile) * 256;
+        
+        const mapImg = new Image();
+        mapImg.crossOrigin = 'Anonymous';
+        await new Promise((resolve) => {
+          mapImg.onload = resolve;
+          mapImg.onerror = resolve; // Resolve anyway to avoid blocking
+          mapImg.src = `https://tile.openstreetmap.org/${zoom}/${xtile}/${ytile}.png`;
+          setTimeout(resolve, 3000); // 3 sec timeout
+        });
+        
+        if (mapImg.complete && mapImg.naturalWidth > 0) {
+          const destW = 120 * s;
+          const destH = 120 * s;
+          const mapBoxX = padding;
+          const mapBoxY = boxY - destH - (8 * s);
+          
+          ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
+          ctx.fillRect(mapBoxX - (3 * s), mapBoxY - (3 * s), destW + (6 * s), destH + (6 * s));
+          ctx.drawImage(mapImg, 0, 0, 256, 256, mapBoxX, mapBoxY, destW, destH);
+          
+          const dotX = mapBoxX + (pixelX / 256 * destW);
+          const dotY = mapBoxY + (pixelY / 256 * destH);
+          
+          ctx.beginPath();
+          ctx.arc(dotX, dotY, 4 * s, 0, 2 * Math.PI, false);
+          ctx.fillStyle = '#ef4444';
+          ctx.fill();
+          ctx.lineWidth = 1.5 * s;
+          ctx.strokeStyle = 'white';
+          ctx.stroke();
+        }
+      } catch (err) {
+        console.warn("Could not load map tile", err);
+      }
+    }
+
     const imageSrc = canvas.toDataURL('image/jpeg', 0.8);
 
     // Basic face detection

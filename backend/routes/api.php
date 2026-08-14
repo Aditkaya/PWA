@@ -16,7 +16,7 @@ $isLocalServer = ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NA
 if ($isLocalServer) {
     define('UPLOAD_BASE_DIR', 'D:/kerjaan/aypsis/aypsis/aypsis/public');
 } else {
-    define('UPLOAD_BASE_DIR', '/var/www/aypsis/public');
+    define('UPLOAD_BASE_DIR', '/var/www/pwa/backend');
 }
 
 // Serve static files (like uploaded images) with CORS headers

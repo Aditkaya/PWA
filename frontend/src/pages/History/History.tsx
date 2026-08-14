@@ -247,7 +247,7 @@ export default function History() {
                           {item.foto && (
                             <div className="history-photo">
                               <img 
-                                src={`/${item.foto}`} 
+                                src={item.foto.startsWith('/') ? item.foto : `/${item.foto}`} 
                                 alt="Foto Absensi" 
                                 onClick={() => setEnlargedPhoto(item.foto!)}
                                 style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', marginTop: '10px', cursor: 'pointer' }} 
@@ -329,7 +329,7 @@ export default function History() {
           style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
         >
           <div style={{ position: 'relative', width: '100%', maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
-            <img src={`/${enlargedPhoto}`} style={{ width: '100%', borderRadius: '12px', objectFit: 'contain' }} alt="Foto Diperbesar" />
+            <img src={enlargedPhoto.startsWith('/') ? enlargedPhoto : `/${enlargedPhoto}`} style={{ width: '100%', borderRadius: '12px', objectFit: 'contain' }} alt="Foto Diperbesar" />
             <button 
               onClick={() => setEnlargedPhoto(null)}
               style={{ position: 'absolute', top: '-40px', right: 0, background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}

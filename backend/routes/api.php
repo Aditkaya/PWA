@@ -12,9 +12,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 }
 
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
+define('UPLOAD_BASE_DIR', 'D:/kerjaan/aypsis/aypsis/aypsis/public');
 
 // Serve static files (like uploaded images) with CORS headers
-$file_path = __DIR__ . '/..' . $uri;
+$file_path = UPLOAD_BASE_DIR . $uri;
 if (file_exists($file_path) && is_file($file_path)) {
     $ext = strtolower(pathinfo($file_path, PATHINFO_EXTENSION));
     $mimes = [
@@ -93,7 +94,7 @@ if ($uri === '/api/profile' && $method === 'GET') {
         if ($profile) {
             // Setup avatar url
             $avatar_path = "/uploads/avatars/avatar_{$user_id}.jpg";
-            if (file_exists(__DIR__ . '/..' . $avatar_path)) {
+            if (file_exists(UPLOAD_BASE_DIR . $avatar_path)) {
                 $profile['avatar_url'] = $avatar_path . '?v=' . time();
             } else {
                 $profile['avatar_url'] = null;
@@ -136,7 +137,7 @@ if ($uri === '/api/profile/upload' && $method === 'POST') {
         exit();
     }
 
-    $upload_dir = __DIR__ . '/../uploads/avatars/';
+    $upload_dir = UPLOAD_BASE_DIR . '/uploads/avatars/';
     if (!is_dir($upload_dir)) {
         mkdir($upload_dir, 0777, true);
     }
@@ -335,7 +336,7 @@ if ($uri === '/api/izin' && $method === 'POST') {
 
         $lampiran_path = null;
         if (isset($_FILES['lampiran']) && $_FILES['lampiran']['error'] === UPLOAD_ERR_OK) {
-            $upload_dir = __DIR__ . '/../uploads/surat_sakit/';
+            $upload_dir = UPLOAD_BASE_DIR . '/uploads/surat_sakit/';
             if (!is_dir($upload_dir)) {
                 mkdir($upload_dir, 0777, true);
             }
@@ -583,28 +584,7 @@ if ($uri === '/api/attendance/break' && $method === 'POST') {
     try {
         $pdo = new PDO($dsn, $user, $pass, $options);
         
-        // Save image
-        $upload_dir = __DIR__ . '/../uploads/attendance/';
-        if (!is_dir($upload_dir)) {
-            mkdir($upload_dir, 0777, true);
-        }
-        
-        if ($foto_base64) {
-            $image_parts = explode(";base64,", $foto_base64);
-            if (count($image_parts) == 2) {
-                $image_base64 = base64_decode($image_parts[1]);
-                $filename = 'break_' . $user_id . '_' . time() . '.jpg';
-                $file_path = $upload_dir . $filename;
-                file_put_contents($file_path, $image_base64);
-                $db_photo_path = 'uploads/attendance/' . $filename;
-            } else {
-                $db_photo_path = null;
-            }
-        } else {
-            $db_photo_path = null;
-        }
-
-        // Get karyawan_id and nik
+        // Get karyawan_id and nik first
         $stmtUser = $pdo->prepare("SELECT u.karyawan_id, k.nik FROM users u LEFT JOIN karyawans k ON u.karyawan_id = k.id WHERE u.id = ?");
         $stmtUser->execute([$user_id]);
         $userData = $stmtUser->fetch();
@@ -614,7 +594,29 @@ if ($uri === '/api/attendance/break' && $method === 'POST') {
             exit();
         }
         $karyawan_id = $userData['karyawan_id'];
-        $nik = $userData['nik'] ?? '-'; // Fallback if missing
+        $nik = $userData['nik'] ?? $user_id; // Fallback if missing
+
+        // Save image
+        $tipe_folder = strtolower(str_replace([' ', '/'], '_', $tipe));
+        $upload_dir = UPLOAD_BASE_DIR . '/uploads/attendance/' . $tipe_folder . '/';
+        if (!is_dir($upload_dir)) {
+            mkdir($upload_dir, 0777, true);
+        }
+        
+        if ($foto_base64) {
+            $image_parts = explode(";base64,", $foto_base64);
+            if (count($image_parts) == 2) {
+                $image_base64 = base64_decode($image_parts[1]);
+                $filename = 'break_' . $nik . '_' . time() . '.jpg';
+                $file_path = $upload_dir . $filename;
+                file_put_contents($file_path, $image_base64);
+                $db_photo_path = 'uploads/attendance/' . $tipe_folder . '/' . $filename;
+            } else {
+                $db_photo_path = null;
+            }
+        } else {
+            $db_photo_path = null;
+        }
 
         // Insert into absensis
         $stmt = $pdo->prepare("INSERT INTO absensis (karyawan_id, nik, waktu, tipe, status, foto, latitude, longitude, detail_lokasi, keterangan) VALUES (?, ?, NOW(), ?, 'Selesai', ?, ?, ?, ?, ?)");
@@ -721,7 +723,7 @@ if ($uri === '/api/attendance/lembur' && $method === 'POST') {
     try {
         $pdo = new PDO($dsn, $user, $pass, $options);
         
-        $stmtUser = $pdo->prepare("SELECT karyawan_id FROM users WHERE id = ?");
+        $stmtUser = $pdo->prepare("SELECT u.karyawan_id, k.nik FROM users u LEFT JOIN karyawans k ON u.karyawan_id = k.id WHERE u.id = ?");
         $stmtUser->execute([$user_id]);
         $userData = $stmtUser->fetch();
         if (!$userData || !$userData['karyawan_id']) {
@@ -730,20 +732,21 @@ if ($uri === '/api/attendance/lembur' && $method === 'POST') {
             exit();
         }
         $karyawan_id = $userData['karyawan_id'];
+        $nik = $userData['nik'] ?? $user_id;
 
         $db_photo_path = null;
         if ($foto_base64) {
-            $upload_dir = __DIR__ . '/../uploads/attendance/';
+            $upload_dir = UPLOAD_BASE_DIR . '/uploads/attendance/lembur/';
             if (!is_dir($upload_dir)) {
                 mkdir($upload_dir, 0777, true);
             }
             $image_parts = explode(";base64,", $foto_base64);
             if (count($image_parts) == 2) {
                 $image_base64 = base64_decode($image_parts[1]);
-                $filename = 'lembur_' . $user_id . '_' . time() . '.jpg';
+                $filename = 'lembur_' . $nik . '_' . time() . '.jpg';
                 $file_path = $upload_dir . $filename;
                 file_put_contents($file_path, $image_base64);
-                $db_photo_path = 'uploads/attendance/' . $filename;
+                $db_photo_path = 'uploads/attendance/lembur/' . $filename;
             }
         }
 

@@ -43,33 +43,33 @@ export default function History() {
   const [enlargedPhoto, setEnlargedPhoto] = useState<string | null>(null)
   const [expandedItems, setExpandedItems] = useState<number[]>([])
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!user?.id) return
-      try {
-        setLoading(true)
-        const [histRes, permRes] = await Promise.all([
-          fetch(`/api/history?user_id=${user.id}`),
-          fetch(`/api/permohonan?user_id=${user.id}`)
-        ])
+  const fetchData = async (showLoading = false) => {
+    if (!user?.id) return
+    try {
+      if (showLoading) setLoading(true)
+      const [histRes, permRes] = await Promise.all([
+        fetch(`/api/history?user_id=${user.id}`),
+        fetch(`/api/permohonan?user_id=${user.id}`)
+      ])
 
-        if (histRes.ok) {
-          const histResult = await histRes.json()
-          setHistoryData(histResult.data)
-        }
-        
-        if (permRes.ok) {
-          const permResult = await permRes.json()
-          setPermohonanData(permResult.data)
-        }
-      } catch (error) {
-        console.error("Failed to fetch history data", error)
-      } finally {
-        setLoading(false)
+      if (histRes.ok) {
+        const histResult = await histRes.json()
+        setHistoryData(histResult.data)
       }
+      
+      if (permRes.ok) {
+        const permResult = await permRes.json()
+        setPermohonanData(permResult.data)
+      }
+    } catch (error) {
+      console.error("Failed to fetch history data", error)
+    } finally {
+      if (showLoading) setLoading(false)
     }
+  }
 
-    fetchData()
+  useEffect(() => {
+    fetchData(true)
   }, [user])
 
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate()
@@ -102,7 +102,12 @@ export default function History() {
 
   const selectedEvents = selectedDay ? getEventsForDay(selectedDay) : []
   
-  const toggleItem = (id: number) => {
+  const toggleItem = async (id: number) => {
+    const isExpanding = !expandedItems.includes(id);
+    if (isExpanding) {
+      // Background refresh to get the latest data or remove if deleted
+      await fetchData(false);
+    }
     setExpandedItems(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id])
   }
 

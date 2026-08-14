@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Info, Loader2, MapPin, ChevronDown, ChevronUp, X, FileText } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Info, Loader2, MapPin, ChevronDown, ChevronUp, X, FileText, Trash2, AlertTriangle } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useLangStore } from '../../store/lang.store'
 import { translations } from '../../utils/translations'
@@ -42,6 +42,8 @@ export default function History() {
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
   const [enlargedPhoto, setEnlargedPhoto] = useState<string | null>(null)
   const [expandedItems, setExpandedItems] = useState<number[]>([])
+  const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; tipe: string } | null>(null)
+  const [deleting, setDeleting] = useState(false)
 
   const fetchData = async (showLoading = false) => {
     if (!user?.id) return
@@ -109,6 +111,26 @@ export default function History() {
       await fetchData(false);
     }
     setExpandedItems(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id])
+  }
+
+  const handleDeletePermohonan = async () => {
+    if (!deleteConfirm || !user?.id) return
+    setDeleting(true)
+    try {
+      const res = await fetch('/api/permohonan', {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: deleteConfirm.id, tipe: deleteConfirm.tipe, user_id: user.id })
+      })
+      if (res.ok) {
+        setDeleteConfirm(null)
+        await fetchData(false)
+      }
+    } catch (e) {
+      console.error('Gagal menghapus permohonan', e)
+    } finally {
+      setDeleting(false)
+    }
   }
 
   if (loading) {
@@ -284,6 +306,15 @@ export default function History() {
                       <span className={`status-text ${item.status === 'Disetujui' ? 'status-ok' : item.status === 'Ditolak' ? 'status-err' : 'status-warn'}`} style={{ color: item.status === 'Ditolak' ? '#ef4444' : undefined }}>
                         {item.status}
                       </span>
+                      {item.status.toLowerCase() === 'pending' && (
+                        <button
+                          onClick={() => setDeleteConfirm({ id: item.id, tipe: item.tipe })}
+                          title="Hapus permohonan"
+                          style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '8px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#ef4444', transition: 'all 0.2s' }}
+                        >
+                          <Trash2 size={14} />
+                        </button>
+                      )}
                     </div>
                   </div>
                   <div className="history-card-body" style={{ paddingTop: '16px' }}>
@@ -336,6 +367,47 @@ export default function History() {
             >
               <X size={32} />
             </button>
+          </div>
+        </div>
+      )}
+
+      {deleteConfirm && (
+        <div
+          onClick={() => setDeleteConfirm(null)}
+          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: 'var(--card-bg, #1e1e2e)', borderRadius: '16px', padding: '28px', maxWidth: '340px', width: '100%', border: '1px solid var(--glass-border)', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}
+          >
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center' }}>
+              <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(239,68,68,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                <AlertTriangle size={28} color="#ef4444" />
+              </div>
+              <div>
+                <h3 style={{ margin: '0 0 8px', fontSize: '1.1rem', color: 'var(--text-primary)' }}>Hapus Permohonan?</h3>
+                <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                  Permohonan <strong>{deleteConfirm.tipe}</strong> ini akan dihapus secara permanen dan tidak dapat dikembalikan.
+                </p>
+              </div>
+              <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+                <button
+                  onClick={() => setDeleteConfirm(null)}
+                  disabled={deleting}
+                  style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 500 }}
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleDeletePermohonan}
+                  disabled={deleting}
+                  style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: deleting ? 'rgba(239,68,68,0.4)' : '#ef4444', color: '#fff', cursor: deleting ? 'not-allowed' : 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                >
+                  {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
+                  {deleting ? 'Menghapus...' : 'Hapus'}
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

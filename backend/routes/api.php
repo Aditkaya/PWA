@@ -490,6 +490,89 @@ if ($uri === '/api/permohonan' && $method === 'GET') {
     exit();
 }
 
+if ($uri === '/api/permohonan' && $method === 'DELETE') {
+    $body = json_decode(file_get_contents('php://input'), true);
+    $id   = $body['id'] ?? null;
+    $tipe = $body['tipe'] ?? null; // 'Izin', 'Cuti', 'Lupa Absen', 'Lembur'
+    $user_id = $body['user_id'] ?? null;
+
+    if (!$id || !$tipe || !$user_id) {
+        http_response_code(400);
+        echo json_encode(['message' => 'Data id, tipe, dan user_id diperlukan']);
+        exit();
+    }
+
+    $tableMap = [
+        'Izin'       => ['table' => 'permohonan_izins', 'status_col' => 'status'],
+        'Cuti'       => ['table' => 'cutis', 'status_col' => 'status'],
+        'Lupa Absen' => ['table' => 'persetujuan_absensi_lupas', 'status_col' => 'status'],
+        'Lembur'     => ['table' => 'persetujuan_absensi_lemburs', 'status_col' => 'status'],
+    ];
+
+    if (!isset($tableMap[$tipe])) {
+        http_response_code(400);
+        echo json_encode(['message' => 'Tipe permohonan tidak valid']);
+        exit();
+    }
+
+    $host = 'localhost';
+    $db   = 'aypsis';
+    $isLocal = ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NAME'] === '127.0.0.1');
+    $dbUser = $isLocal ? 'root' : 'aypsis_web';
+    $pass = $isLocal ? '' : 'WebPass2025#!';
+    $dsn = "mysql:host=$host;dbname=$db;charset=utf8mb4";
+    $options = [
+        PDO::ATTR_ERRMODE            => PDO::ERRMODE_EXCEPTION,
+        PDO::ATTR_DEFAULT_FETCH_MODE => PDO::FETCH_ASSOC,
+        PDO::ATTR_EMULATE_PREPARES   => false,
+    ];
+
+    try {
+        $pdo = new PDO($dsn, $dbUser, $pass, $options);
+
+        // Ambil karyawan_id milik user
+        $stmtUser = $pdo->prepare("SELECT karyawan_id FROM users WHERE id = ?");
+        $stmtUser->execute([$user_id]);
+        $userData = $stmtUser->fetch();
+        if (!$userData) {
+            http_response_code(404);
+            echo json_encode(['message' => 'User tidak ditemukan']);
+            exit();
+        }
+        $karyawan_id = $userData['karyawan_id'];
+
+        $tableName  = $tableMap[$tipe]['table'];
+        $statusCol  = $tableMap[$tipe]['status_col'];
+
+        // Pastikan record ada, milik user ini, dan masih Pending
+        $stmtCek = $pdo->prepare("SELECT id, $statusCol as status FROM $tableName WHERE id = ? AND karyawan_id = ?");
+        $stmtCek->execute([$id, $karyawan_id]);
+        $record = $stmtCek->fetch();
+
+        if (!$record) {
+            http_response_code(404);
+            echo json_encode(['message' => 'Permohonan tidak ditemukan']);
+            exit();
+        }
+
+        if (strtolower($record['status']) !== 'pending') {
+            http_response_code(403);
+            echo json_encode(['message' => 'Hanya permohonan berstatus Pending yang dapat dihapus']);
+            exit();
+        }
+
+        $stmtDel = $pdo->prepare("DELETE FROM $tableName WHERE id = ? AND karyawan_id = ?");
+        $stmtDel->execute([$id, $karyawan_id]);
+
+        http_response_code(200);
+        echo json_encode(['message' => 'Permohonan berhasil dihapus']);
+    } catch (\PDOException $e) {
+        http_response_code(500);
+        echo json_encode(['message' => 'Database error: ' . $e->getMessage()]);
+    }
+    exit();
+}
+
 if ($uri === '/api/lokasi' && $method === 'GET') {
     $host = 'localhost';
     $db   = 'aypsis';

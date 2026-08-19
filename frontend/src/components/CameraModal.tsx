@@ -471,22 +471,13 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
 
         {/* Top Controls */}
         <div className="camera-top-controls">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', marginBottom: '12px' }}>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', flexDirection: 'column' }}>
               <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                 <button onClick={handleClose} className="close-btn" disabled={isProcessing}>
                   <X size={20} />
                 </button>
               </div>
-              
-
-
-              {outOfRangeMessage && (
-                <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.8)', border: '1px solid #ef4444', color: 'white', padding: '10px 14px', borderRadius: '8px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', backdropFilter: 'blur(4px)', alignSelf: 'stretch' }}>
-                  <AlertCircle size={24} style={{ flexShrink: 0 }} />
-                  <span>{t.warning}: {outOfRangeMessage}. {t.distanceRecorded}</span>
-                </div>
-              )}
             </div>
 
             {/* Live Logo Overlay */}
@@ -494,6 +485,31 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
               <img src="/logo.png" alt="Company Logo" style={{ height: '48px', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
             </div>
           </div>
+
+          <div className="location-box">
+            <p className="company-name">
+              <MapPin size={12} style={{ display: 'inline', marginRight: '4px' }} />
+              {t.yourLocation}
+            </p>
+            <p>{address}</p>
+            <p>
+              {locationCoords 
+                ? `${locationCoords.lat.toFixed(8)} | ${locationCoords.lng.toFixed(8)}` 
+                : t.waitingCoords}
+            </p>
+            <p>
+              {currentTime.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} {' '}
+              {currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':')}
+            </p>
+            <p className="brand-text">© AYPSIS Attendance</p>
+          </div>
+
+          {outOfRangeMessage && (
+            <div style={{ backgroundColor: 'rgba(239, 68, 68, 0.8)', border: '1px solid #ef4444', color: 'white', padding: '10px 14px', borderRadius: '8px', fontSize: '0.85rem', display: 'flex', alignItems: 'center', gap: '8px', backdropFilter: 'blur(4px)', alignSelf: 'stretch', marginTop: '8px' }}>
+              <AlertCircle size={24} style={{ flexShrink: 0 }} />
+              <span>{t.warning}: {outOfRangeMessage}. {t.distanceRecorded}</span>
+            </div>
+          )}
         </div>
 
         {/* Center Guide */}
@@ -527,24 +543,6 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
                 <AlertCircle size={16} /> {livenessMsg}
               </div>
             )}
-          </div>
-
-          <div className="location-box">
-            <p className="company-name">
-              <MapPin size={12} style={{ display: 'inline', marginRight: '4px' }} />
-              {t.yourLocation}
-            </p>
-            <p>{address}</p>
-            <p>
-              {locationCoords 
-                ? `${locationCoords.lat.toFixed(8)} | ${locationCoords.lng.toFixed(8)}` 
-                : t.waitingCoords}
-            </p>
-            <p>
-              {currentTime.toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })} {' '}
-              {currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':')}
-            </p>
-            <p className="brand-text">© AYPSIS Attendance</p>
           </div>
 
           <div className="action-bar">

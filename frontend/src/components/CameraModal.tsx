@@ -56,7 +56,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   useEffect(() => {
     if (isOpen) {
       setIsLivenessPassed(false);
-      setLivenessMsg(t.pleaseSmile || '');
+      setLivenessMsg(t.pleaseSmile || "Silakan Tersenyum");
       setErrorMsg('');
       setStatusMsg('');
       setIsProcessing(false);
@@ -170,11 +170,11 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   // Set initial liveness message when camera is ready
   useEffect(() => {
     if (isCameraReady && isModelsLoaded && !isLivenessPassed) {
-      setLivenessMsg(t.pleaseSmile);
+      setLivenessMsg(t.pleaseSmile || "Silakan Tersenyum");
     } else if (isCameraReady && !isModelsLoaded) {
       setLivenessMsg("Menyiapkan AI (Mohon tunggu)...");
     }
-  }, [isCameraReady, isModelsLoaded, t.pleaseSmile, isLivenessPassed]);
+  }, [isCameraReady, isModelsLoaded, isLivenessPassed]);
 
   // Liveness Detection Loop
   useEffect(() => {
@@ -196,9 +196,11 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
         const detection = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceExpressions();
         if (detection) {
           const smileProbability = detection.expressions.happy;
-          if (smileProbability > 0.8) {
+          
+          // Lowered threshold to 0.4 so a slight smile is enough to pass
+          if (smileProbability > 0.4) {
             setIsLivenessPassed(true);
-            setLivenessMsg(t.smileDetected);
+            setLivenessMsg(t.smileDetected || "Verifikasi Wajah Berhasil!");
             
             // Auto capture
             setTimeout(() => {
@@ -222,7 +224,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       isCancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [isCameraReady, isLivenessPassed, isProcessing]);
+  }, [isCameraReady, isModelsLoaded, isLivenessPassed, isProcessing]);
 
   // Load Models
   useEffect(() => {
@@ -318,7 +320,8 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     if (outOfRangeMessage) {
       boxHeight += 15 * s;
     }
-    const boxY = canvas.height - boxHeight - padding;
+    // Move box to top
+    const boxY = padding;
     
     ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
     if (ctx.roundRect) {
@@ -398,7 +401,8 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
           const destW = 120 * s;
           const destH = 120 * s;
           const mapBoxX = padding;
-          const mapBoxY = boxY - destH - (8 * s);
+          // Move map below the watermark box
+          const mapBoxY = boxY + boxHeight + (8 * s);
           
           ctx.fillStyle = 'rgba(255, 255, 255, 0.9)';
           ctx.fillRect(mapBoxX - (3 * s), mapBoxY - (3 * s), destW + (6 * s), destH + (6 * s));
@@ -438,7 +442,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       showToast(t.noFace, 'error');
       setIsProcessing(false);
       setIsLivenessPassed(false);
-      setLivenessMsg(t.pleaseSmile);
+      setLivenessMsg(t.pleaseSmile || "Silakan Tersenyum");
     }
   };
 
@@ -473,15 +477,6 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
                 <button onClick={handleClose} className="close-btn" disabled={isProcessing}>
                   <X size={20} />
                 </button>
-                {isLivenessPassed ? (
-                  <div style={{ padding: '8px 16px', background: 'rgba(34, 197, 94, 0.9)', color: 'white', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <AlertCircle size={16} /> {livenessMsg}
-                  </div>
-                ) : (
-                  <div style={{ padding: '8px 16px', background: 'rgba(234, 179, 8, 0.9)', color: 'white', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <AlertCircle size={16} /> {livenessMsg}
-                  </div>
-                )}
               </div>
               
 
@@ -522,6 +517,18 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
 
         {/* Bottom Controls */}
         <div className="camera-bottom-controls">
+          <div style={{ width: '100%', display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
+            {isLivenessPassed ? (
+              <div style={{ padding: '8px 16px', background: 'rgba(34, 197, 94, 0.9)', color: 'white', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                <AlertCircle size={16} /> {livenessMsg}
+              </div>
+            ) : (
+              <div style={{ padding: '8px 16px', background: 'rgba(234, 179, 8, 0.9)', color: 'white', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+                <AlertCircle size={16} /> {livenessMsg}
+              </div>
+            )}
+          </div>
+
           <div className="location-box">
             <p className="company-name">
               <MapPin size={12} style={{ display: 'inline', marginRight: '4px' }} />

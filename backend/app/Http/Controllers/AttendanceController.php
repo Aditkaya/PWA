@@ -39,6 +39,22 @@ class AttendanceController {
             $karyawan_id = $userData['karyawan_id'];
             $nik = $userData['nik'] ?? $user_id; // Fallback if missing
 
+            $today = date('Y-m-d');
+            
+            // Cek Izin Tidak Masuk / Sakit
+            $stmtLeave = $pdo->prepare("SELECT id FROM permohonan_izins WHERE karyawan_id = ? AND (jenis_izin = 'Tidak Masuk' OR jenis_izin = 'Sakit') AND LOWER(status) = 'disetujui' AND ? BETWEEN tanggal_mulai AND tanggal_selesai LIMIT 1");
+            $stmtLeave->execute([$karyawan_id, $today]);
+            
+            // Cek Cuti
+            $stmtCutiLeave = $pdo->prepare("SELECT id FROM cutis WHERE karyawan_id = ? AND (LOWER(status) = 'approved' OR LOWER(status) = 'disetujui') AND ? BETWEEN tanggal_mulai AND tanggal_selesai LIMIT 1");
+            $stmtCutiLeave->execute([$karyawan_id, $today]);
+            
+            if ($stmtLeave->fetch() || $stmtCutiLeave->fetch()) {
+                http_response_code(403);
+                echo json_encode(['message' => 'Anda tidak dapat melakukan absensi karena sedang dalam masa Izin/Cuti.']);
+                return;
+            }
+
             // Validasi: Istirahat hanya boleh 1x sehari
             // Jika tipe = Istirahat Keluar, cek apakah sudah ada Istirahat Masuk hari ini
             if (strtolower($tipe) === 'istirahat keluar') {

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Info, Loader2, MapPin, ChevronDown, ChevronUp, X, FileText, Trash2, AlertTriangle } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Info, Loader2, MapPin, ChevronDown, ChevronUp, X, FileText, Trash2, AlertTriangle, Clock } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useLangStore } from '../../store/lang.store'
 import { translations } from '../../utils/translations'
@@ -24,6 +24,7 @@ interface PermohonanItem {
   jenis: string
   tanggal_mulai: string
   tanggal_selesai: string
+  waktu?: string
   keterangan: string
   status: string
   created_at: string
@@ -42,7 +43,7 @@ export default function History() {
   const [currentDate, setCurrentDate] = useState(new Date()) // Set to current date
   const [selectedDay, setSelectedDay] = useState<number | null>(null)
   const [enlargedPhoto, setEnlargedPhoto] = useState<string | null>(null)
-  const [expandedItems, setExpandedItems] = useState<number[]>([])
+  const [expandedItems, setExpandedItems] = useState<(number | string)[]>([])
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; tipe: string } | null>(null)
   const [deleting, setDeleting] = useState(false)
 
@@ -105,7 +106,7 @@ export default function History() {
 
   const selectedEvents = selectedDay ? getEventsForDay(selectedDay) : []
   
-  const toggleItem = async (id: number) => {
+  const toggleItem = async (id: number | string) => {
     const isExpanding = !expandedItems.includes(id);
     if (isExpanding) {
       // Background refresh to get the latest data or remove if deleted
@@ -294,9 +295,15 @@ export default function History() {
         <div className="permohonan-list fade-in">
           {permohonanData.length > 0 ? (
             <div className="history-list">
-              {permohonanData.map(item => (
-                <div key={`${item.tipe}-${item.id}`} className="history-card glass-panel">
-                  <div className="permohonan-card-header">
+              {permohonanData.map(item => {
+                const itemKey = `${item.tipe}-${item.id}`;
+                const isExpanded = expandedItems.includes(itemKey);
+                return (
+                <div key={itemKey} className="history-card glass-panel">
+                  <div 
+                    className={`history-card-header ${isExpanded ? 'expanded' : 'collapsed'}`}
+                    onClick={() => toggleItem(itemKey)}
+                  >
                     <div className="history-card-header-title">
                       <span className={`badge ${item.tipe === 'Cuti' ? 'badge-cuti' : 'badge-izin'}`}>
                         {item.tipe} - {item.jenis}
@@ -308,16 +315,18 @@ export default function History() {
                       </span>
                       {item.status.toLowerCase() === 'pending' && (
                         <button
-                          onClick={() => setDeleteConfirm({ id: item.id, tipe: item.tipe })}
+                          onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ id: item.id, tipe: item.tipe }); }}
                           title="Hapus permohonan"
                           className="btn-delete-permohonan"
                         >
                           <Trash2 size={14} />
                         </button>
                       )}
+                      {isExpanded ? <ChevronUp size={20} color="var(--text-secondary)" /> : <ChevronDown size={20} color="var(--text-secondary)" />}
                     </div>
                   </div>
-                  <div className="permohonan-card-body">
+                  {isExpanded && (
+                  <div className="history-card-body">
                     <div className="permohonan-details-col">
                       <div className="permohonan-detail-item">
                         <div className="permohonan-detail-icon-wrap">
@@ -330,6 +339,17 @@ export default function History() {
                           </span>
                         </div>
                       </div>
+                      {item.waktu && (
+                        <div className="permohonan-detail-item">
+                          <div className="permohonan-detail-icon-wrap">
+                             <Clock size={18} className="permohonan-detail-icon" />
+                          </div>
+                          <div className="permohonan-detail-text-wrap">
+                            <span className="permohonan-detail-label">WAKTU</span>
+                            <span className="permohonan-detail-value">{item.waktu}</span>
+                          </div>
+                        </div>
+                      )}
                       <div className="permohonan-detail-item">
                         <div className="permohonan-detail-icon-wrap">
                            <Info size={18} className="permohonan-detail-icon" />
@@ -339,10 +359,22 @@ export default function History() {
                           <span className="permohonan-detail-value-light">{item.keterangan || '-'}</span>
                         </div>
                       </div>
+                      <div className="permohonan-detail-item">
+                        <div className="permohonan-detail-icon-wrap">
+                           <FileText size={18} className="permohonan-detail-icon" />
+                        </div>
+                        <div className="permohonan-detail-text-wrap">
+                          <span className="permohonan-detail-label">DIAJUKAN PADA</span>
+                          <span className="permohonan-detail-value-light">
+                            {new Date(item.created_at).toLocaleDateString('id-ID', { day: '2-digit', month: 'short', year: 'numeric', hour: '2-digit', minute: '2-digit' }).replace(/\./g, ':')}
+                          </span>
+                        </div>
+                      </div>
                     </div>
                   </div>
+                  )}
                 </div>
-              ))}
+              )})}
             </div>
           ) : (
             <div className="empty-state glass-panel">

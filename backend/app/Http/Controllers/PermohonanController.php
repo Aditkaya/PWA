@@ -132,19 +132,19 @@ class PermohonanController {
                 return;
             }
 
-            $stmtIzin = $pdo->prepare("SELECT id, 'Izin' as tipe, jenis_izin as jenis, tanggal_mulai, tanggal_selesai, alasan as keterangan, status, created_at FROM permohonan_izins WHERE karyawan_id = ? ORDER BY created_at DESC");
+            $stmtIzin = $pdo->prepare("SELECT id, 'Izin' as tipe, jenis_izin as jenis, tanggal_mulai, tanggal_selesai, waktu, alasan as keterangan, status, created_at FROM permohonan_izins WHERE karyawan_id = ? ORDER BY created_at DESC");
             $stmtIzin->execute([$karyawan_id]);
             $izin = $stmtIzin->fetchAll();
 
-            $stmtCuti = $pdo->prepare("SELECT id, 'Cuti' as tipe, jenis_cuti as jenis, tanggal_mulai, tanggal_selesai, keterangan, status, created_at FROM cutis WHERE karyawan_id = ? ORDER BY created_at DESC");
+            $stmtCuti = $pdo->prepare("SELECT id, 'Cuti' as tipe, jenis_cuti as jenis, tanggal_mulai, tanggal_selesai, 'Full Day' as waktu, keterangan, status, created_at FROM cutis WHERE karyawan_id = ? ORDER BY created_at DESC");
             $stmtCuti->execute([$karyawan_id]);
             $cuti = $stmtCuti->fetchAll();
 
-            $stmtLupa = $pdo->prepare("SELECT id, 'Lupa Absen' as tipe, tipe_absen as jenis, tanggal as tanggal_mulai, tanggal as tanggal_selesai, alasan as keterangan, status, created_at FROM persetujuan_absensi_lupas WHERE karyawan_id = ? ORDER BY created_at DESC");
+            $stmtLupa = $pdo->prepare("SELECT id, 'Lupa Absen' as tipe, tipe_absen as jenis, tanggal as tanggal_mulai, tanggal as tanggal_selesai, waktu, alasan as keterangan, status, created_at FROM persetujuan_absensi_lupas WHERE karyawan_id = ? ORDER BY created_at DESC");
             $stmtLupa->execute([$karyawan_id]);
             $lupa = $stmtLupa->fetchAll();
 
-            $stmtLembur = $pdo->prepare("SELECT id, 'Lembur' as tipe, 'Pengajuan Lembur' as jenis, tanggal as tanggal_mulai, tanggal as tanggal_selesai, keterangan, status, created_at FROM persetujuan_absensi_lemburs WHERE karyawan_id = ? ORDER BY created_at DESC");
+            $stmtLembur = $pdo->prepare("SELECT id, 'Lembur' as tipe, 'Pengajuan Lembur' as jenis, tanggal as tanggal_mulai, tanggal as tanggal_selesai, CONCAT(jam_mulai, ' - ', jam_selesai) as waktu, keterangan, status, created_at FROM persetujuan_absensi_lemburs WHERE karyawan_id = ? ORDER BY created_at DESC");
             $stmtLembur->execute([$karyawan_id]);
             $lembur = $stmtLembur->fetchAll();
 

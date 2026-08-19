@@ -42,10 +42,35 @@ class ProfileController {
                 $profile['has_full_day_leave'] = false;
                 if ($profile['karyawan_id']) {
                     $today = date('Y-m-d');
-                    $stmtLeave = $pdo->prepare("SELECT id FROM permohonan_izins WHERE karyawan_id = ? AND jenis_izin = 'Tidak Masuk' AND ? BETWEEN tanggal_mulai AND tanggal_selesai LIMIT 1");
+                    
+                    // Cek Izin Tidak Masuk / Sakit (Status Disetujui)
+                    $stmtLeave = $pdo->prepare("SELECT id FROM permohonan_izins WHERE karyawan_id = ? AND (jenis_izin = 'Tidak Masuk' OR jenis_izin = 'Sakit') AND LOWER(status) = 'disetujui' AND ? BETWEEN tanggal_mulai AND tanggal_selesai LIMIT 1");
                     $stmtLeave->execute([$profile['karyawan_id'], $today]);
                     if ($stmtLeave->fetch()) {
                         $profile['has_full_day_leave'] = true;
+                    }
+                    
+                    // Cek Cuti (Status Disetujui/Approved)
+                    $stmtCutiLeave = $pdo->prepare("SELECT id FROM cutis WHERE karyawan_id = ? AND (LOWER(status) = 'approved' OR LOWER(status) = 'disetujui') AND ? BETWEEN tanggal_mulai AND tanggal_selesai LIMIT 1");
+                    $stmtCutiLeave->execute([$profile['karyawan_id'], $today]);
+                    if ($stmtCutiLeave->fetch()) {
+                        $profile['has_full_day_leave'] = true;
+                    }
+                    
+                    // Fetch Saldo Cuti
+                    $currentYear = date('Y');
+                    $stmtCuti = $pdo->prepare("SELECT total_cuti, cuti_terpakai, sisa_cuti FROM saldo_cutis WHERE karyawan_id = ? ORDER BY tahun DESC LIMIT 1");
+                    $stmtCuti->execute([$profile['karyawan_id']]);
+                    $saldoCuti = $stmtCuti->fetch(PDO::FETCH_ASSOC);
+                    
+                    if ($saldoCuti) {
+                        $profile['total_cuti'] = (int)$saldoCuti['total_cuti'];
+                        $profile['cuti_terpakai'] = (int)$saldoCuti['cuti_terpakai'];
+                        $profile['sisa_cuti'] = (int)$saldoCuti['sisa_cuti'];
+                    } else {
+                        $profile['total_cuti'] = 0;
+                        $profile['cuti_terpakai'] = 0;
+                        $profile['sisa_cuti'] = 0;
                     }
                 }
                 

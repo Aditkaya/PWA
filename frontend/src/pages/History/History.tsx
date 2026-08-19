@@ -3,6 +3,7 @@ import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Info, Loader2, Map
 import { useAuthStore } from '../../store/auth.store'
 import { useLangStore } from '../../store/lang.store'
 import { translations } from '../../utils/translations'
+import './History.css'
 
 interface HistoryItem {
   id: number
@@ -135,24 +136,24 @@ export default function History() {
 
   if (loading) {
     return (
-      <div className="history-page fade-in" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '50vh' }}>
-        <Loader2 size={32} className="animate-spin" style={{ color: 'var(--accent-color)' }} />
+      <div className="history-page fade-in history-loading">
+        <Loader2 size={32} className="animate-spin" />
       </div>
     )
   }
 
   return (
     <div className="history-page fade-in">
-      <div className="tab-switcher glass-panel" style={{ display: 'flex', marginBottom: '20px', padding: '6px', gap: '6px', borderRadius: '16px' }}>
+      <div className="tab-switcher glass-panel">
         <button 
           onClick={() => setActiveTab('absensi')}
-          style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', background: activeTab === 'absensi' ? 'var(--accent-color)' : 'transparent', color: activeTab === 'absensi' ? '#fff' : 'var(--text-secondary)', fontWeight: 500, transition: 'all 0.3s' }}
+          className={`tab-btn ${activeTab === 'absensi' ? 'active' : 'inactive'}`}
         >
           {t.absensi}
         </button>
         <button 
           onClick={() => setActiveTab('permohonan')}
-          style={{ flex: 1, padding: '12px', borderRadius: '12px', border: 'none', background: activeTab === 'permohonan' ? 'var(--accent-color)' : 'transparent', color: activeTab === 'permohonan' ? '#fff' : 'var(--text-secondary)', fontWeight: 500, transition: 'all 0.3s' }}
+          className={`tab-btn ${activeTab === 'permohonan' ? 'active' : 'inactive'}`}
         >
           {t.permohonan}
         </button>
@@ -216,19 +217,18 @@ export default function History() {
               {selectedEvents.length > 0 ? (
                 <div className="history-list">
                   {selectedEvents.map((item) => (
-                    <div key={item.id} className="history-card glass-panel" style={{ overflow: 'hidden' }}>
+                    <div key={item.id} className="history-card glass-panel">
                       <div 
-                        className="history-card-header" 
+                        className={`history-card-header ${expandedItems.includes(item.id) ? 'expanded' : 'collapsed'}`} 
                         onClick={() => toggleItem(item.id)}
-                        style={{ cursor: 'pointer', paddingBottom: expandedItems.includes(item.id) ? '12px' : '0' }}
                       >
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                        <div className="history-card-header-title">
                           <span className={`badge ${item.type.replace(/\s+/g, '-').toLowerCase()}`}>
                             {item.type}
                           </span>
-                          <span style={{ fontWeight: 600, fontSize: '0.95rem' }}>{item.time}</span>
+                          <span className="time">{item.time}</span>
                         </div>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                        <div className="history-card-header-status">
                           <span className={`status-text ${item.status === 'Tepat Waktu' || item.status === 'Disetujui' ? 'status-ok' : 'status-warn'}`}>
                             {item.status}
                           </span>
@@ -237,28 +237,28 @@ export default function History() {
                       </div>
                       
                       {expandedItems.includes(item.id) && (
-                        <div className="history-card-body" style={{ borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: '12px', marginTop: '12px' }}>
+                        <div className="history-card-body">
                           <div className="history-details">
                             <div className="detail-item">
                               <Info size={16} />
                               <span>{t.status}: {item.status}</span>
                             </div>
                             {item.keterangan && (
-                              <div className="detail-item" style={{ gridColumn: '1 / -1', marginTop: '4px', alignItems: 'flex-start' }}>
-                                <FileText size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
-                                <span style={{ fontSize: '0.8rem', lineHeight: '1.3' }}>
+                              <div className="detail-item detail-item-full">
+                                <FileText size={16} className="detail-item-icon" />
+                                <span className="detail-item-text">
                                   <strong>{t.descReason}:</strong> {item.keterangan}
                                 </span>
                               </div>
                             )}
-                            <div className="detail-item" style={{ gridColumn: '1 / -1', marginTop: '4px', alignItems: 'flex-start' }}>
-                              <MapPin size={16} style={{ flexShrink: 0, marginTop: '2px' }} />
-                              <span style={{ fontSize: '0.8rem', lineHeight: '1.3' }}>
+                            <div className="detail-item detail-item-full">
+                              <MapPin size={16} className="detail-item-icon" />
+                              <span className="detail-item-text">
                                 {item.location ? (
                                   <>
                                     {item.location}
                                     <br />
-                                    <span style={{ color: 'var(--accent-color)', fontSize: '0.75rem' }}>
+                                    <span className="detail-location-coords">
                                       Lat: {item.lat} | Lng: {item.lng}
                                     </span>
                                   </>
@@ -272,7 +272,7 @@ export default function History() {
                                 src={item.foto.startsWith('/') ? item.foto : `/${item.foto}`} 
                                 alt="Foto Absensi" 
                                 onClick={() => setEnlargedPhoto(item.foto!)}
-                                style={{ width: '100px', height: '100px', objectFit: 'cover', borderRadius: '8px', marginTop: '10px', cursor: 'pointer' }} 
+                                className="history-photo-img"
                               />
                             </div>
                           )}
@@ -295,48 +295,48 @@ export default function History() {
           {permohonanData.length > 0 ? (
             <div className="history-list">
               {permohonanData.map(item => (
-                <div key={`${item.tipe}-${item.id}`} className="history-card glass-panel" style={{ overflow: 'hidden' }}>
-                  <div className="history-card-header" style={{ paddingBottom: '12px', borderBottom: '1px solid var(--glass-border)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                      <span className={`badge`} style={{ background: item.tipe === 'Cuti' ? 'rgba(56, 189, 248, 0.2)' : 'rgba(168, 85, 247, 0.2)', color: item.tipe === 'Cuti' ? '#38bdf8' : '#c084fc', border: `1px solid ${item.tipe === 'Cuti' ? '#38bdf8' : '#c084fc'}` }}>
+                <div key={`${item.tipe}-${item.id}`} className="history-card glass-panel">
+                  <div className="permohonan-card-header">
+                    <div className="history-card-header-title">
+                      <span className={`badge ${item.tipe === 'Cuti' ? 'badge-cuti' : 'badge-izin'}`}>
                         {item.tipe} - {item.jenis}
                       </span>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                      <span className={`status-text ${item.status === 'Disetujui' ? 'status-ok' : item.status === 'Ditolak' ? 'status-err' : 'status-warn'}`} style={{ color: item.status === 'Ditolak' ? '#ef4444' : undefined }}>
+                    <div className="history-card-header-status">
+                      <span className={`status-text ${item.status === 'Disetujui' ? 'status-ok' : item.status === 'Ditolak' ? 'status-err-custom' : 'status-warn'}`}>
                         {item.status}
                       </span>
                       {item.status.toLowerCase() === 'pending' && (
                         <button
                           onClick={() => setDeleteConfirm({ id: item.id, tipe: item.tipe })}
                           title="Hapus permohonan"
-                          style={{ background: 'rgba(239,68,68,0.15)', border: '1px solid rgba(239,68,68,0.4)', borderRadius: '8px', padding: '4px 8px', cursor: 'pointer', display: 'flex', alignItems: 'center', color: '#ef4444', transition: 'all 0.2s' }}
+                          className="btn-delete-permohonan"
                         >
                           <Trash2 size={14} />
                         </button>
                       )}
                     </div>
                   </div>
-                  <div className="history-card-body" style={{ paddingTop: '16px' }}>
-                    <div className="history-details" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
-                      <div className="detail-item" style={{ alignItems: 'flex-start', display: 'flex', gap: '12px' }}>
-                        <div style={{ padding: '8px', background: 'rgba(128,128,128,0.1)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                           <CalendarIcon size={18} style={{ color: 'var(--accent-color)' }} />
+                  <div className="permohonan-card-body">
+                    <div className="permohonan-details-col">
+                      <div className="permohonan-detail-item">
+                        <div className="permohonan-detail-icon-wrap">
+                           <CalendarIcon size={18} className="permohonan-detail-icon" />
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingTop: '2px' }}>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>{t.date}</span>
-                          <span style={{ fontSize: '0.95rem', fontWeight: 500, color: 'var(--text-primary)' }}>
+                        <div className="permohonan-detail-text-wrap">
+                          <span className="permohonan-detail-label">{t.date}</span>
+                          <span className="permohonan-detail-value">
                             {item.tanggal_mulai} {item.tanggal_mulai !== item.tanggal_selesai && ` s/d ${item.tanggal_selesai}`}
                           </span>
                         </div>
                       </div>
-                      <div className="detail-item" style={{ alignItems: 'flex-start', display: 'flex', gap: '12px' }}>
-                        <div style={{ padding: '8px', background: 'rgba(128,128,128,0.1)', borderRadius: '8px', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                           <Info size={18} style={{ color: 'var(--accent-color)' }} />
+                      <div className="permohonan-detail-item">
+                        <div className="permohonan-detail-icon-wrap">
+                           <Info size={18} className="permohonan-detail-icon" />
                         </div>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', paddingTop: '2px' }}>
-                          <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)', textTransform: 'uppercase', letterSpacing: '0.5px', fontWeight: 600 }}>{t.descReason}</span>
-                          <span style={{ fontSize: '0.95rem', lineHeight: '1.4', color: 'var(--text-primary)' }}>{item.keterangan || '-'}</span>
+                        <div className="permohonan-detail-text-wrap">
+                          <span className="permohonan-detail-label">{t.descReason}</span>
+                          <span className="permohonan-detail-value-light">{item.keterangan || '-'}</span>
                         </div>
                       </div>
                     </div>
@@ -355,15 +355,14 @@ export default function History() {
 
       {enlargedPhoto && (
         <div 
-          className="image-modal-overlay" 
+          className="modal-overlay" 
           onClick={() => setEnlargedPhoto(null)}
-          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.85)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}
         >
-          <div style={{ position: 'relative', width: '100%', maxWidth: '400px' }} onClick={(e) => e.stopPropagation()}>
-            <img src={enlargedPhoto.startsWith('/') ? enlargedPhoto : `/${enlargedPhoto}`} style={{ width: '100%', borderRadius: '12px', objectFit: 'contain' }} alt="Foto Diperbesar" />
+          <div className="image-modal-content" onClick={(e) => e.stopPropagation()}>
+            <img src={enlargedPhoto.startsWith('/') ? enlargedPhoto : `/${enlargedPhoto}`} className="image-modal-img" alt="Foto Diperbesar" />
             <button 
               onClick={() => setEnlargedPhoto(null)}
-              style={{ position: 'absolute', top: '-40px', right: 0, background: 'none', border: 'none', color: 'white', cursor: 'pointer' }}
+              className="image-modal-close"
             >
               <X size={32} />
             </button>
@@ -374,34 +373,34 @@ export default function History() {
       {deleteConfirm && (
         <div
           onClick={() => setDeleteConfirm(null)}
-          style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, backgroundColor: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '24px' }}
+          className="modal-overlay modal-overlay-light"
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ background: 'var(--card-bg, #1e1e2e)', borderRadius: '16px', padding: '28px', maxWidth: '340px', width: '100%', border: '1px solid var(--glass-border)', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }}
+            className="confirm-modal-content"
           >
-            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '16px', textAlign: 'center' }}>
-              <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: 'rgba(239,68,68,0.15)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="confirm-modal-body">
+              <div className="confirm-modal-icon-wrap">
                 <AlertTriangle size={28} color="#ef4444" />
               </div>
               <div>
-                <h3 style={{ margin: '0 0 8px', fontSize: '1.1rem', color: 'var(--text-primary)' }}>Hapus Permohonan?</h3>
-                <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--text-secondary)', lineHeight: '1.5' }}>
+                <h3 className="confirm-modal-title">Hapus Permohonan?</h3>
+                <p className="confirm-modal-text">
                   Permohonan <strong>{deleteConfirm.tipe}</strong> ini akan dihapus secara permanen dan tidak dapat dikembalikan.
                 </p>
               </div>
-              <div style={{ display: 'flex', gap: '12px', width: '100%' }}>
+              <div className="confirm-modal-actions">
                 <button
                   onClick={() => setDeleteConfirm(null)}
                   disabled={deleting}
-                  style={{ flex: 1, padding: '12px', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'transparent', color: 'var(--text-primary)', cursor: 'pointer', fontWeight: 500 }}
+                  className="btn-cancel"
                 >
                   Batal
                 </button>
                 <button
                   onClick={handleDeletePermohonan}
                   disabled={deleting}
-                  style={{ flex: 1, padding: '12px', borderRadius: '10px', border: 'none', background: deleting ? 'rgba(239,68,68,0.4)' : '#ef4444', color: '#fff', cursor: deleting ? 'not-allowed' : 'pointer', fontWeight: 600, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '6px' }}
+                  className={`btn-danger ${deleting ? 'disabled' : ''}`}
                 >
                   {deleting ? <Loader2 size={16} className="animate-spin" /> : <Trash2 size={16} />}
                   {deleting ? 'Menghapus...' : 'Hapus'}

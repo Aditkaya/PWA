@@ -25,9 +25,10 @@ class LoginController {
 
         try {
             $this->db = new PDO($dsn, $user, $pass, $options);
-        } catch (\PDOException $e) {
+        } catch (Exception $e) {
             http_response_code(500);
-            echo json_encode(['message' => 'Database connection failed: ' . $e->getMessage()]);
+            error_log('Database error: ' . $e->getMessage());
+            echo json_encode(['message' => 'Terjadi kesalahan pada server']);
             exit();
         }
     }

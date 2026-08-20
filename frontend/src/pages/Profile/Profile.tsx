@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import * as faceapi from 'face-api.js'
-import { User, Mail, Briefcase, Phone, MapPin, Key, ChevronRight, Loader2, Camera, X, Save, Eye, EyeOff } from 'lucide-react'
+import { User, Mail, Briefcase, Phone, MapPin, Key, ChevronRight, Loader2, Camera, X, Save, Eye, EyeOff, Lock } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useLangStore } from '../../store/lang.store'
 import { translations } from '../../utils/translations'
@@ -15,6 +15,7 @@ interface KaryawanData {
   pekerjaan: string
   divisi: string
   avatar_url?: string
+  avatar_updated_at?: string
 }
 
 type ModalType = 'editProfile' | 'changePassword' | null
@@ -200,8 +201,28 @@ export default function Profile() {
     }
   }
 
+  const isProfileLocked = () => {
+    if (!profileData?.avatar_updated_at) return false
+    const lastUpdate = new Date(profileData.avatar_updated_at)
+    const now = new Date()
+    const diffTime = Math.abs(now.getTime() - lastUpdate.getTime())
+    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
+    return diffDays < 365
+  }
+
+  const getUnlockDate = () => {
+    if (!profileData?.avatar_updated_at) return ''
+    const lastUpdate = new Date(profileData.avatar_updated_at)
+    lastUpdate.setFullYear(lastUpdate.getFullYear() + 1)
+    return lastUpdate.toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })
+  }
+
   const triggerUpload = (e: React.MouseEvent) => {
     e.stopPropagation()
+    if (isProfileLocked()) {
+      showToast(`Foto profil dikunci hingga ${getUnlockDate()}`, 'error')
+      return
+    }
     if (fileInputRef.current && !uploading) fileInputRef.current.click()
   }
 
@@ -209,6 +230,10 @@ export default function Profile() {
     if (profileData?.avatar_url) {
       setIsViewerOpen(true)
     } else {
+      if (isProfileLocked()) {
+        showToast(`Foto profil dikunci hingga ${getUnlockDate()}`, 'error')
+        return
+      }
       if (fileInputRef.current && !uploading) fileInputRef.current.click()
     }
   }
@@ -355,8 +380,8 @@ export default function Profile() {
               </div>
             )}
           </div>
-          <button className="avatar-upload-badge" onClick={triggerUpload}>
-            <Camera size={16} />
+          <button className="avatar-upload-badge" onClick={triggerUpload} style={{ background: isProfileLocked() ? '#ef4444' : undefined, color: isProfileLocked() ? '#fff' : undefined }}>
+            {isProfileLocked() ? <Lock size={14} /> : <Camera size={16} />}
           </button>
         </div>
         <input 

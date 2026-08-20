@@ -160,11 +160,22 @@ export default function Profile() {
         img.onerror = reject
       })
 
-      const detection = await faceapi.detectSingleFace(img)
+      const options = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.85 })
+      const detection = await faceapi.detectSingleFace(img, options)
       URL.revokeObjectURL(objectUrl)
 
       if (!detection) {
-        showToast('Wajah tidak terdeteksi pada foto. Harap unggah foto yang menampilkan wajah.', 'error')
+        showToast('Wajah tidak terdeteksi dengan jelas. Harap pastikan foto terang dan wajah terlihat jelas.', 'error')
+        setUploading(false)
+        return
+      }
+
+      // Pastikan wajah cukup besar (minimal 20% dari ukuran foto) untuk menghindari foto grup/terlalu jauh
+      const faceWidthRatio = detection.box.width / img.width
+      const faceHeightRatio = detection.box.height / img.height
+
+      if (faceWidthRatio < 0.2 && faceHeightRatio < 0.2) {
+        showToast('Posisi wajah terlalu jauh/kecil. Gunakan pas foto atau selfie yang lebih fokus pada wajah Anda.', 'error')
         setUploading(false)
         return
       }

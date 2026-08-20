@@ -9,7 +9,7 @@ class LoginController {
     private $db;
 
     public function __construct() {
-        $host = 'localhost';
+        $host = '127.0.0.1';
         $db   = 'aypsis';
         $isLocal = ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NAME'] === '127.0.0.1');
         $user = $isLocal ? 'root' : 'aypsis_web';

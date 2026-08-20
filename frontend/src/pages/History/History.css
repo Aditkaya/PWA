@@ -9,35 +9,54 @@
 }
 .tab-switcher {
   display: flex;
-  margin-bottom: 20px;
+  margin-bottom: 24px;
   padding: 6px;
-  gap: 6px;
-  border-radius: 16px;
+  gap: 8px;
+  border-radius: 20px;
+  background: var(--glass-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid var(--glass-border);
+  box-shadow: inset 0 2px 4px rgba(0,0,0,0.1);
 }
 .tab-btn {
   flex: 1;
   padding: 12px;
-  border-radius: 12px;
+  border-radius: 16px;
   border: none;
-  font-weight: 500;
-  transition: all 0.3s;
+  font-weight: 600;
+  transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
+  cursor: pointer;
+  letter-spacing: 0.5px;
 }
 .tab-btn.active {
   background: var(--accent-color);
   color: #fff;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.4);
 }
 .tab-btn.inactive {
   background: transparent;
   color: var(--text-secondary);
 }
+.tab-btn.inactive:hover {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--text-primary);
+}
 .history-card {
   overflow: hidden;
+  transition: all 0.3s ease;
+}
+.history-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 12px 35px var(--shadow-dark), inset 0 1px 0 var(--glass-highlight);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 .history-card-header {
   cursor: pointer;
+  transition: padding 0.3s ease;
 }
 .history-card-header.expanded {
-  padding-bottom: 12px;
+  padding-bottom: 16px;
 }
 .history-card-header.collapsed {
   padding-bottom: 0;
@@ -48,8 +67,10 @@
   gap: 12px;
 }
 .history-card-header-title .time {
-  font-weight: 600;
-  font-size: 0.95rem;
+  font-weight: 700;
+  font-size: 1rem;
+  letter-spacing: 0.5px;
+  font-family: 'Outfit', sans-serif;
 }
 .history-card-header-status {
   display: flex;
@@ -57,9 +78,9 @@
   gap: 8px;
 }
 .history-card-body {
-  border-top: 1px solid rgba(255,255,255,0.05);
-  padding-top: 12px;
-  margin-top: 12px;
+  border-top: 1px dashed rgba(255,255,255,0.15);
+  padding-top: 16px;
+  margin-top: 16px;
 }
 .detail-item-full {
   grid-column: 1 / -1;
@@ -125,15 +146,17 @@
 .permohonan-detail-item {
   align-items: flex-start;
   display: flex;
-  gap: 12px;
+  gap: 16px;
 }
 .permohonan-detail-icon-wrap {
-  padding: 8px;
-  background: rgba(128,128,128,0.1);
-  border-radius: 8px;
+  padding: 10px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: inset 0 1px 0 var(--glass-highlight);
 }
 .permohonan-detail-icon {
   color: var(--accent-color);
@@ -142,7 +165,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding-top: 2px;
+  padding-top: 4px;
 }
 .permohonan-detail-label {
   font-size: 0.75rem;
@@ -167,12 +190,15 @@
   left: 0;
   right: 0;
   bottom: 0;
-  background-color: rgba(0,0,0,0.85);
+  background-color: rgba(11, 17, 33, 0.7);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
   z-index: 9999;
   display: flex;
   align-items: center;
   justify-content: center;
   padding: 20px;
+  animation: fadeIn 0.3s ease-out;
 }
 .modal-overlay-light {
   background-color: rgba(0,0,0,0.6);

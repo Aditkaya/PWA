@@ -162,7 +162,7 @@ export default function DashboardLayout() {
           </div>
         </div>
       </header>
-      <main className="main-content">
+      <main className="main-content page-enter" key={location.pathname}>
         <Outlet />
       </main>
       <nav className="bottom-nav">

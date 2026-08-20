@@ -9,6 +9,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
+  animation: fadeIn 0.3s ease-out;
 }
 
 .camera-modal-content {
@@ -99,8 +100,10 @@
   height: 340px;
   max-width: 85vw;
   max-height: 85vw;
-  border: 2px dashed rgba(255, 255, 255, 0.7);
+  border: 3px solid rgba(255, 255, 255, 0.4);
   border-radius: 50%;
+  box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.6), inset 0 0 20px rgba(255,255,255,0.2);
+  transition: border-color 0.3s ease;
 }
 
 /* BOTTOM CONTROLS */
@@ -188,11 +191,12 @@
   width: 54px;
   height: 54px;
   border-radius: 50%;
-  background: #ef4444; /* Red color */
+  background: var(--accent-color);
   display: flex;
   align-items: center;
   justify-content: center;
   color: white;
+  box-shadow: 0 4px 15px rgba(59, 130, 246, 0.5);
 }
 
 .camera-status {

@@ -66,6 +66,15 @@ export default function Dashboard() {
     return t.night;
   };
 
+  const getGreetingGradient = () => {
+    const hour = time.getHours();
+    // Use dynamic gradients based on time of day
+    if (hour < 11) return 'linear-gradient(135deg, rgba(250, 204, 21, 0.1) 0%, rgba(253, 186, 116, 0.05) 100%)'; // Morning (yellow/orange)
+    if (hour < 15) return 'linear-gradient(135deg, rgba(56, 189, 248, 0.1) 0%, rgba(186, 230, 253, 0.05) 100%)'; // Afternoon (blue)
+    if (hour < 18) return 'linear-gradient(135deg, rgba(249, 115, 22, 0.1) 0%, rgba(252, 165, 165, 0.05) 100%)'; // Evening (orange/red)
+    return 'linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(167, 139, 250, 0.05) 100%)'; // Night (indigo/purple)
+  };
+
   const getFirstName = () => {
     if (!userProfile?.nama_lengkap) return 'Karyawan';
     const names = userProfile.nama_lengkap.trim().split(' ');
@@ -261,7 +270,10 @@ export default function Dashboard() {
         </div>
       )}
 
-      <div className="greeting-card glass-panel">
+      <div 
+        className="greeting-card glass-panel"
+        style={{ background: getGreetingGradient() }}
+      >
         <h2>{getGreeting()}, {getFirstName()}!</h2>
         <p>{hasFullDayLeave ? t.statusLeave : (isOvertimeMode ? t.statusOvertime : t.statusActive)}</p>
       </div>

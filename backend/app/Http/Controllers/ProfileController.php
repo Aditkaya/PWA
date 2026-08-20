@@ -107,18 +107,19 @@ class ProfileController {
             $user = $stmt->fetch();
 
             if ($user && $user['avatar_updated_at']) {
-                $lastUpdated = new \DateTime($user['avatar_updated_at']);
-                $now = new \DateTime();
-                $diff = $now->diff($lastUpdated);
-                if ($diff->days < 365 && $diff->y < 1) {
-                    $nextYear = clone $lastUpdated;
-                    $nextYear->modify('+1 year');
-                    http_response_code(403);
-                    echo json_encode([
-                        'message' => 'Foto profil telah dikunci dan baru dapat diubah kembali pada ' . $nextYear->format('d M Y')
-                    ]);
-                    return;
-                }
+                // Lock feature has been disabled
+                // $lastUpdated = new \DateTime($user['avatar_updated_at']);
+                // $now = new \DateTime();
+                // $diff = $now->diff($lastUpdated);
+                // if ($diff->days < 365 && $diff->y < 1) {
+                //     $nextYear = clone $lastUpdated;
+                //     $nextYear->modify('+1 year');
+                //     http_response_code(403);
+                //     echo json_encode([
+                //         'message' => 'Foto profil telah dikunci dan baru dapat diubah kembali pada ' . $nextYear->format('d M Y')
+                //     ]);
+                //     return;
+                // }
             }
 
             $upload_dir = UPLOAD_BASE_DIR . '/uploads/avatars/';

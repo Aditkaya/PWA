@@ -231,12 +231,7 @@ export default function Profile() {
   }
 
   const isProfileLocked = () => {
-    if (!profileData?.avatar_updated_at) return false
-    const lastUpdate = new Date(profileData.avatar_updated_at)
-    const now = new Date()
-    const diffTime = Math.abs(now.getTime() - lastUpdate.getTime())
-    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    return diffDays < 365
+    return false
   }
 
   const getUnlockDate = () => {

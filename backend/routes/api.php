@@ -130,6 +130,13 @@ if ($uri === '/api/lokasi' && $method === 'GET') {
     exit();
 }
 
+if ($uri === '/api/holidays' && $method === 'GET') {
+    require_once __DIR__ . '/../app/Http/Controllers/HolidayController.php';
+    $controller = new \App\Http\Controllers\HolidayController();
+    $controller->getHolidays();
+    exit();
+}
+
 if ($uri === '/api/history' && $method === 'GET') {
     require_once __DIR__ . '/../app/Http/Controllers/HistoryController.php';
     $controller = new \App\Http\Controllers\HistoryController();

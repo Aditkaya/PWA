@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import * as faceapi from 'face-api.js'
+import Cropper from 'react-easy-crop'
+import getCroppedImg from '../../utils/cropImage'
 import { User, Mail, Briefcase, Phone, MapPin, Key, ChevronRight, Loader2, Camera, X, Save, Eye, EyeOff, Lock } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useLangStore } from '../../store/lang.store'
@@ -28,6 +30,13 @@ export default function Profile() {
   const [isViewerOpen, setIsViewerOpen] = useState(false)
   const [activeModal, setActiveModal] = useState<ModalType>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+
+  // Cropper state
+  const [cropImageSrc, setCropImageSrc] = useState<string | null>(null)
+  const [crop, setCrop] = useState({ x: 0, y: 0 })
+  const [zoom, setZoom] = useState(1)
+  const [croppedAreaPixels, setCroppedAreaPixels] = useState<any>(null)
+  const [isCropping, setIsCropping] = useState(false)
 
   // Edit profile form state
   const [editForm, setEditForm] = useState({ nama_lengkap: '', email: '', no_hp: '' })
@@ -142,7 +151,23 @@ export default function Profile() {
     const file = e.target.files?.[0]
     if (!file || !user?.id) return
     
+    // reset input so the same file can be selected again
+    e.target.value = ''
+
+    const objectUrl = URL.createObjectURL(file)
+    setCropImageSrc(objectUrl)
+    setIsCropping(true)
+  }
+
+  const onCropComplete = (_croppedArea: any, croppedAreaPixels: any) => {
+    setCroppedAreaPixels(croppedAreaPixels)
+  }
+
+  const handleSaveCrop = async () => {
+    if (!cropImageSrc || !croppedAreaPixels || !user?.id) return
+    
     setUploading(true)
+    setIsCropping(false)
 
     if (!modelsLoaded) {
       showToast('AI Model belum siap. Silakan coba sebentar lagi.', 'error')
@@ -151,8 +176,10 @@ export default function Profile() {
     }
 
     try {
-      // 1. Verify face exists in the image
-      const objectUrl = URL.createObjectURL(file)
+      const croppedFile = await getCroppedImg(cropImageSrc, croppedAreaPixels)
+      if (!croppedFile) throw new Error("Gagal memotong gambar")
+
+      const objectUrl = URL.createObjectURL(croppedFile)
       const img = new Image()
       img.src = objectUrl
 
@@ -171,7 +198,6 @@ export default function Profile() {
         return
       }
 
-      // Pastikan wajah cukup besar (minimal 20% dari ukuran foto) untuk menghindari foto grup/terlalu jauh
       const faceWidthRatio = detection.box.width / img.width
       const faceHeightRatio = detection.box.height / img.height
 
@@ -183,21 +209,23 @@ export default function Profile() {
 
       // 2. Upload to server
       const formData = new FormData()
-      formData.append('avatar', file)
+      formData.append('avatar', croppedFile)
       formData.append('user_id', user.id.toString())
       
       const response = await fetch('/api/profile/upload', { method: 'POST', body: formData })
       if (response.ok) {
         const result = await response.json()
-        setProfileData(prev => prev ? { ...prev, avatar_url: result.avatar_url } : null)
+        setProfileData(prev => prev ? { ...prev, avatar_url: result.avatar_url, avatar_updated_at: new Date().toISOString() } : null)
         showToast('Foto profil berhasil diunggah', 'success')
       } else {
-        showToast('Gagal mengupload foto', 'error')
+        const result = await response.json()
+        showToast(result.message || 'Gagal mengupload foto', 'error')
       }
     } catch {
       showToast('Terjadi kesalahan sistem', 'error')
     } finally {
       setUploading(false)
+      setCropImageSrc(null)
     }
   }
 
@@ -276,6 +304,41 @@ export default function Profile() {
             onClick={(e) => e.stopPropagation()} 
             style={{ borderRadius: '50%', objectFit: 'cover', width: '250px', height: '250px' }}
           />
+        </div>
+      )}
+
+      {/* Cropper Modal */}
+      {isCropping && cropImageSrc && (
+        <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 9999, display: 'flex', flexDirection: 'column' }}>
+          <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.5)', position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
+            <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem' }}>Sesuaikan Foto Profil</h3>
+            <button onClick={() => { setIsCropping(false); setCropImageSrc(null) }} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}>
+              <X size={28} />
+            </button>
+          </div>
+          
+          <div style={{ flex: 1, position: 'relative' }}>
+            <Cropper
+              image={cropImageSrc}
+              crop={crop}
+              zoom={zoom}
+              aspect={1}
+              onCropChange={setCrop}
+              onCropComplete={onCropComplete}
+              onZoomChange={setZoom}
+              cropShape="round"
+              showGrid={false}
+            />
+          </div>
+          
+          <div style={{ padding: '24px', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#111', paddingBottom: 'env(safe-area-inset-bottom, 24px)' }}>
+            <button 
+              onClick={handleSaveCrop}
+              style={{ width: '100%', padding: '14px', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 700, fontSize: '1rem', cursor: 'pointer' }}
+            >
+              Simpan & Verifikasi
+            </button>
+          </div>
         </div>
       )}
 

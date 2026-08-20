@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Info, Loader2, MapPin, ChevronDown, ChevronUp, X, FileText, Trash2, AlertTriangle, Clock, Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Info, Loader2, MapPin, ChevronDown, ChevronUp, X, FileText, Trash2, AlertTriangle, Clock, Search, UserCheck } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useLangStore } from '../../store/lang.store'
 import { translations } from '../../utils/translations'
@@ -28,6 +28,7 @@ interface PermohonanItem {
   keterangan: string
   status: string
   created_at: string
+  approved_by_name?: string
 }
 
 interface HolidayItem {
@@ -416,6 +417,17 @@ export default function History() {
                           </span>
                         </div>
                       </div>
+                      {(item.status === 'Disetujui' || item.status === 'Ditolak') && item.approved_by_name && (
+                        <div className="permohonan-detail-item">
+                          <div className="permohonan-detail-icon-wrap">
+                             <UserCheck size={18} className="permohonan-detail-icon" style={{ color: item.status === 'Disetujui' ? 'var(--success-color)' : 'var(--error-color)' }} />
+                          </div>
+                          <div className="permohonan-detail-text-wrap">
+                            <span className="permohonan-detail-label">{item.status.toUpperCase()} OLEH</span>
+                            <span className="permohonan-detail-value" style={{ fontWeight: 600 }}>{item.approved_by_name}</span>
+                          </div>
+                        </div>
+                      )}
                     </div>
                   </div>
                   )}

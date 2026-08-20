@@ -266,6 +266,16 @@ export default function Dashboard() {
         <p>{hasFullDayLeave ? t.statusLeave : (isOvertimeMode ? t.statusOvertime : t.statusActive)}</p>
       </div>
 
+      {userProfile && !userProfile.avatar_url && (
+        <div className="warning-banner glass-panel" style={{ borderLeft: '4px solid #f59e0b', padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <AlertCircle color="#f59e0b" size={24} style={{ flexShrink: 0 }} />
+          <div>
+            <h4 style={{ margin: '0 0 4px 0', color: '#f59e0b', fontSize: '0.95rem' }}>Foto Profil Belum Diatur</h4>
+            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Segera lengkapi foto profil Anda terlebih dahulu agar dapat melakukan absensi.</p>
+          </div>
+        </div>
+      )}
+
       <div className="clock-section">
         <div className="time">
           {time.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':')}

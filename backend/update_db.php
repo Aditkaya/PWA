@@ -1,5 +1,5 @@
 <?php
-$_SERVER['SERVER_NAME'] = 'localhost';
+// Script eksekusi update database di server
 require __DIR__ . '/config/database.php';
 $db = new Database();
 $conn = $db->getConnection();

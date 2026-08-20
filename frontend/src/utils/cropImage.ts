@@ -41,11 +41,15 @@ export default async function getCroppedImg(
     return null
   }
 
-  // Set the size of the cropped canvas
-  croppedCanvas.width = pixelCrop.width
-  croppedCanvas.height = pixelCrop.height
+  // Compress: Set maximum size for profile picture (e.g., 512px)
+  const TARGET_SIZE = 512
+  const finalSize = Math.min(pixelCrop.width, TARGET_SIZE)
 
-  // Draw the cropped image onto the new canvas
+  // Set the size of the cropped canvas
+  croppedCanvas.width = finalSize
+  croppedCanvas.height = finalSize
+
+  // Draw the cropped image onto the new canvas and scale it down
   croppedCtx.drawImage(
     canvas,
     pixelCrop.x,
@@ -54,8 +58,8 @@ export default async function getCroppedImg(
     pixelCrop.height,
     0,
     0,
-    pixelCrop.width,
-    pixelCrop.height
+    finalSize,
+    finalSize
   )
 
   return new Promise((resolve, reject) => {
@@ -66,6 +70,6 @@ export default async function getCroppedImg(
       }
       const file = new File([blob], 'cropped.jpg', { type: 'image/jpeg' })
       resolve(file)
-    }, 'image/jpeg', 0.95)
+    }, 'image/jpeg', 0.8) // Compress quality to 80%
   })
 }

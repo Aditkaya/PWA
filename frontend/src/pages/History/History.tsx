@@ -30,11 +30,17 @@ interface PermohonanItem {
   created_at: string
 }
 
+interface HolidayItem {
+  tanggal: string
+  keterangan: string
+}
+
 export default function History() {
   const { user } = useAuthStore()
   const [activeTab, setActiveTab] = useState<'absensi' | 'permohonan'>('absensi')
   const [historyData, setHistoryData] = useState<HistoryItem[]>([])
   const [permohonanData, setPermohonanData] = useState<PermohonanItem[]>([])
+  const [holidaysData, setHolidaysData] = useState<HolidayItem[]>([])
   const [loading, setLoading] = useState(true)
 
   const { lang } = useLangStore()
@@ -51,9 +57,10 @@ export default function History() {
     if (!user?.id) return
     try {
       if (showLoading) setLoading(true)
-      const [histRes, permRes] = await Promise.all([
+      const [histRes, permRes, holiRes] = await Promise.all([
         fetch(`/api/history?user_id=${user.id}`),
-        fetch(`/api/permohonan?user_id=${user.id}`)
+        fetch(`/api/permohonan?user_id=${user.id}`),
+        fetch('/api/holidays')
       ])
 
       if (histRes.ok) {
@@ -64,6 +71,11 @@ export default function History() {
       if (permRes.ok) {
         const permResult = await permRes.json()
         setPermohonanData(permResult.data)
+      }
+
+      if (holiRes.ok) {
+        const holiResult = await holiRes.json()
+        setHolidaysData(holiResult.data || [])
       }
     } catch (error) {
       console.error("Failed to fetch history data", error)
@@ -185,10 +197,15 @@ export default function History() {
                 const isToday = day === realToday.getDate() && currentDate.getMonth() === realToday.getMonth() && currentDate.getFullYear() === realToday.getFullYear()
                 const isSelected = selectedDay === day
                 
+                const formattedMonth = String(currentDate.getMonth() + 1).padStart(2, '0')
+                const formattedDay = String(day).padStart(2, '0')
+                const dateString = `${currentDate.getFullYear()}-${formattedMonth}-${formattedDay}`
+                const holiday = holidaysData.find(h => h.tanggal === dateString)
+                
                 return (
                   <div 
                     key={day} 
-                    className={`calendar-cell ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''}`}
+                    className={`calendar-cell ${isToday ? 'today' : ''} ${isSelected ? 'selected' : ''} ${holiday ? 'holiday' : ''}`}
                     onClick={() => setSelectedDay(day)}
                   >
                     <span className="day-number">{day}</span>
@@ -203,6 +220,7 @@ export default function History() {
                         return <span key={ev.id} className={`event-dot ${dotClass}`} title={ev.type}></span>
                       })}
                     </div>
+                    {holiday && <span className="holiday-desc">{holiday.keterangan}</span>}
                   </div>
                 )
               })}

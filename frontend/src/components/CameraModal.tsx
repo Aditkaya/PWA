@@ -8,6 +8,11 @@ import { translations } from '../utils/translations';
 import { useToast } from '../contexts/ToastContext';
 import '../styles/cameramodal.css';
 
+// Global cache variables to prevent reloading AI models and profile photo for every modal open
+let globalModelsPromise: Promise<void> | null = null;
+let globalProfileDescriptor: Float32Array | null = null;
+let globalUserId: number | string | null = null;
+
 interface CameraModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -222,11 +227,11 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       }
       
       if (!isCancelled) {
-        timeoutId = setTimeout(detectFace, 300);
+        timeoutId = setTimeout(detectFace, 150);
       }
     };
 
-    timeoutId = setTimeout(detectFace, 1000);
+    timeoutId = setTimeout(detectFace, 500);
 
     return () => {
       isCancelled = true;
@@ -240,16 +245,23 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
 
     const loadModelsAndProfile = async () => {
       try {
-        await Promise.all([
-          faceapi.nets.ssdMobilenetv1.loadFromUri('/models'),
-          faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
-          faceapi.nets.faceRecognitionNet.loadFromUri('/models')
-        ]);
-        
+        if (!globalModelsPromise) {
+          globalModelsPromise = Promise.all([
+            faceapi.nets.ssdMobilenetv1.loadFromUri('/models'),
+            faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
+            faceapi.nets.faceRecognitionNet.loadFromUri('/models')
+          ]);
+        }
+        await globalModelsPromise;
         setIsModelsLoaded(true);
 
         // Fetch profile
         if (user?.id) {
+          if (globalUserId === user.id && globalProfileDescriptor) {
+            setProfileDescriptor(globalProfileDescriptor);
+            setIsProfileLoaded(true);
+            return;
+          }
           const res = await fetch(`/api/profile?user_id=${user.id}`);
           const data = await res.json();
           if (data.data && data.data.avatar_url) {
@@ -258,10 +270,12 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
             img.src = data.data.avatar_url;
             await new Promise((resolve, reject) => {
               img.onload = resolve;
-              img.onerror = reject;
+              img.onerror = () => reject(new Error('Gagal memuat gambar profil'));
             });
             const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
             if (detection) {
+              globalProfileDescriptor = detection.descriptor;
+              globalUserId = user.id;
               setProfileDescriptor(detection.descriptor);
             } else {
               setErrorMsg('Wajah pada foto profil tidak terdeteksi. Harap perbarui foto profil Anda.');
@@ -293,7 +307,13 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
 
   const startCamera = async () => {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } });
+      const stream = await navigator.mediaDevices.getUserMedia({ 
+        video: { 
+          facingMode: 'user',
+          width: { ideal: 640 },
+          height: { ideal: 480 }
+        } 
+      });
       if (videoRef.current) {
         videoRef.current.srcObject = stream;
         videoRef.current.onloadedmetadata = () => {

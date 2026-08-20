@@ -181,8 +181,10 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   useEffect(() => {
     if (isCameraReady && isModelsLoaded && isProfileLoaded && !isLivenessPassed && !errorMsg) {
       setLivenessMsg("Mencocokkan Wajah dengan Profil...");
-    } else if (isCameraReady && (!isModelsLoaded || !isProfileLoaded) && !errorMsg) {
-      setLivenessMsg("Menyiapkan AI (Mohon tunggu)...");
+    } else if (isCameraReady && !isModelsLoaded && !errorMsg) {
+      setLivenessMsg("Mengunduh Mesin AI (Tunggu sebentar)...");
+    } else if (isCameraReady && isModelsLoaded && !isProfileLoaded && !errorMsg) {
+      setLivenessMsg("Menganalisis Foto Profil (Tunggu sebentar)...");
     }
   }, [isCameraReady, isModelsLoaded, isProfileLoaded, isLivenessPassed, errorMsg]);
 
@@ -265,20 +267,32 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
           const res = await fetch(`/api/profile?user_id=${user.id}`);
           const data = await res.json();
           if (data.data && data.data.avatar_url) {
-            const img = new Image();
-            img.crossOrigin = 'Anonymous';
-            img.src = data.data.avatar_url;
-            await new Promise((resolve, reject) => {
-              img.onload = resolve;
-              img.onerror = () => reject(new Error('Gagal memuat gambar profil'));
-            });
-            const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
-            if (detection) {
-              globalProfileDescriptor = detection.descriptor;
-              globalUserId = user.id;
-              setProfileDescriptor(detection.descriptor);
-            } else {
-              setErrorMsg('Wajah pada foto profil tidak terdeteksi. Harap perbarui foto profil Anda.');
+            try {
+              // Gunakan fetch & blob untuk menghindari bug CORS gambar di Safari/iOS
+              const imgRes = await fetch(data.data.avatar_url);
+              const imgBlob = await imgRes.blob();
+              const objUrl = URL.createObjectURL(imgBlob);
+              
+              const img = new Image();
+              img.src = objUrl;
+              await new Promise((resolve, reject) => {
+                img.onload = resolve;
+                img.onerror = () => reject(new Error('Gagal memuat gambar profil'));
+              });
+              
+              const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
+              URL.revokeObjectURL(objUrl);
+
+              if (detection) {
+                globalProfileDescriptor = detection.descriptor;
+                globalUserId = user.id;
+                setProfileDescriptor(detection.descriptor);
+              } else {
+                setErrorMsg('Wajah pada foto profil tidak terdeteksi. Harap perbarui foto profil Anda.');
+              }
+            } catch (fetchErr) {
+              console.error("Error fetching avatar", fetchErr);
+              setErrorMsg('Koneksi terputus saat memuat foto profil.');
             }
           } else {
             setErrorMsg('Anda belum mengatur foto profil. Harap unggah foto profil terlebih dahulu.');

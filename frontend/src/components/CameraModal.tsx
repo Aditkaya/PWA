@@ -9,7 +9,7 @@ import { useToast } from '../contexts/ToastContext';
 import '../styles/cameramodal.css';
 
 // Global cache variables to prevent reloading AI models and profile photo for every modal open
-let globalModelsPromise: Promise<void> | null = null;
+let globalModelsPromise: Promise<any> | null = null;
 let globalProfileDescriptor: Float32Array | null = null;
 let globalUserId: number | string | null = null;
 

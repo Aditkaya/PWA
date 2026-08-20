@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Info, Loader2, MapPin, ChevronDown, ChevronUp, X, FileText, Trash2, AlertTriangle, Clock } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Info, Loader2, MapPin, ChevronDown, ChevronUp, X, FileText, Trash2, AlertTriangle, Clock, Search } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useLangStore } from '../../store/lang.store'
 import { translations } from '../../utils/translations'
@@ -42,6 +42,7 @@ export default function History() {
   const [permohonanData, setPermohonanData] = useState<PermohonanItem[]>([])
   const [holidaysData, setHolidaysData] = useState<HolidayItem[]>([])
   const [loading, setLoading] = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
 
   const { lang } = useLangStore()
   const t = translations[lang]
@@ -117,6 +118,17 @@ export default function History() {
   }
 
   const selectedEvents = selectedDay ? getEventsForDay(selectedDay) : []
+  
+  const filteredPermohonanData = permohonanData.filter(item => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      (item.tipe || '').toLowerCase().includes(query) ||
+      (item.jenis || '').toLowerCase().includes(query) ||
+      (item.keterangan || '').toLowerCase().includes(query) ||
+      (item.status || '').toLowerCase().includes(query)
+    );
+  });
   
   const toggleItem = async (id: number | string) => {
     const isExpanding = !expandedItems.includes(id);
@@ -311,9 +323,25 @@ export default function History() {
         </>
       ) : (
         <div className="permohonan-list fade-in">
-          {permohonanData.length > 0 ? (
+          <div className="search-container glass-panel" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', padding: '10px 16px', gap: '8px', borderRadius: '12px' }}>
+            <Search size={20} color="var(--text-secondary)" />
+            <input 
+              type="text" 
+              placeholder="Cari permohonan (Cuti, Izin, Sakit...)" 
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', fontSize: '0.95rem' }}
+            />
+            {searchQuery && (
+              <button onClick={() => setSearchQuery('')} className="icon-btn" style={{ padding: '4px' }}>
+                <X size={16} />
+              </button>
+            )}
+          </div>
+
+          {filteredPermohonanData.length > 0 ? (
             <div className="history-list">
-              {permohonanData.map(item => {
+              {filteredPermohonanData.map(item => {
                 const itemKey = `${item.tipe}-${item.id}`;
                 const isExpanded = expandedItems.includes(itemKey);
                 return (

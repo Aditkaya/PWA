@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import * as faceapi from 'face-api.js';
 import { Camera, X, Loader2, AlertCircle, Zap, RefreshCw, MapPin } from 'lucide-react';
 import { useLangStore } from '../store/lang.store';
+import { useAuthStore } from '../store/auth.store';
 import { translations } from '../utils/translations';
 import { useToast } from '../contexts/ToastContext';
 import '../styles/cameramodal.css';
@@ -41,6 +42,10 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   const [livenessMsg, setLivenessMsg] = useState('');
   
   const { lang } = useLangStore();
+  const { user } = useAuthStore();
+  const [profileDescriptor, setProfileDescriptor] = useState<Float32Array | null>(null);
+  const [isProfileLoaded, setIsProfileLoaded] = useState(false);
+
   const t = translations[lang];
   const { showToast } = useToast();
 
@@ -56,7 +61,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   useEffect(() => {
     if (isOpen) {
       setIsLivenessPassed(false);
-      setLivenessMsg(t.pleaseSmile || "Silakan Tersenyum");
+      setLivenessMsg("Mencocokkan Wajah dengan Profil...");
       setErrorMsg('');
       setStatusMsg('');
       setIsProcessing(false);
@@ -64,7 +69,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       setLocationCoords(null);
       setAddress(t.findingLocation);
     }
-  }, [isOpen, t.pleaseSmile, t.findingLocation]);
+  }, [isOpen, t.findingLocation]);
 
   // Fetch Allowed Locations once & preload logo
   useEffect(() => {
@@ -169,84 +174,111 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
 
   // Set initial liveness message when camera is ready
   useEffect(() => {
-    if (isCameraReady && isModelsLoaded && !isLivenessPassed) {
-      setLivenessMsg(t.pleaseSmile || "Silakan Tersenyum");
-    } else if (isCameraReady && !isModelsLoaded) {
+    if (isCameraReady && isModelsLoaded && isProfileLoaded && !isLivenessPassed && !errorMsg) {
+      setLivenessMsg("Mencocokkan Wajah dengan Profil...");
+    } else if (isCameraReady && (!isModelsLoaded || !isProfileLoaded) && !errorMsg) {
       setLivenessMsg("Menyiapkan AI (Mohon tunggu)...");
     }
-  }, [isCameraReady, isModelsLoaded, isLivenessPassed]);
+  }, [isCameraReady, isModelsLoaded, isProfileLoaded, isLivenessPassed, errorMsg]);
 
-  // Liveness Detection Loop
+  // Face Recognition Loop
   useEffect(() => {
-    if (!isCameraReady || !isModelsLoaded || !videoRef.current || isLivenessPassed || isProcessing) return;
+    if (!isCameraReady || !isModelsLoaded || !isProfileLoaded || !profileDescriptor || !videoRef.current || isLivenessPassed || isProcessing || errorMsg) return;
 
     let timeoutId: number | NodeJS.Timeout;
     let isCancelled = false;
     
-    const detectLiveness = async () => {
+    const detectFace = async () => {
       if (isCancelled) return;
       
       const video = videoRef.current;
       if (!video || video.paused || video.ended) {
-        if (!isCancelled) timeoutId = setTimeout(detectLiveness, 300);
+        if (!isCancelled) timeoutId = setTimeout(detectFace, 300);
         return;
       }
 
       try {
-        const detection = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceExpressions();
+        const detection = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
         if (detection) {
-          const smileProbability = detection.expressions.happy;
+          const distance = faceapi.euclideanDistance(detection.descriptor, profileDescriptor);
           
-          // Lowered threshold to 0.4 so a slight smile is enough to pass
-          if (smileProbability > 0.4) {
+          if (distance < 0.55) {
             setIsLivenessPassed(true);
-            setLivenessMsg(t.smileDetected || "Verifikasi Wajah Berhasil!");
+            setLivenessMsg("Wajah Cocok! Verifikasi Berhasil.");
             
             // Auto capture
             setTimeout(() => {
               if (!isCancelled) captureAndValidate();
             }, 500);
             return; // stop looping
+          } else {
+            setLivenessMsg("Wajah tidak cocok dengan profil.");
           }
+        } else {
+          setLivenessMsg("Mencocokkan Wajah dengan Profil...");
         }
       } catch (err) {
         // ignore errors during loop to keep it running silently
       }
       
       if (!isCancelled) {
-        timeoutId = setTimeout(detectLiveness, 300);
+        timeoutId = setTimeout(detectFace, 300);
       }
     };
 
-    timeoutId = setTimeout(detectLiveness, 1000);
+    timeoutId = setTimeout(detectFace, 1000);
 
     return () => {
       isCancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [isCameraReady, isModelsLoaded, isLivenessPassed, isProcessing]);
+  }, [isCameraReady, isModelsLoaded, isProfileLoaded, profileDescriptor, isLivenessPassed, isProcessing, errorMsg]);
 
-  // Load Models
+  // Load Models and Profile
   useEffect(() => {
     if (!isOpen) return;
 
-    const loadModels = async () => {
+    const loadModelsAndProfile = async () => {
       try {
         await Promise.all([
           faceapi.nets.ssdMobilenetv1.loadFromUri('/models'),
           faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
-          faceapi.nets.faceExpressionNet.loadFromUri('/models')
+          faceapi.nets.faceRecognitionNet.loadFromUri('/models')
         ]);
         
         setIsModelsLoaded(true);
+
+        // Fetch profile
+        if (user?.id) {
+          const res = await fetch(`/api/profile?user_id=${user.id}`);
+          const data = await res.json();
+          if (data.data && data.data.avatar_url) {
+            const img = new Image();
+            img.crossOrigin = 'Anonymous';
+            img.src = data.data.avatar_url;
+            await new Promise((resolve, reject) => {
+              img.onload = resolve;
+              img.onerror = reject;
+            });
+            const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
+            if (detection) {
+              setProfileDescriptor(detection.descriptor);
+            } else {
+              setErrorMsg('Wajah pada foto profil tidak terdeteksi. Harap perbarui foto profil Anda.');
+            }
+          } else {
+            setErrorMsg('Anda belum mengatur foto profil. Harap unggah foto profil terlebih dahulu.');
+          }
+        }
+        setIsProfileLoaded(true);
       } catch (err) {
-        console.error("Error loading models", err);
-        setErrorMsg(t.modelFailed);
+        console.error("Error loading models or profile", err);
+        setErrorMsg('Gagal memuat AI atau data profil.');
       }
     };
 
-    loadModels();
-  }, [isOpen]);
+    loadModelsAndProfile();
+  }, [isOpen, user?.id]);
 
   // Start Camera
   useEffect(() => {

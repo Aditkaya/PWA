@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import * as faceapi from 'face-api.js'
 import { User, Mail, Briefcase, Phone, MapPin, Key, ChevronRight, Loader2, Camera, X, Save, Eye, EyeOff } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useLangStore } from '../../store/lang.store'
@@ -25,7 +26,14 @@ export default function Profile() {
   const [uploading, setUploading] = useState(false)
   const [isViewerOpen, setIsViewerOpen] = useState(false)
   const [activeModal, setActiveModal] = useState<ModalType>(null)
+  const [isUploadMenuOpen, setIsUploadMenuOpen] = useState(false)
+  const [isWebcamOpen, setIsWebcamOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const cameraInputRef = useRef<HTMLInputElement>(null)
+  const galleryInputRef = useRef<HTMLInputElement>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  const canvasRef = useRef<HTMLCanvasElement>(null)
+  const [stream, setStream] = useState<MediaStream | null>(null)
 
   // Edit profile form state
   const [editForm, setEditForm] = useState({ nama_lengkap: '', email: '', no_hp: '' })
@@ -39,6 +47,20 @@ export default function Profile() {
   const { lang } = useLangStore()
   const t = translations[lang]
   const { showToast } = useToast()
+
+  const [modelsLoaded, setModelsLoaded] = useState(false)
+
+  useEffect(() => {
+    const loadModels = async () => {
+      try {
+        await faceapi.nets.ssdMobilenetv1.loadFromUri('/models')
+        setModelsLoaded(true)
+      } catch (error) {
+        console.error("Gagal memuat model face-api", error)
+      }
+    }
+    loadModels()
+  }, [])
 
   const fetchProfile = async () => {
     if (!user?.id) return
@@ -125,15 +147,45 @@ export default function Profile() {
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     if (!file || !user?.id) return
+    
     setUploading(true)
-    const formData = new FormData()
-    formData.append('avatar', file)
-    formData.append('user_id', user.id.toString())
+
+    if (!modelsLoaded) {
+      showToast('AI Model belum siap. Silakan coba sebentar lagi.', 'error')
+      setUploading(false)
+      return
+    }
+
     try {
+      // 1. Verify face exists in the image
+      const objectUrl = URL.createObjectURL(file)
+      const img = new Image()
+      img.src = objectUrl
+
+      await new Promise((resolve, reject) => {
+        img.onload = resolve
+        img.onerror = reject
+      })
+
+      const detection = await faceapi.detectSingleFace(img)
+      URL.revokeObjectURL(objectUrl)
+
+      if (!detection) {
+        showToast('Wajah tidak terdeteksi pada foto. Harap unggah foto yang menampilkan wajah.', 'error')
+        setUploading(false)
+        return
+      }
+
+      // 2. Upload to server
+      const formData = new FormData()
+      formData.append('avatar', file)
+      formData.append('user_id', user.id.toString())
+      
       const response = await fetch('/api/profile/upload', { method: 'POST', body: formData })
       if (response.ok) {
         const result = await response.json()
         setProfileData(prev => prev ? { ...prev, avatar_url: result.avatar_url } : null)
+        showToast('Foto profil berhasil diunggah', 'success')
       } else {
         showToast('Gagal mengupload foto', 'error')
       }
@@ -146,15 +198,87 @@ export default function Profile() {
 
   const triggerUpload = (e: React.MouseEvent) => {
     e.stopPropagation()
-    if (fileInputRef.current && !uploading) fileInputRef.current.click()
+    if (!uploading) setIsUploadMenuOpen(true)
   }
 
   const handleAvatarClick = () => {
     if (profileData?.avatar_url) {
       setIsViewerOpen(true)
     } else {
-      if (fileInputRef.current && !uploading) fileInputRef.current.click()
+      if (!uploading) setIsUploadMenuOpen(true)
     }
+  }
+
+  const startWebcam = async () => {
+    setIsUploadMenuOpen(false)
+    try {
+      const mediaStream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'user' } })
+      setStream(mediaStream)
+      setIsWebcamOpen(true)
+    } catch (err) {
+      console.error("Camera error:", err)
+      showToast('Gagal mengakses kamera. Periksa izin kamera pada browser Anda.', 'error')
+    }
+  }
+
+  const stopWebcam = () => {
+    if (stream) {
+      stream.getTracks().forEach(track => track.stop())
+      setStream(null)
+    }
+    setIsWebcamOpen(false)
+  }
+
+  useEffect(() => {
+    if (isWebcamOpen && videoRef.current && stream) {
+      videoRef.current.srcObject = stream
+    }
+  }, [isWebcamOpen, stream])
+
+  useEffect(() => {
+    return () => {
+      if (stream) stream.getTracks().forEach(t => t.stop())
+    }
+  }, [stream])
+
+  const captureWebcam = () => {
+    if (videoRef.current && canvasRef.current) {
+      const video = videoRef.current
+      const canvas = canvasRef.current
+      canvas.width = video.videoWidth
+      canvas.height = video.videoHeight
+      const ctx = canvas.getContext('2d')
+      if (ctx) {
+        // Draw image without horizontal flip since the camera usually mirrors visually but saves normally, or we can mirror the canvas. We'll just draw it as is.
+        ctx.translate(canvas.width, 0)
+        ctx.scale(-1, 1)
+        ctx.drawImage(video, 0, 0, canvas.width, canvas.height)
+        
+        canvas.toBlob((blob) => {
+          if (blob) {
+            const file = new File([blob], "webcam_capture.jpg", { type: "image/jpeg" })
+            stopWebcam()
+            // mock event wrapper since handleFileChange expects ChangeEvent
+            handleFileChange({ target: { files: [file] } } as unknown as React.ChangeEvent<HTMLInputElement>)
+          }
+        }, 'image/jpeg', 0.9)
+      }
+    }
+  }
+
+  const handleMenuSelect = (type: 'camera' | 'gallery' | 'file') => {
+    if (type === 'camera') {
+      startWebcam()
+      return
+    }
+    setIsUploadMenuOpen(false)
+    setTimeout(() => {
+      if (type === 'gallery' && galleryInputRef.current) {
+        galleryInputRef.current.click()
+      } else if (type === 'file' && fileInputRef.current) {
+        fileInputRef.current.click()
+      }
+    }, 150)
   }
 
   if (loading) {
@@ -195,6 +319,64 @@ export default function Profile() {
             onClick={(e) => e.stopPropagation()} 
             style={{ borderRadius: '50%', objectFit: 'cover', width: '250px', height: '250px' }}
           />
+        </div>
+      )}
+
+      {/* Upload Menu Modal */}
+      {isUploadMenuOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'flex-end', justifyContent: 'center' }} onClick={() => setIsUploadMenuOpen(false)}>
+          <div style={{ background: 'var(--panel-bg)', borderTopLeftRadius: '24px', borderTopRightRadius: '24px', padding: '24px', width: '100%', maxWidth: '500px', boxShadow: '0 -10px 40px rgba(0,0,0,0.2)', animation: 'slideUp 0.3s ease-out' }} onClick={e => e.stopPropagation()}>
+            <div style={{ width: '40px', height: '4px', background: 'var(--glass-border)', borderRadius: '2px', margin: '0 auto 20px auto' }} />
+            <h3 style={{ margin: '0 0 20px 0', fontSize: '1.1rem', fontWeight: 700, textAlign: 'center' }}>Pilih Sumber Foto</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+              <button onClick={() => handleMenuSelect('camera')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '14px', color: 'var(--text-primary)', fontSize: '1rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}>
+                <Camera size={20} style={{ color: 'var(--accent-color)' }} /> Gunakan Kamera Langsung
+              </button>
+              <button onClick={() => handleMenuSelect('gallery')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '14px', color: 'var(--text-primary)', fontSize: '1rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}>
+                <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%238b5cf6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><rect x='3' y='3' width='18' height='18' rx='2' ry='2'/><circle cx='8.5' cy='8.5' r='1.5'/><polyline points='21 15 16 10 5 21'/></svg>" alt="gallery" /> Pilih dari Galeri
+              </button>
+              <button onClick={() => handleMenuSelect('file')} style={{ display: 'flex', alignItems: 'center', gap: '12px', padding: '14px 16px', background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '14px', color: 'var(--text-primary)', fontSize: '1rem', fontWeight: 600, cursor: 'pointer', textAlign: 'left' }}>
+                <img src="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20' viewBox='0 0 24 24' fill='none' stroke='%238b5cf6' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'><path d='M13 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z'/><polyline points='13 2 13 9 20 9'/></svg>" alt="file" /> Pilih dari File
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Webcam Modal */}
+      {isWebcamOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 9999, display: 'flex', flexDirection: 'column', animation: 'fade-in 0.2s ease-out' }}>
+          <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.5)', position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
+            <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem' }}>Ambil Foto Profil</h3>
+            <button onClick={stopWebcam} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}>
+              <X size={28} />
+            </button>
+          </div>
+          
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'relative', overflow: 'hidden' }}>
+            <video 
+              ref={videoRef} 
+              autoPlay 
+              playsInline 
+              muted 
+              style={{ width: '100%', height: '100%', objectFit: 'cover', transform: 'scaleX(-1)' }} 
+            />
+            <canvas ref={canvasRef} style={{ display: 'none' }} />
+            
+            {/* Camera Overlay Guide */}
+            <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: '250px', height: '250px', borderRadius: '50%', border: '2px dashed rgba(255,255,255,0.7)', boxShadow: '0 0 0 4000px rgba(0,0,0,0.4)' }} />
+            </div>
+          </div>
+          
+          <div style={{ padding: '24px', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#111', paddingBottom: 'env(safe-area-inset-bottom, 24px)' }}>
+            <button 
+              onClick={captureWebcam}
+              style={{ width: '72px', height: '72px', borderRadius: '50%', background: 'transparent', border: '4px solid #fff', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', padding: 0 }}
+            >
+              <div style={{ width: '56px', height: '56px', borderRadius: '50%', background: '#fff' }} />
+            </button>
+          </div>
         </div>
       )}
 
@@ -306,7 +488,21 @@ export default function Profile() {
         
         <input 
           type="file" 
-          accept="image/png, image/jpeg, image/jpg" 
+          accept="image/*"
+          capture="user"
+          ref={cameraInputRef} 
+          style={{ display: 'none' }} 
+          onChange={handleFileChange} 
+        />
+        <input 
+          type="file" 
+          accept="image/*" 
+          ref={galleryInputRef} 
+          style={{ display: 'none' }} 
+          onChange={handleFileChange} 
+        />
+        <input 
+          type="file" 
           ref={fileInputRef} 
           style={{ display: 'none' }} 
           onChange={handleFileChange} 

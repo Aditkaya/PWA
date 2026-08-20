@@ -21,7 +21,7 @@ class ProfileController {
             $pdo = Database::getConnection();
             // Combine data from users and karyawans
             $stmt = $pdo->prepare("
-                SELECT u.id as user_id, u.username, k.*, k.id as karyawan_id 
+                SELECT u.id as user_id, u.username, u.avatar_updated_at, k.*, k.id as karyawan_id 
                 FROM users u 
                 LEFT JOIN karyawans k ON u.karyawan_id = k.id 
                 WHERE u.id = ?
@@ -100,33 +100,65 @@ class ProfileController {
             return;
         }
 
-        $upload_dir = UPLOAD_BASE_DIR . '/uploads/avatars/';
-        if (!is_dir($upload_dir)) {
-            mkdir($upload_dir, 0777, true);
-        }
-        
-        $file = $filesData['avatar'];
-        // Simple validation (can be expanded)
-        $allowed_types = ['image/jpeg', 'image/png', 'image/jpg'];
-        if (!in_array($file['type'], $allowed_types)) {
-            http_response_code(400);
-            echo json_encode(['message' => 'Format file tidak didukung']);
-            return;
-        }
-        
-        // Save image with user id pattern
-        $filename = 'avatar_' . $user_id . '.jpg';
-        $target_path = $upload_dir . $filename;
-        
-        if (move_uploaded_file($file['tmp_name'], $target_path)) {
-            http_response_code(200);
-            echo json_encode([
-                'message' => 'Berhasil mengunggah foto',
-                'avatar_url' => '/uploads/avatars/' . $filename . '?v=' . time()
-            ]);
-        } else {
+        try {
+            $pdo = Database::getConnection();
+            $stmt = $pdo->prepare("SELECT avatar_updated_at FROM users WHERE id = ?");
+            $stmt->execute([$user_id]);
+            $user = $stmt->fetch();
+
+            if ($user && $user['avatar_updated_at']) {
+                $lastUpdated = new \DateTime($user['avatar_updated_at']);
+                $now = new \DateTime();
+                $diff = $now->diff($lastUpdated);
+                if ($diff->days < 365 && $diff->y < 1) {
+                    $nextYear = clone $lastUpdated;
+                    $nextYear->modify('+1 year');
+                    http_response_code(403);
+                    echo json_encode([
+                        'message' => 'Foto profil telah dikunci dan baru dapat diubah kembali pada ' . $nextYear->format('d M Y')
+                    ]);
+                    return;
+                }
+            }
+
+            $upload_dir = UPLOAD_BASE_DIR . '/uploads/avatars/';
+            if (!is_dir($upload_dir)) {
+                mkdir($upload_dir, 0777, true);
+            }
+            
+            $file = $filesData['avatar'];
+            // Simple validation (can be expanded)
+            $allowed_types = ['image/jpeg', 'image/png', 'image/jpg'];
+            if (!in_array($file['type'], $allowed_types)) {
+                http_response_code(400);
+                echo json_encode(['message' => 'Format file tidak didukung']);
+                return;
+            }
+            
+            // Save image with user id pattern
+            $filename = 'avatar_' . $user_id . '.jpg';
+            $target_path = $upload_dir . $filename;
+            
+            if (move_uploaded_file($file['tmp_name'], $target_path)) {
+                $stmt = $pdo->prepare("UPDATE users SET avatar_updated_at = NOW() WHERE id = ?");
+                $stmt->execute([$user_id]);
+
+                http_response_code(200);
+                echo json_encode([
+                    'message' => 'Berhasil mengunggah foto',
+                    'avatar_url' => '/uploads/avatars/' . $filename . '?v=' . time()
+                ]);
+            } else {
+                http_response_code(500);
+                echo json_encode(['message' => 'Gagal menyimpan foto']);
+            }
+        } catch (\PDOException $e) {
             http_response_code(500);
-            echo json_encode(['message' => 'Gagal menyimpan foto']);
+            error_log('Database error: ' . $e->getMessage());
+            echo json_encode(['message' => 'Terjadi kesalahan pada server']);
+        } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode(['message' => 'Terjadi kesalahan sistem']);
         }
     }
 

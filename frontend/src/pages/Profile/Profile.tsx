@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { createPortal } from 'react-dom'
 import * as faceapi from 'face-api.js'
 import Cropper from 'react-easy-crop'
 import getCroppedImg from '../../utils/cropImage'
@@ -308,8 +309,8 @@ export default function Profile() {
       )}
 
       {/* Cropper Modal */}
-      {isCropping && cropImageSrc && (
-        <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 9999, display: 'flex', flexDirection: 'column' }}>
+      {isCropping && cropImageSrc && createPortal(
+        <div style={{ position: 'fixed', inset: 0, background: '#000', zIndex: 999999, display: 'flex', flexDirection: 'column' }}>
           <div style={{ padding: '16px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.5)', position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 }}>
             <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem' }}>Sesuaikan Foto Profil</h3>
             <button onClick={() => { setIsCropping(false); setCropImageSrc(null) }} style={{ background: 'none', border: 'none', color: '#fff', cursor: 'pointer' }}>
@@ -331,7 +332,7 @@ export default function Profile() {
             />
           </div>
           
-          <div style={{ padding: '24px', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#111', paddingBottom: 'env(safe-area-inset-bottom, 24px)' }}>
+          <div style={{ padding: '24px', display: 'flex', justifyContent: 'center', alignItems: 'center', background: '#111', paddingBottom: 'env(safe-area-inset-bottom, 24px)', position: 'relative', zIndex: 10 }}>
             <button 
               onClick={handleSaveCrop}
               style={{ width: '100%', padding: '14px', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 700, fontSize: '1rem', cursor: 'pointer' }}
@@ -339,7 +340,8 @@ export default function Profile() {
               Simpan & Verifikasi
             </button>
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Edit Profile Modal */}

@@ -132,19 +132,19 @@ class PermohonanController {
                 return;
             }
 
-            $stmtIzin = $pdo->prepare("SELECT id, 'Izin' as tipe, jenis_izin as jenis, tanggal_mulai, tanggal_selesai, waktu, alasan as keterangan, status, created_at FROM permohonan_izins WHERE karyawan_id = ? ORDER BY created_at DESC");
+            $stmtIzin = $pdo->prepare("SELECT p.id, 'Izin' as tipe, p.jenis_izin as jenis, p.tanggal_mulai, p.tanggal_selesai, p.waktu, p.alasan as keterangan, p.status, p.created_at, COALESCE(k.nama_lengkap, u.username) as approved_by_name FROM permohonan_izins p LEFT JOIN users u ON p.approved_by = u.id LEFT JOIN karyawans k ON u.karyawan_id = k.id WHERE p.karyawan_id = ? ORDER BY p.created_at DESC");
             $stmtIzin->execute([$karyawan_id]);
             $izin = $stmtIzin->fetchAll();
 
-            $stmtCuti = $pdo->prepare("SELECT id, 'Cuti' as tipe, jenis_cuti as jenis, tanggal_mulai, tanggal_selesai, 'Full Day' as waktu, keterangan, status, created_at FROM cutis WHERE karyawan_id = ? ORDER BY created_at DESC");
+            $stmtCuti = $pdo->prepare("SELECT c.id, 'Cuti' as tipe, c.jenis_cuti as jenis, c.tanggal_mulai, c.tanggal_selesai, 'Full Day' as waktu, c.keterangan, c.status, c.created_at, COALESCE(k.nama_lengkap, u.username) as approved_by_name FROM cutis c LEFT JOIN users u ON c.approved_by = u.id LEFT JOIN karyawans k ON u.karyawan_id = k.id WHERE c.karyawan_id = ? ORDER BY c.created_at DESC");
             $stmtCuti->execute([$karyawan_id]);
             $cuti = $stmtCuti->fetchAll();
 
-            $stmtLupa = $pdo->prepare("SELECT id, 'Lupa Absen' as tipe, tipe_absen as jenis, tanggal as tanggal_mulai, tanggal as tanggal_selesai, waktu, alasan as keterangan, status, created_at FROM persetujuan_absensi_lupas WHERE karyawan_id = ? ORDER BY created_at DESC");
+            $stmtLupa = $pdo->prepare("SELECT l.id, 'Lupa Absen' as tipe, l.tipe_absen as jenis, l.tanggal as tanggal_mulai, l.tanggal as tanggal_selesai, l.waktu, l.alasan as keterangan, l.status, l.created_at, COALESCE(k.nama_lengkap, u.username) as approved_by_name FROM persetujuan_absensi_lupas l LEFT JOIN users u ON l.approved_by = u.id LEFT JOIN karyawans k ON u.karyawan_id = k.id WHERE l.karyawan_id = ? ORDER BY l.created_at DESC");
             $stmtLupa->execute([$karyawan_id]);
             $lupa = $stmtLupa->fetchAll();
 
-            $stmtLembur = $pdo->prepare("SELECT id, 'Lembur' as tipe, 'Pengajuan Lembur' as jenis, tanggal as tanggal_mulai, tanggal as tanggal_selesai, CONCAT(jam_mulai, ' - ', jam_selesai) as waktu, keterangan, status, created_at FROM persetujuan_absensi_lemburs WHERE karyawan_id = ? ORDER BY created_at DESC");
+            $stmtLembur = $pdo->prepare("SELECT b.id, 'Lembur' as tipe, 'Pengajuan Lembur' as jenis, b.tanggal as tanggal_mulai, b.tanggal as tanggal_selesai, CONCAT(b.jam_mulai, ' - ', b.jam_selesai) as waktu, b.keterangan, b.status, b.created_at, COALESCE(k.nama_lengkap, u.username) as approved_by_name FROM persetujuan_absensi_lemburs b LEFT JOIN users u ON b.approved_by = u.id LEFT JOIN karyawans k ON u.karyawan_id = k.id WHERE b.karyawan_id = ? ORDER BY b.created_at DESC");
             $stmtLembur->execute([$karyawan_id]);
             $lembur = $stmtLembur->fetchAll();
 

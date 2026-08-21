@@ -14,6 +14,7 @@ interface PermohonanItem {
   tanggal_selesai: string
   waktu?: string
   keterangan: string
+  status: string
   created_at: string
   lampiran?: string | null
   foto_profil?: string | null

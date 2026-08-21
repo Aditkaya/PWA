@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { Clock, Coffee, LogOut, LogIn, CalendarDays, Sun, Plane, AlertCircle, Info, XCircle } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import CameraModal from '../../components/CameraModal'
+import { subscribeToPush } from '../../utils/push'
 import IzinModal from '../../components/IzinModal'
 import CutiModal from '../../components/CutiModal'
 import PermitOutModal from '../../components/PermitOutModal'
@@ -156,6 +157,11 @@ export default function Dashboard() {
   const hasFullDayLeave = userProfile?.has_full_day_leave || false
 
   const handleAttendanceClick = (type: string) => {
+    // Meminta izin notifikasi saat pengguna klik tombol (diperlukan untuk iOS/Safari)
+    if (user?.id) {
+      subscribeToPush(user.id).catch(console.error);
+    }
+
     setAttendanceType(type)
     setPermitReason('')
     if (type.toLowerCase().includes('izin keluar') || type.toLowerCase().includes('permit out')) {

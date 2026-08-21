@@ -7,6 +7,7 @@ require_once __DIR__ . '/../../../config/database.php';
 use Database;
 use PDO;
 use Exception;
+use App\Services\PushNotificationService;
 
 class AttendanceController {
     
@@ -105,6 +106,11 @@ class AttendanceController {
             $stmt = $pdo->prepare("INSERT INTO absensis (karyawan_id, nik, waktu, tipe, status, foto, latitude, longitude, detail_lokasi, keterangan) VALUES (?, ?, NOW(), ?, 'Selesai', ?, ?, ?, ?, ?)");
             $stmt->execute([$karyawan_id, $nik, $tipe, $db_photo_path, $latitude, $longitude, $detail_lokasi, $keterangan]);
 
+            // Kirim Notifikasi Push
+            require_once __DIR__ . '/../Services/PushNotificationService.php';
+            $pushService = new PushNotificationService();
+            $pushService->sendToUser($user_id, 'Absensi Berhasil', "Anda telah berhasil $tipe.");
+
             http_response_code(200);
             echo json_encode(['message' => 'Absensi berhasil']);
         } catch (\PDOException $e) {
@@ -145,6 +151,11 @@ class AttendanceController {
 
             $stmt = $pdo->prepare("INSERT INTO persetujuan_absensi_lupas (karyawan_id, tanggal, tipe_absen, waktu, alasan, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'pending', NOW(), NOW())");
             $stmt->execute([$karyawan_id, $tanggal, $tipe_absen, $waktu, $alasan]);
+
+            // Kirim Notifikasi Push
+            require_once __DIR__ . '/../Services/PushNotificationService.php';
+            $pushService = new PushNotificationService();
+            $pushService->sendToUser($user_id, 'Lupa Absen Dikirim', "Pengajuan Lupa Absen untuk tanggal $tanggal telah berhasil dikirim dan menunggu persetujuan.");
 
             http_response_code(200);
             echo json_encode(['message' => 'Pengajuan Lupa Absen berhasil dikirim']);

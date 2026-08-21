@@ -194,5 +194,12 @@ if ($uri === '/api/health' && $method === 'GET') {
     exit();
 }
 
+if ($uri === '/api/push/subscribe' && $method === 'POST') {
+    require_once __DIR__ . '/../app/Http/Controllers/PushController.php';
+    $controller = new \App\Http\Controllers\PushController();
+    $controller->subscribe($requestData);
+    exit();
+}
+
 http_response_code(404);
 echo json_encode(['message' => 'Endpoint tidak ditemukan']);

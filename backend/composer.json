@@ -1,0 +1,12 @@
+{
+    "name": "adity/backend",
+    "authors": [
+        {
+            "name": "Aditkaya",
+            "email": "adityakaya500@gmail.com"
+        }
+    ],
+    "require": {
+        "minishlink/web-push": "^11.0"
+    }
+}

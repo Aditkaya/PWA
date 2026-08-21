@@ -20,10 +20,19 @@ export const subscribeToPush = async (userId: number) => {
       return false;
     }
 
-    const permission = await Notification.requestPermission();
-    if (permission !== 'granted') {
-      alert('Izin notifikasi ditolak oleh pengguna atau sistem.');
+    let permissionStatus = Notification.permission;
+    
+    if (permissionStatus === 'denied') {
+      alert('Sistem mendeteksi bahwa izin notifikasi telah diblokir secara permanen. Anda HARUS mengaktifkannya melalui Settings/Pengaturan HP Anda.');
       return false;
+    }
+
+    if (permissionStatus === 'default') {
+      const permission = await Notification.requestPermission();
+      if (permission !== 'granted') {
+        alert('Anda menolak izin notifikasi saat pop-up muncul, atau sistem memblokirnya (Status: ' + permission + ').');
+        return false;
+      }
     }
 
     const registration = await navigator.serviceWorker.ready;

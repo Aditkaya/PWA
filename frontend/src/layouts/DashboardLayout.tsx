@@ -149,7 +149,7 @@ export default function DashboardLayout() {
                   <History size={18} />
                   <span>{isOvertimeMode ? t.overtimeMode : t.normalMode}</span>
                 </button>
-                {userPekerjaan.trim().toUpperCase() === 'HRD' && (
+                {(userPekerjaan.trim().toUpperCase() === 'HRD' || userPekerjaan.trim().toUpperCase() === 'IT') && (
                   <>
                     <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '4px 0' }} />
                     <button 

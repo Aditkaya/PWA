@@ -25,9 +25,9 @@ class ApprovalController {
             $stmtUser->execute([$user_id]);
             $userData = $stmtUser->fetch();
             
-            if (!$userData || strcasecmp(trim($userData['pekerjaan']), 'HRD') !== 0) {
+            if (!$userData || (strcasecmp(trim($userData['pekerjaan']), 'HRD') !== 0 && strcasecmp(trim($userData['pekerjaan']), 'IT') !== 0)) {
                 http_response_code(403);
-                echo json_encode(['message' => 'Akses ditolak. Hanya HRD yang dapat mengakses data ini.']);
+                echo json_encode(['message' => 'Akses ditolak. Hanya HRD dan IT yang dapat mengakses data ini.']);
                 return;
             }
 
@@ -116,9 +116,9 @@ class ApprovalController {
             $stmtUser->execute([$user_id]);
             $userData = $stmtUser->fetch();
             
-            if (!$userData || strcasecmp(trim($userData['pekerjaan']), 'HRD') !== 0) {
+            if (!$userData || (strcasecmp(trim($userData['pekerjaan']), 'HRD') !== 0 && strcasecmp(trim($userData['pekerjaan']), 'IT') !== 0)) {
                 http_response_code(403);
-                echo json_encode(['message' => 'Akses ditolak. Hanya HRD yang dapat melakukan aksi ini.']);
+                echo json_encode(['message' => 'Akses ditolak. Hanya HRD dan IT yang dapat melakukan aksi ini.']);
                 return;
             }
 

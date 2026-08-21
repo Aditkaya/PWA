@@ -32,6 +32,13 @@ export default function HrdApproval() {
   const [actionConfirm, setActionConfirm] = useState<{ item: PermohonanItem; action: 'Disetujui' | 'Ditolak' } | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
   const [enlargedPhoto, setEnlargedPhoto] = useState<string | null>(null)
+  const [imageErrors, setImageErrors] = useState<string[]>([])
+
+  const handleImageError = (id: string) => {
+    if (!imageErrors.includes(id)) {
+      setImageErrors(prev => [...prev, id])
+    }
+  }
 
   const fetchData = async (showLoading = false) => {
     if (!user?.id) return
@@ -241,6 +248,7 @@ export default function HrdApproval() {
             const uniqueId = `${item.tipe}-${item.id}`;
             const isExpanded = expandedItems.includes(uniqueId);
             const isPending = item.status.toLowerCase() === 'pending';
+            const hasImageError = imageErrors.includes(uniqueId);
             
             return (
               <div 
@@ -250,8 +258,13 @@ export default function HrdApproval() {
               >
                 <div className="approval-card-header" onClick={() => toggleItem(uniqueId)}>
                   <div className="employee-avatar">
-                    {item.foto_profil ? (
-                      <img src={item.foto_profil} alt={item.pengaju} className="avatar-img" />
+                    {item.foto_profil && !hasImageError ? (
+                      <img 
+                        src={item.foto_profil} 
+                        alt={item.pengaju} 
+                        className="avatar-img" 
+                        onError={() => handleImageError(uniqueId)}
+                      />
                     ) : (
                       getInitials(item.pengaju)
                     )}

@@ -8,6 +8,8 @@ interface PermohonanItem {
   id: number
   karyawan_id: number
   pengaju: string
+  nik?: string
+  pekerjaan?: string
   tipe: string
   jenis: string
   tanggal_mulai: string
@@ -299,6 +301,14 @@ export default function HrdApproval() {
                 {isExpanded && (
                   <div className="approval-card-content fade-in">
                     <div className="detail-grid-modern">
+                      <div className="detail-group">
+                        <span className="detail-label">NIK</span>
+                        <span className="detail-value">{item.nik || '-'}</span>
+                      </div>
+                      <div className="detail-group">
+                        <span className="detail-label">Pekerjaan</span>
+                        <span className="detail-value">{item.pekerjaan || '-'}</span>
+                      </div>
                       <div className="detail-group">
                         <span className="detail-label">Jenis Pengajuan</span>
                         <span className="detail-value highlight">{item.jenis}</span>

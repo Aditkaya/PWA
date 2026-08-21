@@ -33,7 +33,7 @@ class ApprovalController {
 
             // Get all permohonan from all users
             $stmtIzin = $pdo->query("
-                SELECT p.id, p.karyawan_id, kr.nama_lengkap as pengaju, 'Izin' as tipe, p.jenis_izin as jenis, p.tanggal_mulai, p.tanggal_selesai, p.waktu, p.alasan as keterangan, p.status, p.created_at, p.lampiran 
+                SELECT p.id, p.karyawan_id, kr.nama_lengkap as pengaju, kr.foto as foto_profil, 'Izin' as tipe, p.jenis_izin as jenis, p.tanggal_mulai, p.tanggal_selesai, p.waktu, p.alasan as keterangan, p.status, p.created_at, p.lampiran 
                 FROM permohonan_izins p 
                 LEFT JOIN karyawans kr ON p.karyawan_id = kr.id 
                 ORDER BY p.created_at DESC
@@ -41,7 +41,7 @@ class ApprovalController {
             $izin = $stmtIzin->fetchAll();
 
             $stmtCuti = $pdo->query("
-                SELECT c.id, c.karyawan_id, kr.nama_lengkap as pengaju, 'Cuti' as tipe, c.jenis_cuti as jenis, c.tanggal_mulai, c.tanggal_selesai, 'Full Day' as waktu, c.keterangan, c.status, c.created_at, NULL as lampiran 
+                SELECT c.id, c.karyawan_id, kr.nama_lengkap as pengaju, kr.foto as foto_profil, 'Cuti' as tipe, c.jenis_cuti as jenis, c.tanggal_mulai, c.tanggal_selesai, 'Full Day' as waktu, c.keterangan, c.status, c.created_at, NULL as lampiran 
                 FROM cutis c 
                 LEFT JOIN karyawans kr ON c.karyawan_id = kr.id 
                 ORDER BY c.created_at DESC
@@ -49,7 +49,7 @@ class ApprovalController {
             $cuti = $stmtCuti->fetchAll();
 
             $stmtLupa = $pdo->query("
-                SELECT l.id, l.karyawan_id, kr.nama_lengkap as pengaju, 'Lupa Absen' as tipe, l.tipe_absen as jenis, l.tanggal as tanggal_mulai, l.tanggal as tanggal_selesai, l.waktu, l.alasan as keterangan, l.status, l.created_at, NULL as lampiran 
+                SELECT l.id, l.karyawan_id, kr.nama_lengkap as pengaju, kr.foto as foto_profil, 'Lupa Absen' as tipe, l.tipe_absen as jenis, l.tanggal as tanggal_mulai, l.tanggal as tanggal_selesai, l.waktu, l.alasan as keterangan, l.status, l.created_at, NULL as lampiran 
                 FROM persetujuan_absensi_lupas l 
                 LEFT JOIN karyawans kr ON l.karyawan_id = kr.id 
                 ORDER BY l.created_at DESC
@@ -57,7 +57,7 @@ class ApprovalController {
             $lupa = $stmtLupa->fetchAll();
 
             $stmtLembur = $pdo->query("
-                SELECT b.id, b.karyawan_id, kr.nama_lengkap as pengaju, 'Lembur' as tipe, 'Pengajuan Lembur' as jenis, b.tanggal as tanggal_mulai, b.tanggal as tanggal_selesai, CONCAT(b.jam_mulai, ' - ', b.jam_selesai) as waktu, b.keterangan, b.status, b.created_at, NULL as lampiran 
+                SELECT b.id, b.karyawan_id, kr.nama_lengkap as pengaju, kr.foto as foto_profil, 'Lembur' as tipe, 'Pengajuan Lembur' as jenis, b.tanggal as tanggal_mulai, b.tanggal as tanggal_selesai, CONCAT(b.jam_mulai, ' - ', b.jam_selesai) as waktu, b.keterangan, b.status, b.created_at, NULL as lampiran 
                 FROM persetujuan_absensi_lemburs b 
                 LEFT JOIN karyawans kr ON b.karyawan_id = kr.id 
                 ORDER BY b.created_at DESC

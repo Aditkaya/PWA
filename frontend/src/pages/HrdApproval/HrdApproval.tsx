@@ -14,9 +14,9 @@ interface PermohonanItem {
   tanggal_selesai: string
   waktu?: string
   keterangan: string
-  status: string
   created_at: string
   lampiran?: string | null
+  foto_profil?: string | null
 }
 
 export default function HrdApproval() {
@@ -249,7 +249,11 @@ export default function HrdApproval() {
               >
                 <div className="approval-card-header" onClick={() => toggleItem(uniqueId)}>
                   <div className="employee-avatar">
-                    {getInitials(item.pengaju)}
+                    {item.foto_profil ? (
+                      <img src={item.foto_profil} alt={item.pengaju} className="avatar-img" />
+                    ) : (
+                      getInitials(item.pengaju)
+                    )}
                   </div>
                   
                   <div className="approval-info">

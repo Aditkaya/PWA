@@ -107,9 +107,13 @@ class AttendanceController {
             $stmt->execute([$karyawan_id, $nik, $tipe, $db_photo_path, $latitude, $longitude, $detail_lokasi, $keterangan]);
 
             // Kirim Notifikasi Push
-            require_once __DIR__ . '/../Services/PushNotificationService.php';
-            $pushService = new PushNotificationService();
-            $pushService->sendToUser($user_id, 'Absensi Berhasil', "Anda telah berhasil $tipe.");
+            try {
+                require_once __DIR__ . '/../Services/PushNotificationService.php';
+                $pushService = new \App\Services\PushNotificationService();
+                $pushService->sendToUser($user_id, 'Absensi Berhasil', "Anda telah berhasil $tipe.");
+            } catch (\Throwable $e) {
+                error_log("Push error: " . $e->getMessage());
+            }
 
             http_response_code(200);
             echo json_encode(['message' => 'Absensi berhasil']);
@@ -153,9 +157,13 @@ class AttendanceController {
             $stmt->execute([$karyawan_id, $tanggal, $tipe_absen, $waktu, $alasan]);
 
             // Kirim Notifikasi Push
-            require_once __DIR__ . '/../Services/PushNotificationService.php';
-            $pushService = new PushNotificationService();
-            $pushService->sendToUser($user_id, 'Lupa Absen Dikirim', "Pengajuan Lupa Absen untuk tanggal $tanggal telah berhasil dikirim dan menunggu persetujuan.");
+            try {
+                require_once __DIR__ . '/../Services/PushNotificationService.php';
+                $pushService = new \App\Services\PushNotificationService();
+                $pushService->sendToUser($user_id, 'Lupa Absen Dikirim', "Pengajuan Lupa Absen untuk tanggal $tanggal telah berhasil dikirim dan menunggu persetujuan.");
+            } catch (\Throwable $e) {
+                error_log("Push error: " . $e->getMessage());
+            }
 
             http_response_code(200);
             echo json_encode(['message' => 'Pengajuan Lupa Absen berhasil dikirim']);

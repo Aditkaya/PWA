@@ -60,9 +60,13 @@ class PermohonanController {
             $stmt->execute([$karyawan_id, $nik, $nama, $divisi, $jenis_izin, $tanggal_mulai, $tanggal_selesai, $waktu, $alasan, $lampiran_path]);
             
             // Kirim Notifikasi Push
-            require_once __DIR__ . '/../Services/PushNotificationService.php';
-            $pushService = new PushNotificationService();
-            $pushService->sendToUser($user_id, 'Izin Dikirim', "Permohonan Izin Anda ($jenis_izin) berhasil dikirim dan menunggu persetujuan.");
+            try {
+                require_once __DIR__ . '/../Services/PushNotificationService.php';
+                $pushService = new \App\Services\PushNotificationService();
+                $pushService->sendToUser($user_id, 'Izin Dikirim', "Permohonan Izin Anda ($jenis_izin) berhasil dikirim dan menunggu persetujuan.");
+            } catch (\Throwable $e) {
+                error_log("Push error: " . $e->getMessage());
+            }
 
             http_response_code(200);
             echo json_encode(['message' => 'Permohonan izin berhasil diajukan']);
@@ -111,9 +115,13 @@ class PermohonanController {
             ]);
 
             // Kirim Notifikasi Push
-            require_once __DIR__ . '/../Services/PushNotificationService.php';
-            $pushService = new PushNotificationService();
-            $pushService->sendToUser($user_id, 'Cuti Dikirim', "Permohonan Cuti Anda ($jenis_cuti) berhasil dikirim dan menunggu persetujuan.");
+            try {
+                require_once __DIR__ . '/../Services/PushNotificationService.php';
+                $pushService = new \App\Services\PushNotificationService();
+                $pushService->sendToUser($user_id, 'Cuti Dikirim', "Permohonan Cuti Anda ($jenis_cuti) berhasil dikirim dan menunggu persetujuan.");
+            } catch (\Throwable $e) {
+                error_log("Push error: " . $e->getMessage());
+            }
 
             echo json_encode(['message' => 'Success']);
         } catch (\PDOException $e) {

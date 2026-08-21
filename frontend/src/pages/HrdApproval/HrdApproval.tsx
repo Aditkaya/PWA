@@ -1,8 +1,6 @@
 import { useState, useEffect } from 'react'
 import { Check, X, Loader2, FileText, ChevronDown, ChevronUp, UserCheck, AlertTriangle, Search } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
-import { useLangStore } from '../../store/lang.store'
-import { translations } from '../../utils/translations'
 import './HrdApproval.css'
 import { useToast } from '../../contexts/ToastContext'
 
@@ -31,9 +29,6 @@ export default function HrdApproval() {
   const [actionConfirm, setActionConfirm] = useState<{ item: PermohonanItem; action: 'Disetujui' | 'Ditolak' } | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
   const [enlargedPhoto, setEnlargedPhoto] = useState<string | null>(null)
-
-  const { lang } = useLangStore()
-  const t = translations[lang]
 
   const fetchData = async (showLoading = false) => {
     if (!user?.id) return

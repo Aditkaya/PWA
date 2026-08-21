@@ -84,7 +84,8 @@ export default function HrdApproval() {
       (statusFilter === 'Ditolak' && (item.status.toLowerCase() === 'ditolak' || item.status.toLowerCase() === 'rejected'))
 
     const typeMatch = typeFilter === 'Semua' ? true :
-      item.tipe.toLowerCase().includes(typeFilter.toLowerCase())
+      item.tipe.toLowerCase().includes(typeFilter.toLowerCase()) ||
+      (item.jenis || '').toLowerCase().includes(typeFilter.toLowerCase())
 
     return queryMatch && statusMatch && typeMatch
   })
@@ -217,10 +218,12 @@ export default function HrdApproval() {
             <Filter size={14} />
             <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
               <option value="Semua">Semua Tipe</option>
-              <option value="Izin">Izin</option>
+              <option value="Sakit">Izin Sakit</option>
+              <option value="Pulang Cepat">Pulang Cepat</option>
+              <option value="Datang Telat">Izin Datang Telat</option>
               <option value="Cuti">Cuti</option>
-              <option value="Lupa Absen">Lupa Absen</option>
               <option value="Lembur">Lembur</option>
+              <option value="Lupa Absen">Lupa Absen</option>
             </select>
           </div>
         </div>

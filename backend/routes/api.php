@@ -123,6 +123,20 @@ if ($uri === '/api/permohonan' && $method === 'DELETE') {
     exit();
 }
 
+if ($uri === '/api/hrd/permohonan' && $method === 'GET') {
+    require_once __DIR__ . '/../app/Http/Controllers/ApprovalController.php';
+    $controller = new \App\Http\Controllers\ApprovalController();
+    $controller->getAllPermohonan($_GET);
+    exit();
+}
+
+if ($uri === '/api/hrd/permohonan/status' && $method === 'PUT') {
+    require_once __DIR__ . '/../app/Http/Controllers/ApprovalController.php';
+    $controller = new \App\Http\Controllers\ApprovalController();
+    $controller->updateStatus($requestData);
+    exit();
+}
+
 if ($uri === '/api/lokasi' && $method === 'GET') {
     require_once __DIR__ . '/../app/Http/Controllers/LocationController.php';
     $controller = new \App\Http\Controllers\LocationController();

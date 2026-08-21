@@ -1,5 +1,5 @@
 <?php
-$_SERVER['SERVER_NAME'] = 'localhost';
+$_SERVER['SERVER_NAME'] = 'production';
 require __DIR__ . '/config/database.php';
 
 try {

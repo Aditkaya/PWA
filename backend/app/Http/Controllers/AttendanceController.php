@@ -108,7 +108,7 @@ class AttendanceController {
 
             // Kirim Notifikasi Push
             try {
-                require_once __DIR__ . '/../Services/PushNotificationService.php';
+                require_once __DIR__ . '/../../Services/PushNotificationService.php';
                 $pushService = new \App\Services\PushNotificationService();
                 $pushService->sendToUser($user_id, 'Absensi Berhasil', "Anda telah berhasil $tipe.");
             } catch (\Throwable $e) {
@@ -158,7 +158,7 @@ class AttendanceController {
 
             // Kirim Notifikasi Push
             try {
-                require_once __DIR__ . '/../Services/PushNotificationService.php';
+                require_once __DIR__ . '/../../Services/PushNotificationService.php';
                 $pushService = new \App\Services\PushNotificationService();
                 $pushService->sendToUser($user_id, 'Lupa Absen Dikirim', "Pengajuan Lupa Absen untuk tanggal $tanggal telah berhasil dikirim dan menunggu persetujuan.");
             } catch (\Throwable $e) {

@@ -61,7 +61,7 @@ class PermohonanController {
             
             // Kirim Notifikasi Push
             try {
-                require_once __DIR__ . '/../Services/PushNotificationService.php';
+                require_once __DIR__ . '/../../Services/PushNotificationService.php';
                 $pushService = new \App\Services\PushNotificationService();
                 $pushService->sendToUser($user_id, 'Izin Dikirim', "Permohonan Izin Anda ($jenis_izin) berhasil dikirim dan menunggu persetujuan.");
             } catch (\Throwable $e) {
@@ -116,7 +116,7 @@ class PermohonanController {
 
             // Kirim Notifikasi Push
             try {
-                require_once __DIR__ . '/../Services/PushNotificationService.php';
+                require_once __DIR__ . '/../../Services/PushNotificationService.php';
                 $pushService = new \App\Services\PushNotificationService();
                 $pushService->sendToUser($user_id, 'Cuti Dikirim', "Permohonan Cuti Anda ($jenis_cuti) berhasil dikirim dan menunggu persetujuan.");
             } catch (\Throwable $e) {

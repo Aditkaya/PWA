@@ -61,11 +61,16 @@ class PushNotificationService {
             foreach ($this->webPush->flush() as $report) {
                 $reports[] = $report;
                 
-                // Jika subscription sudah expired atau endpoint tidak valid, hapus dari database
-                if (!$report->isSuccess() && in_array($report->getResponse()->getStatusCode(), [404, 410])) {
-                    $endpoint = $report->getRequest()->getUri()->__toString();
-                    $delStmt = $pdo->prepare("DELETE FROM push_subscriptions WHERE endpoint = ?");
-                    $delStmt->execute([$endpoint]);
+                // Jika gagal mengirim push notification, catat alasannya
+                if (!$report->isSuccess()) {
+                    error_log("Push failed to endpoint {$report->getRequest()->getUri()->__toString()}: " . $report->getReason() . " (Status: " . $report->getResponse()->getStatusCode() . ")");
+                    
+                    // Jika subscription sudah expired atau endpoint tidak valid, hapus dari database
+                    if (in_array($report->getResponse()->getStatusCode(), [404, 410])) {
+                        $endpoint = $report->getRequest()->getUri()->__toString();
+                        $delStmt = $pdo->prepare("DELETE FROM push_subscriptions WHERE endpoint = ?");
+                        $delStmt->execute([$endpoint]);
+                    }
                 }
             }
             return true;

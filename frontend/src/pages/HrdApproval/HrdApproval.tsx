@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react'
-import { Check, X, Loader2, FileText, ChevronDown, ChevronUp, UserCheck, AlertTriangle, Search } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { Check, X, Loader2, FileText, ChevronDown, ChevronUp, AlertTriangle, Search, Filter, Clock, CheckCircle, XCircle } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import './HrdApproval.css'
 import { useToast } from '../../contexts/ToastContext'
@@ -25,6 +25,8 @@ export default function HrdApproval() {
   const [data, setData] = useState<PermohonanItem[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [statusFilter, setStatusFilter] = useState<string>('Semua')
+  const [typeFilter, setTypeFilter] = useState<string>('Semua')
   const [expandedItems, setExpandedItems] = useState<(number | string)[]>([])
   const [actionConfirm, setActionConfirm] = useState<{ item: PermohonanItem; action: 'Disetujui' | 'Ditolak' } | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
@@ -39,7 +41,7 @@ export default function HrdApproval() {
         const result = await res.json()
         setData(result.data || [])
       } else if (res.status === 403) {
-        showToast('Akses ditolak. Anda bukan HRD.', 'error')
+        showToast('Akses ditolak. Anda tidak memiliki akses.', 'error')
       }
     } catch (error) {
       console.error("Failed to fetch permohonan data", error)
@@ -52,16 +54,32 @@ export default function HrdApproval() {
     fetchData(true)
   }, [user])
 
+  // Hitung ringkasan statistik
+  const stats = useMemo(() => {
+    return {
+      pending: data.filter(d => d.status.toLowerCase() === 'pending').length,
+      approved: data.filter(d => d.status.toLowerCase() === 'disetujui' || d.status.toLowerCase() === 'approved').length,
+      rejected: data.filter(d => d.status.toLowerCase() === 'ditolak' || d.status.toLowerCase() === 'rejected').length,
+      total: data.length
+    }
+  }, [data])
+
   const filteredData = data.filter(item => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      (item.pengaju || '').toLowerCase().includes(query) ||
-      (item.tipe || '').toLowerCase().includes(query) ||
-      (item.jenis || '').toLowerCase().includes(query) ||
-      (item.status || '').toLowerCase().includes(query)
-    );
-  });
+    const queryMatch = !searchQuery ? true : (
+      (item.pengaju || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (item.jenis || '').toLowerCase().includes(searchQuery.toLowerCase())
+    )
+    
+    const statusMatch = statusFilter === 'Semua' ? true : 
+      (statusFilter === 'Pending' && item.status.toLowerCase() === 'pending') ||
+      (statusFilter === 'Disetujui' && (item.status.toLowerCase() === 'disetujui' || item.status.toLowerCase() === 'approved')) ||
+      (statusFilter === 'Ditolak' && (item.status.toLowerCase() === 'ditolak' || item.status.toLowerCase() === 'rejected'))
+
+    const typeMatch = typeFilter === 'Semua' ? true :
+      item.tipe.toLowerCase().includes(typeFilter.toLowerCase())
+
+    return queryMatch && statusMatch && typeMatch
+  })
 
   const toggleItem = (id: number | string) => {
     setExpandedItems(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id])
@@ -82,13 +100,13 @@ export default function HrdApproval() {
         })
       })
 
-      const data = await res.json()
+      const responseData = await res.json()
       if (res.ok) {
         showToast(`Permohonan ${actionConfirm.action.toLowerCase()} berhasil.`, 'success')
         setActionConfirm(null)
         fetchData(false)
       } else {
-        showToast(data.message || 'Gagal mengubah status', 'error')
+        showToast(responseData.message || 'Gagal mengubah status', 'error')
       }
     } catch (error) {
       console.error("Action error:", error)
@@ -96,6 +114,24 @@ export default function HrdApproval() {
     } finally {
       setActionLoading(false)
     }
+  }
+
+  const getInitials = (name: string) => {
+    if (!name) return 'U'
+    const parts = name.trim().split(' ')
+    if (parts.length >= 2) {
+      return (parts[0][0] + parts[1][0]).toUpperCase()
+    }
+    return name.substring(0, 2).toUpperCase()
+  }
+
+  const getTypeColor = (tipe: string) => {
+    const t = tipe.toLowerCase()
+    if (t.includes('cuti')) return 'var(--primary-color)'
+    if (t.includes('izin')) return 'var(--warning-color)'
+    if (t.includes('lupa')) return '#8b5cf6' // purple
+    if (t.includes('lembur')) return '#fb923c' // orange
+    return 'var(--text-secondary)'
   }
 
   if (loading) {
@@ -108,32 +144,95 @@ export default function HrdApproval() {
 
   return (
     <div className="page-container fade-in hrd-approval-page">
-      <div className="history-header">
+      <div className="approval-header-bg"></div>
+      
+      <div className="approval-header-content">
         <h1>Persetujuan HRD</h1>
         <p>Kelola pengajuan perizinan dan cuti karyawan</p>
+        
+        <div className="stats-container fade-in">
+          <div className={`stat-card ${statusFilter === 'Pending' ? 'active' : ''}`} onClick={() => setStatusFilter('Pending')}>
+            <div className="stat-icon pending"><Clock size={20} /></div>
+            <div className="stat-info">
+              <span className="stat-value">{stats.pending}</span>
+              <span className="stat-label">Menunggu</span>
+            </div>
+          </div>
+          <div className={`stat-card ${statusFilter === 'Disetujui' ? 'active' : ''}`} onClick={() => setStatusFilter('Disetujui')}>
+            <div className="stat-icon approved"><CheckCircle size={20} /></div>
+            <div className="stat-info">
+              <span className="stat-value">{stats.approved}</span>
+              <span className="stat-label">Disetujui</span>
+            </div>
+          </div>
+          <div className={`stat-card ${statusFilter === 'Ditolak' ? 'active' : ''}`} onClick={() => setStatusFilter('Ditolak')}>
+            <div className="stat-icon rejected"><XCircle size={20} /></div>
+            <div className="stat-info">
+              <span className="stat-value">{stats.rejected}</span>
+              <span className="stat-label">Ditolak</span>
+            </div>
+          </div>
+        </div>
       </div>
 
-      <div className="search-container">
-        <Search size={18} className="search-icon" />
-        <input 
-          type="text" 
-          placeholder="Cari nama karyawan, tipe, jenis, atau status..." 
-          value={searchQuery}
-          onChange={(e) => setSearchQuery(e.target.value)}
-          className="search-input"
-        />
-        {searchQuery && (
-          <button className="clear-search" onClick={() => setSearchQuery('')}>
-            <X size={14} />
-          </button>
-        )}
+      <div className="approval-filters">
+        <div className="search-box">
+          <Search size={18} className="search-icon" />
+          <input 
+            type="text" 
+            placeholder="Cari nama karyawan atau jenis..." 
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="search-input"
+          />
+          {searchQuery && (
+            <button className="clear-search" onClick={() => setSearchQuery('')}>
+              <X size={14} />
+            </button>
+          )}
+        </div>
+        
+        <div className="filter-row">
+          <div className="status-tabs">
+            {['Semua', 'Pending', 'Disetujui', 'Ditolak'].map(tab => (
+              <button 
+                key={tab} 
+                className={`tab-btn ${statusFilter === tab ? 'active' : ''}`}
+                onClick={() => setStatusFilter(tab)}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+          
+          <div className="type-filter">
+            <Filter size={14} />
+            <select value={typeFilter} onChange={(e) => setTypeFilter(e.target.value)}>
+              <option value="Semua">Semua Tipe</option>
+              <option value="Izin">Izin</option>
+              <option value="Cuti">Cuti</option>
+              <option value="Lupa Absen">Lupa Absen</option>
+              <option value="Lembur">Lembur</option>
+            </select>
+          </div>
+        </div>
       </div>
 
       {filteredData.length === 0 ? (
-        <div className="empty-state fade-in">
-          <FileText size={48} opacity={0.3} style={{ marginBottom: '16px' }} />
-          <h3>Tidak ada pengajuan</h3>
-          <p>Belum ada pengajuan perizinan atau cuti dari karyawan.</p>
+        <div className="empty-state-modern fade-in">
+          <div className="empty-icon-wrapper">
+            <FileText size={40} />
+          </div>
+          <h3>Tidak Ada Data</h3>
+          <p>Belum ada pengajuan dengan filter yang dipilih.</p>
+          {(searchQuery || statusFilter !== 'Semua' || typeFilter !== 'Semua') && (
+            <button 
+              className="btn-reset-filter"
+              onClick={() => { setSearchQuery(''); setStatusFilter('Semua'); setTypeFilter('Semua'); }}
+            >
+              Reset Filter
+            </button>
+          )}
         </div>
       ) : (
         <div className="permohonan-list fade-in">
@@ -145,79 +244,99 @@ export default function HrdApproval() {
             return (
               <div 
                 key={uniqueId} 
-                className={`history-card permohonan-card ${isExpanded ? 'expanded' : ''}`}
+                className={`approval-card ${isExpanded ? 'expanded' : ''}`}
                 style={{ animationDelay: `${index * 0.05}s` }}
               >
-                <div className="history-card-header" onClick={() => toggleItem(uniqueId)}>
-                  <div className="history-card-title-group">
-                    <div className={`status-badge status-${item.status.toLowerCase().replace(' ', '-')}`}>
+                <div className="approval-card-header" onClick={() => toggleItem(uniqueId)}>
+                  <div className="employee-avatar">
+                    {getInitials(item.pengaju)}
+                  </div>
+                  
+                  <div className="approval-info">
+                    <h4>{item.pengaju}</h4>
+                    <div className="approval-meta">
+                      <span className="type-badge" style={{ color: getTypeColor(item.tipe), background: `color-mix(in srgb, ${getTypeColor(item.tipe)} 15%, transparent)` }}>
+                        {item.tipe}
+                      </span>
+                      <span className="bullet">•</span>
+                      <span className="date-text">
+                        {new Date(item.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })}
+                      </span>
+                    </div>
+                  </div>
+                  
+                  <div className="approval-right">
+                    <div className={`status-pill status-${item.status.toLowerCase().replace(' ', '-')}`}>
                       {item.status}
                     </div>
-                    <h4>{item.pengaju}</h4>
-                    <span className="history-card-subtitle">{item.tipe} - {item.jenis}</span>
-                  </div>
-                  <div className="history-card-action">
-                    <div className="history-card-date">
-                      {new Date(item.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    <div className="expand-icon">
+                      {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                     </div>
-                    {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
                   </div>
                 </div>
                 
                 {isExpanded && (
-                  <div className="history-card-content fade-in">
-                    <div className="history-detail-grid">
-                      <div className="detail-item">
-                        <span className="detail-label">Tanggal Mulai</span>
-                        <span className="detail-value">{new Date(item.tanggal_mulai).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                  <div className="approval-card-content fade-in">
+                    <div className="detail-grid-modern">
+                      <div className="detail-group">
+                        <span className="detail-label">Jenis Pengajuan</span>
+                        <span className="detail-value highlight">{item.jenis}</span>
                       </div>
-                      <div className="detail-item">
-                        <span className="detail-label">Tanggal Selesai</span>
-                        <span className="detail-value">{new Date(item.tanggal_selesai).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                      <div className="detail-group">
+                        <span className="detail-label">Tanggal Pelaksanaan</span>
+                        <span className="detail-value">
+                          {item.tanggal_mulai === item.tanggal_selesai 
+                            ? new Date(item.tanggal_mulai).toLocaleDateString('id-ID', { day: 'numeric', month: 'long', year: 'numeric' })
+                            : `${new Date(item.tanggal_mulai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short' })} - ${new Date(item.tanggal_selesai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                          }
+                        </span>
                       </div>
                       {item.waktu && (
-                        <div className="detail-item">
+                        <div className="detail-group">
                           <span className="detail-label">Waktu</span>
                           <span className="detail-value">{item.waktu}</span>
                         </div>
                       )}
-                      <div className="detail-item full-width">
+                      <div className="detail-group full-width">
                         <span className="detail-label">Keterangan / Alasan</span>
-                        <span className="detail-value" style={{ whiteSpace: 'pre-wrap' }}>{item.keterangan || '-'}</span>
+                        <div className="reason-box">{item.keterangan || 'Tidak ada keterangan'}</div>
                       </div>
                     </div>
 
                     {item.lampiran && (
-                       <div className="detail-item full-width mt-3">
-                          <span className="detail-label">Lampiran Foto</span>
+                       <div className="detail-group full-width mt-3">
+                          <span className="detail-label">Lampiran Bukti</span>
                           <div 
-                              className="history-photo-preview"
+                              className="attachment-preview"
                               onClick={() => setEnlargedPhoto(item.lampiran!)}
                           >
                               <img src={item.lampiran} alt="Lampiran" />
+                              <div className="attachment-overlay">
+                                <Search size={24} color="white" />
+                              </div>
                           </div>
                       </div>
                     )}
                     
                     {isPending && (
-                      <div className="permohonan-actions">
+                      <div className="approval-actions-modern">
                         <button 
-                          className="btn-approve"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setActionConfirm({ item, action: 'Disetujui' })
-                          }}
-                        >
-                          <Check size={16} /> Setujui
-                        </button>
-                        <button 
-                          className="btn-reject"
+                          className="btn-action reject"
                           onClick={(e) => {
                             e.stopPropagation()
                             setActionConfirm({ item, action: 'Ditolak' })
                           }}
                         >
-                          <X size={16} /> Tolak
+                          <X size={18} /> Tolak Pengajuan
+                        </button>
+                        <button 
+                          className="btn-action approve"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setActionConfirm({ item, action: 'Disetujui' })
+                          }}
+                        >
+                          <Check size={18} /> Setujui Pengajuan
                         </button>
                       </div>
                     )}
@@ -231,32 +350,31 @@ export default function HrdApproval() {
 
       {actionConfirm && (
         <div className="modal-overlay fade-in" style={{ zIndex: 9999 }}>
-          <div className="modal-content scale-in" style={{ maxWidth: '400px' }}>
-            <div className="modal-header">
-              <div className="modal-title-wrapper" style={{ color: actionConfirm.action === 'Disetujui' ? 'var(--success-color)' : 'var(--danger-color)' }}>
-                {actionConfirm.action === 'Disetujui' ? <UserCheck size={24} /> : <AlertTriangle size={24} />}
-                <h2>Konfirmasi {actionConfirm.action}</h2>
+          <div className="modal-content-modern scale-in">
+            <div className={`modal-icon-header ${actionConfirm.action === 'Disetujui' ? 'success' : 'danger'}`}>
+              {actionConfirm.action === 'Disetujui' ? <CheckCircle size={40} /> : <AlertTriangle size={40} />}
+            </div>
+            
+            <div className="modal-body-modern">
+              <h2>Konfirmasi {actionConfirm.action}</h2>
+              <p>Anda yakin ingin <strong>{actionConfirm.action.toLowerCase()}</strong> pengajuan <strong>{actionConfirm.item.tipe}</strong> atas nama <strong>{actionConfirm.item.pengaju}</strong>?</p>
+              
+              <div className="modal-warning">
+                <AlertTriangle size={14} />
+                <span>Tindakan ini tidak dapat dibatalkan setelah dikonfirmasi.</span>
               </div>
-              <button className="modal-close" onClick={() => !actionLoading && setActionConfirm(null)}>
-                <X size={20} />
-              </button>
             </div>
-            <div className="modal-body" style={{ textAlign: 'center', padding: '20px 0' }}>
-              <p>Anda yakin ingin <strong>{actionConfirm.action.toLowerCase()}</strong> pengajuan {actionConfirm.item.tipe} dari <strong>{actionConfirm.item.pengaju}</strong>?</p>
-              <p style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginTop: '8px' }}>Tindakan ini tidak dapat dibatalkan.</p>
-            </div>
-            <div className="modal-footer" style={{ display: 'flex', gap: '10px' }}>
+            
+            <div className="modal-footer-modern">
               <button 
-                className="btn btn-secondary" 
-                style={{ flex: 1 }}
+                className="btn-cancel" 
                 onClick={() => setActionConfirm(null)}
                 disabled={actionLoading}
               >
                 Batal
               </button>
               <button 
-                className="btn" 
-                style={{ flex: 1, background: actionConfirm.action === 'Disetujui' ? 'var(--success-color)' : 'var(--danger-color)', color: 'white', border: 'none' }}
+                className={`btn-confirm ${actionConfirm.action === 'Disetujui' ? 'success' : 'danger'}`}
                 onClick={handleAction}
                 disabled={actionLoading}
               >
@@ -269,8 +387,8 @@ export default function HrdApproval() {
 
       {enlargedPhoto && (
           <div className="modal-overlay fade-in" onClick={() => setEnlargedPhoto(null)} style={{ zIndex: 9999 }}>
-              <div className="enlarged-photo-container scale-in">
-                  <button className="close-enlarged" onClick={(e) => { e.stopPropagation(); setEnlargedPhoto(null) }}>
+              <div className="enlarged-photo-modern scale-in">
+                  <button className="close-enlarged-modern" onClick={(e) => { e.stopPropagation(); setEnlargedPhoto(null) }}>
                       <X size={24} />
                   </button>
                   <img src={enlargedPhoto} alt="Foto Diperbesar" />

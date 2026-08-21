@@ -16,13 +16,13 @@ const urlB64ToUint8Array = (base64String: string) => {
 export const subscribeToPush = async (userId: number) => {
   try {
     if (!('serviceWorker' in navigator) || !('PushManager' in window)) {
-      console.log('Push notifications not supported in this browser');
+      alert('Push notifications not supported in this browser (Perlu Add to Home Screen jika di iOS)');
       return false;
     }
 
     const permission = await Notification.requestPermission();
     if (permission !== 'granted') {
-      console.log('Notification permission denied');
+      alert('Izin notifikasi ditolak oleh pengguna atau sistem.');
       return false;
     }
 
@@ -35,10 +35,15 @@ export const subscribeToPush = async (userId: number) => {
     let subscription = await registration.pushManager.getSubscription();
 
     if (!subscription) {
-      subscription = await registration.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: applicationServerKey
-      });
+      try {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: applicationServerKey
+        });
+      } catch (subErr: any) {
+        alert('Gagal subscribe ke PushManager: ' + subErr.message);
+        return false;
+      }
     }
 
     const subscriptionData = subscription.toJSON();

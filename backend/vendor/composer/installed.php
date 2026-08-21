@@ -3,7 +3,7 @@
         'name' => 'adity/backend',
         'pretty_version' => 'dev-main',
         'version' => 'dev-main',
-        'reference' => '9368d3c60ff550462881f2c003b7584b62858f5a',
+        'reference' => '2651d047a2bea59ab56c7125e056a47e55c83af1',
         'type' => 'library',
         'install_path' => __DIR__ . '/../../',
         'aliases' => array(),
@@ -13,7 +13,7 @@
         'adity/backend' => array(
             'pretty_version' => 'dev-main',
             'version' => 'dev-main',
-            'reference' => '9368d3c60ff550462881f2c003b7584b62858f5a',
+            'reference' => '2651d047a2bea59ab56c7125e056a47e55c83af1',
             'type' => 'library',
             'install_path' => __DIR__ . '/../../',
             'aliases' => array(),

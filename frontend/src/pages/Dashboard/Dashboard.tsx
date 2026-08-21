@@ -118,7 +118,7 @@ export default function Dashboard() {
 
   const now = new Date()
   const todayString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-  const todayCheckIn = historyData.find(h => h.date === todayString && (h.type.toLowerCase().includes('in') || h.type.toLowerCase().includes('masuk')))
+  const todayCheckIn = historyData.find(h => h.date === todayString && (h.type.toLowerCase() === 'masuk' || h.type.toLowerCase() === 'check in' || (h.type.toLowerCase().includes('masuk') && !h.type.toLowerCase().includes('istirahat') && !h.type.toLowerCase().includes('izin'))))
   
   const isTodayRecord = (h: HistoryItem) => {
     if (h.date !== todayString) return false;
@@ -129,7 +129,7 @@ export default function Dashboard() {
     return h.time >= '06:00';
   };
 
-  const todayCheckOut = historyData.find(h => isTodayRecord(h) && (h.type.toLowerCase().includes('out') || h.type.toLowerCase().includes('pulang')) && !h.type.toLowerCase().includes('permit') && !h.type.toLowerCase().includes('lembur'))
+  const todayCheckOut = historyData.find(h => isTodayRecord(h) && (h.type.toLowerCase().includes('out') || h.type.toLowerCase().includes('pulang')) && !h.type.toLowerCase().includes('permit') && !h.type.toLowerCase().includes('lembur') && !h.type.toLowerCase().includes('istirahat') && !h.type.toLowerCase().includes('break'))
   
   // Checking break status (if they have break out but no break in)
   const todayBreakOut = historyData.find(h => isTodayRecord(h) && (h.type.toLowerCase().includes('istirahat keluar') || h.type.toLowerCase().includes('break out')))

@@ -1,6 +1,8 @@
 import { useState, useEffect } from 'react'
-import { Check, X, Loader2, FileText, UserCheck, AlertTriangle, Search, Clock, History } from 'lucide-react'
+import { Check, X, Loader2, FileText, ChevronDown, ChevronUp, UserCheck, AlertTriangle, Search } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
+import { useLangStore } from '../../store/lang.store'
+import { translations } from '../../utils/translations'
 import './HrdApproval.css'
 import { useToast } from '../../contexts/ToastContext'
 
@@ -25,10 +27,13 @@ export default function HrdApproval() {
   const [data, setData] = useState<PermohonanItem[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [activeTab, setActiveTab] = useState<'pending' | 'riwayat'>('pending')
+  const [expandedItems, setExpandedItems] = useState<(number | string)[]>([])
   const [actionConfirm, setActionConfirm] = useState<{ item: PermohonanItem; action: 'Disetujui' | 'Ditolak' } | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
   const [enlargedPhoto, setEnlargedPhoto] = useState<string | null>(null)
+
+  const { lang } = useLangStore()
+  const t = translations[lang]
 
   const fetchData = async (showLoading = false) => {
     if (!user?.id) return
@@ -53,11 +58,6 @@ export default function HrdApproval() {
   }, [user])
 
   const filteredData = data.filter(item => {
-    // Filter by tab
-    if (activeTab === 'pending' && item.status.toLowerCase() !== 'pending') return false;
-    if (activeTab === 'riwayat' && item.status.toLowerCase() === 'pending') return false;
-
-    // Filter by search
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -67,6 +67,10 @@ export default function HrdApproval() {
       (item.status || '').toLowerCase().includes(query)
     );
   });
+
+  const toggleItem = (id: number | string) => {
+    setExpandedItems(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id])
+  }
 
   const handleAction = async () => {
     if (!actionConfirm || !user?.id) return
@@ -83,13 +87,13 @@ export default function HrdApproval() {
         })
       })
 
-      const result = await res.json()
+      const data = await res.json()
       if (res.ok) {
         showToast(`Permohonan ${actionConfirm.action.toLowerCase()} berhasil.`, 'success')
         setActionConfirm(null)
         fetchData(false)
       } else {
-        showToast(result.message || 'Gagal mengubah status', 'error')
+        showToast(data.message || 'Gagal mengubah status', 'error')
       }
     } catch (error) {
       console.error("Action error:", error)
@@ -107,8 +111,6 @@ export default function HrdApproval() {
     )
   }
 
-  const pendingCount = data.filter(i => i.status.toLowerCase() === 'pending').length;
-
   return (
     <div className="page-container fade-in hrd-approval-page">
       <div className="history-header">
@@ -116,26 +118,11 @@ export default function HrdApproval() {
         <p>Kelola pengajuan perizinan dan cuti karyawan</p>
       </div>
 
-      <div className="approval-tabs">
-        <button 
-          className={`tab-btn ${activeTab === 'pending' ? 'active' : ''}`}
-          onClick={() => setActiveTab('pending')}
-        >
-          <Clock size={16} /> Menunggu Persetujuan {pendingCount > 0 && <span className="badge">{pendingCount}</span>}
-        </button>
-        <button 
-          className={`tab-btn ${activeTab === 'riwayat' ? 'active' : ''}`}
-          onClick={() => setActiveTab('riwayat')}
-        >
-          <History size={16} /> Riwayat
-        </button>
-      </div>
-
       <div className="search-container">
         <Search size={18} className="search-icon" />
         <input 
           type="text" 
-          placeholder="Cari nama karyawan, tipe, jenis..." 
+          placeholder="Cari nama karyawan, tipe, jenis, atau status..." 
           value={searchQuery}
           onChange={(e) => setSearchQuery(e.target.value)}
           className="search-input"
@@ -150,80 +137,95 @@ export default function HrdApproval() {
       {filteredData.length === 0 ? (
         <div className="empty-state fade-in">
           <FileText size={48} opacity={0.3} style={{ marginBottom: '16px' }} />
-          <h3>Tidak ada data</h3>
-          <p>{activeTab === 'pending' ? 'Semua pengajuan sudah diproses.' : 'Belum ada riwayat persetujuan.'}</p>
+          <h3>Tidak ada pengajuan</h3>
+          <p>Belum ada pengajuan perizinan atau cuti dari karyawan.</p>
         </div>
       ) : (
-        <div className="simple-card-list fade-in">
+        <div className="permohonan-list fade-in">
           {filteredData.map((item, index) => {
             const uniqueId = `${item.tipe}-${item.id}`;
+            const isExpanded = expandedItems.includes(uniqueId);
             const isPending = item.status.toLowerCase() === 'pending';
             
             return (
               <div 
                 key={uniqueId} 
-                className="simple-card"
+                className={`history-card permohonan-card ${isExpanded ? 'expanded' : ''}`}
                 style={{ animationDelay: `${index * 0.05}s` }}
               >
-                <div className="simple-card-header">
-                  <div className="card-user-info">
-                    <h4>{item.pengaju}</h4>
-                    <span className="card-type-badge">{item.tipe} - {item.jenis}</span>
-                  </div>
-                  {!isPending && (
+                <div className="history-card-header" onClick={() => toggleItem(uniqueId)}>
+                  <div className="history-card-title-group">
                     <div className={`status-badge status-${item.status.toLowerCase().replace(' ', '-')}`}>
                       {item.status}
                     </div>
-                  )}
+                    <h4>{item.pengaju}</h4>
+                    <span className="history-card-subtitle">{item.tipe} - {item.jenis}</span>
+                  </div>
+                  <div className="history-card-action">
+                    <div className="history-card-date">
+                      {new Date(item.created_at).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}
+                    </div>
+                    {isExpanded ? <ChevronUp size={20} /> : <ChevronDown size={20} />}
+                  </div>
                 </div>
                 
-                <div className="simple-card-body">
-                  <div className="info-row">
-                    <span className="info-label">Tanggal:</span>
-                    <span className="info-value">
-                      {new Date(item.tanggal_mulai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })} 
-                      {item.tanggal_mulai !== item.tanggal_selesai && ` s/d ${new Date(item.tanggal_selesai).toLocaleDateString('id-ID', { day: 'numeric', month: 'short', year: 'numeric' })}`}
-                    </span>
-                  </div>
-                  {item.waktu && (
-                    <div className="info-row">
-                      <span className="info-label">Waktu:</span>
-                      <span className="info-value">{item.waktu}</span>
-                    </div>
-                  )}
-                  <div className="info-row">
-                    <span className="info-label">Alasan:</span>
-                    <span className="info-value">{item.keterangan || '-'}</span>
-                  </div>
-
-                  {item.lampiran && (
-                    <div className="info-row" style={{ marginTop: '8px' }}>
-                      <span className="info-label">Lampiran:</span>
-                      <div 
-                          className="lampiran-thumb"
-                          onClick={() => setEnlargedPhoto(item.lampiran!)}
-                      >
-                          <img src={item.lampiran} alt="Lampiran" />
-                          <span>Lihat Lampiran</span>
+                {isExpanded && (
+                  <div className="history-card-content fade-in">
+                    <div className="history-detail-grid">
+                      <div className="detail-item">
+                        <span className="detail-label">Tanggal Mulai</span>
+                        <span className="detail-value">{new Date(item.tanggal_mulai).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                      </div>
+                      <div className="detail-item">
+                        <span className="detail-label">Tanggal Selesai</span>
+                        <span className="detail-value">{new Date(item.tanggal_selesai).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                      </div>
+                      {item.waktu && (
+                        <div className="detail-item">
+                          <span className="detail-label">Waktu</span>
+                          <span className="detail-value">{item.waktu}</span>
+                        </div>
+                      )}
+                      <div className="detail-item full-width">
+                        <span className="detail-label">Keterangan / Alasan</span>
+                        <span className="detail-value" style={{ whiteSpace: 'pre-wrap' }}>{item.keterangan || '-'}</span>
                       </div>
                     </div>
-                  )}
-                </div>
 
-                {isPending && (
-                  <div className="simple-card-footer">
-                    <button 
-                      className="btn-reject-simple"
-                      onClick={() => setActionConfirm({ item, action: 'Ditolak' })}
-                    >
-                      <X size={16} /> Tolak
-                    </button>
-                    <button 
-                      className="btn-approve-simple"
-                      onClick={() => setActionConfirm({ item, action: 'Disetujui' })}
-                    >
-                      <Check size={16} /> Setujui
-                    </button>
+                    {item.lampiran && (
+                       <div className="detail-item full-width mt-3">
+                          <span className="detail-label">Lampiran Foto</span>
+                          <div 
+                              className="history-photo-preview"
+                              onClick={() => setEnlargedPhoto(item.lampiran!)}
+                          >
+                              <img src={item.lampiran} alt="Lampiran" />
+                          </div>
+                      </div>
+                    )}
+                    
+                    {isPending && (
+                      <div className="permohonan-actions">
+                        <button 
+                          className="btn-approve"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setActionConfirm({ item, action: 'Disetujui' })
+                          }}
+                        >
+                          <Check size={16} /> Setujui
+                        </button>
+                        <button 
+                          className="btn-reject"
+                          onClick={(e) => {
+                            e.stopPropagation()
+                            setActionConfirm({ item, action: 'Ditolak' })
+                          }}
+                        >
+                          <X size={16} /> Tolak
+                        </button>
+                      </div>
+                    )}
                   </div>
                 )}
               </div>

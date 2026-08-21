@@ -97,7 +97,9 @@
 }
 
 /* --- Overtime Mode Styles --- */
-
+.dashboard.overtime-active {
+  /* Subtle orange glow/border or background tint */
+}
 
 .overtime-badge {
   display: flex;

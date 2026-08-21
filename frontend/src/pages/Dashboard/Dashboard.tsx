@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react'
 import { Clock, Coffee, LogOut, LogIn, CalendarDays, Sun, Plane, AlertCircle, Info, XCircle } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import CameraModal from '../../components/CameraModal'
-import { subscribeToPush } from '../../utils/push'
 import IzinModal from '../../components/IzinModal'
 import CutiModal from '../../components/CutiModal'
 import PermitOutModal from '../../components/PermitOutModal'
@@ -119,7 +118,7 @@ export default function Dashboard() {
 
   const now = new Date()
   const todayString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
-  const todayCheckIn = historyData.find(h => h.date === todayString && (h.type.toLowerCase() === 'in' || h.type.toLowerCase() === 'masuk' || h.type.toLowerCase() === 'absen masuk'))
+  const todayCheckIn = historyData.find(h => h.date === todayString && (h.type.toLowerCase().includes('in') || h.type.toLowerCase().includes('masuk')))
   
   const isTodayRecord = (h: HistoryItem) => {
     if (h.date !== todayString) return false;
@@ -130,7 +129,7 @@ export default function Dashboard() {
     return h.time >= '06:00';
   };
 
-  const todayCheckOut = historyData.find(h => isTodayRecord(h) && (h.type.toLowerCase() === 'out' || h.type.toLowerCase() === 'pulang' || h.type.toLowerCase() === 'absen pulang'))
+  const todayCheckOut = historyData.find(h => isTodayRecord(h) && (h.type.toLowerCase().includes('out') || h.type.toLowerCase().includes('pulang')) && !h.type.toLowerCase().includes('permit') && !h.type.toLowerCase().includes('lembur'))
   
   // Checking break status (if they have break out but no break in)
   const todayBreakOut = historyData.find(h => isTodayRecord(h) && (h.type.toLowerCase().includes('istirahat keluar') || h.type.toLowerCase().includes('break out')))
@@ -157,11 +156,6 @@ export default function Dashboard() {
   const hasFullDayLeave = userProfile?.has_full_day_leave || false
 
   const handleAttendanceClick = (type: string) => {
-    // Meminta izin notifikasi saat pengguna klik tombol (diperlukan untuk iOS/Safari)
-    if (user?.id) {
-      subscribeToPush(user.id).catch(console.error);
-    }
-
     setAttendanceType(type)
     setPermitReason('')
     if (type.toLowerCase().includes('izin keluar') || type.toLowerCase().includes('permit out')) {

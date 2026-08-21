@@ -8,7 +8,6 @@ import { useLangStore } from '../store/lang.store'
 import { useModeStore } from '../store/mode.store'
 import { translations } from '../utils/translations'
 import { useToast } from '../contexts/ToastContext'
-import { subscribeToPush } from '../utils/push'
 
 export default function DashboardLayout() {
   const { logout } = useAuthStore()
@@ -36,9 +35,6 @@ export default function DashboardLayout() {
           if (data.data) {
             setUserGroup(data.data.grup || '')
             setUserPekerjaan(data.data.pekerjaan || '')
-            
-            // Register Push Notification
-            subscribeToPush(user.id)
           }
         })
         .catch(err => console.error(err))

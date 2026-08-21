@@ -25,6 +25,7 @@ export default function DashboardLayout() {
   const menuRef = useRef<HTMLDivElement>(null)
   const [userGroup, setUserGroup] = useState('')
   const [userPekerjaan, setUserPekerjaan] = useState('')
+  const [isSupervisor, setIsSupervisor] = useState(false)
   const { user } = useAuthStore()
 
   useEffect(() => {
@@ -35,6 +36,7 @@ export default function DashboardLayout() {
           if (data.data) {
             setUserGroup(data.data.grup || '')
             setUserPekerjaan(data.data.pekerjaan || '')
+            setIsSupervisor(data.data.is_supervisor || false)
           }
         })
         .catch(err => console.error(err))
@@ -149,7 +151,7 @@ export default function DashboardLayout() {
                   <History size={18} />
                   <span>{isOvertimeMode ? t.overtimeMode : t.normalMode}</span>
                 </button>
-                {(userPekerjaan.trim().toUpperCase() === 'HRD' || userPekerjaan.trim().toUpperCase() === 'IT') && (
+                {(userPekerjaan.trim().toUpperCase() === 'HRD' || userPekerjaan.trim().toUpperCase() === 'IT' || isSupervisor) && (
                   <>
                     <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '4px 0' }} />
                     <button 

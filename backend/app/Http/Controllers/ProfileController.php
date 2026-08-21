@@ -74,6 +74,18 @@ class ProfileController {
                     }
                 }
                 
+                // Check if supervisor
+                $profile['is_supervisor'] = false;
+                if ($profile['karyawan_id']) {
+                    $nik = $profile['nik'] ?? '';
+                    $nama = $profile['name'] ?? '';
+                    $stmtSpv = $pdo->prepare("SELECT id FROM karyawans WHERE nik_supervisor = ? OR supervisor = ? LIMIT 1");
+                    $stmtSpv->execute([$nik, $nama]);
+                    if ($stmtSpv->fetch()) {
+                        $profile['is_supervisor'] = true;
+                    }
+                }
+                
                 // To ensure compatibility with frontend components that expect 'id' to be user_id or karyawan_id,
                 // we will explicitly return id as user_id to fix IzinModal passing wrong user_id
                 $profile['id'] = $profile['user_id'];

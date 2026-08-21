@@ -20,52 +20,84 @@ class ApprovalController {
         try {
             $pdo = Database::getConnection();
             
-            // Check if user is HRD
-            $stmtUser = $pdo->prepare("SELECT u.karyawan_id, k.pekerjaan FROM users u LEFT JOIN karyawans k ON u.karyawan_id = k.id WHERE u.id = ?");
+            // Check if user is HRD, IT, or Supervisor
+            $stmtUser = $pdo->prepare("SELECT u.karyawan_id, k.pekerjaan, k.nik, k.nama_lengkap FROM users u LEFT JOIN karyawans k ON u.karyawan_id = k.id WHERE u.id = ?");
             $stmtUser->execute([$user_id]);
             $userData = $stmtUser->fetch();
             
-            if (!$userData || (strcasecmp(trim($userData['pekerjaan']), 'HRD') !== 0 && strcasecmp(trim($userData['pekerjaan']), 'IT') !== 0)) {
+            if (!$userData) {
                 http_response_code(403);
-                echo json_encode(['message' => 'Akses ditolak. Hanya HRD dan IT yang dapat mengakses data ini.']);
+                echo json_encode(['message' => 'User tidak valid.']);
                 return;
             }
 
-            // Get all permohonan from all users
-            $stmtIzin = $pdo->query("
+            $isHRD = strcasecmp(trim($userData['pekerjaan']), 'HRD') === 0 || strcasecmp(trim($userData['pekerjaan']), 'IT') === 0;
+            
+            $isSupervisor = false;
+            if (!$isHRD && $userData['nik']) {
+                $stmtSpv = $pdo->prepare("SELECT id FROM karyawans WHERE nik_supervisor = ? OR supervisor = ? LIMIT 1");
+                $stmtSpv->execute([$userData['nik'], $userData['nama_lengkap']]);
+                if ($stmtSpv->fetch()) {
+                    $isSupervisor = true;
+                }
+            }
+
+            if (!$isHRD && !$isSupervisor) {
+                http_response_code(403);
+                echo json_encode(['message' => 'Akses ditolak. Hanya HRD, IT, dan Supervisor yang dapat mengakses data ini.']);
+                return;
+            }
+
+            $whereClause = "";
+            $params = [];
+            if ($isSupervisor && !$isHRD) {
+                $whereClause = " WHERE kr.nik_supervisor = ? OR kr.supervisor = ? ";
+                $params = [$userData['nik'], $userData['nama_lengkap']];
+            }
+
+            // Get permohonan from users
+            $stmtIzin = $pdo->prepare("
                 SELECT p.id, p.karyawan_id, kr.nama_lengkap as pengaju, CONCAT('/uploads/avatars/avatar_', u.id, '.jpg') as foto_profil, 'Izin' as tipe, p.jenis_izin as jenis, p.tanggal_mulai, p.tanggal_selesai, p.waktu, p.alasan as keterangan, p.status, p.created_at, p.lampiran 
                 FROM permohonan_izins p 
                 LEFT JOIN karyawans kr ON p.karyawan_id = kr.id 
                 LEFT JOIN users u ON u.karyawan_id = kr.id
+                $whereClause
                 ORDER BY p.created_at DESC
             ");
+            $stmtIzin->execute($params);
             $izin = $stmtIzin->fetchAll();
 
-            $stmtCuti = $pdo->query("
+            $stmtCuti = $pdo->prepare("
                 SELECT c.id, c.karyawan_id, kr.nama_lengkap as pengaju, CONCAT('/uploads/avatars/avatar_', u.id, '.jpg') as foto_profil, 'Cuti' as tipe, c.jenis_cuti as jenis, c.tanggal_mulai, c.tanggal_selesai, 'Full Day' as waktu, c.keterangan, c.status, c.created_at, NULL as lampiran 
                 FROM cutis c 
                 LEFT JOIN karyawans kr ON c.karyawan_id = kr.id 
                 LEFT JOIN users u ON u.karyawan_id = kr.id
+                $whereClause
                 ORDER BY c.created_at DESC
             ");
+            $stmtCuti->execute($params);
             $cuti = $stmtCuti->fetchAll();
 
-            $stmtLupa = $pdo->query("
+            $stmtLupa = $pdo->prepare("
                 SELECT l.id, l.karyawan_id, kr.nama_lengkap as pengaju, CONCAT('/uploads/avatars/avatar_', u.id, '.jpg') as foto_profil, 'Lupa Absen' as tipe, l.tipe_absen as jenis, l.tanggal as tanggal_mulai, l.tanggal as tanggal_selesai, l.waktu, l.alasan as keterangan, l.status, l.created_at, NULL as lampiran 
                 FROM persetujuan_absensi_lupas l 
                 LEFT JOIN karyawans kr ON l.karyawan_id = kr.id 
                 LEFT JOIN users u ON u.karyawan_id = kr.id
+                $whereClause
                 ORDER BY l.created_at DESC
             ");
+            $stmtLupa->execute($params);
             $lupa = $stmtLupa->fetchAll();
 
-            $stmtLembur = $pdo->query("
+            $stmtLembur = $pdo->prepare("
                 SELECT b.id, b.karyawan_id, kr.nama_lengkap as pengaju, CONCAT('/uploads/avatars/avatar_', u.id, '.jpg') as foto_profil, 'Lembur' as tipe, 'Pengajuan Lembur' as jenis, b.tanggal as tanggal_mulai, b.tanggal as tanggal_selesai, CONCAT(b.jam_mulai, ' - ', b.jam_selesai) as waktu, b.keterangan, b.status, b.created_at, NULL as lampiran 
                 FROM persetujuan_absensi_lemburs b 
                 LEFT JOIN karyawans kr ON b.karyawan_id = kr.id 
                 LEFT JOIN users u ON u.karyawan_id = kr.id
+                $whereClause
                 ORDER BY b.created_at DESC
             ");
+            $stmtLembur->execute($params);
             $lembur = $stmtLembur->fetchAll();
 
             $allData = array_merge($izin, $cuti, $lupa, $lembur);

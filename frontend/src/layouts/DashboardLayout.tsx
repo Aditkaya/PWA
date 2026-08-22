@@ -8,6 +8,7 @@ import { useLangStore } from '../store/lang.store'
 import { useModeStore } from '../store/mode.store'
 import { translations } from '../utils/translations'
 import { useToast } from '../contexts/ToastContext'
+import FaceRegistrationModal from '../components/FaceRegistrationModal'
 
 export default function DashboardLayout() {
   const { logout } = useAuthStore()
@@ -26,9 +27,11 @@ export default function DashboardLayout() {
   const [userGroup, setUserGroup] = useState('')
   const [userPekerjaan, setUserPekerjaan] = useState('')
   const [isSupervisor, setIsSupervisor] = useState(false)
+  const [showFaceRegistration, setShowFaceRegistration] = useState(false)
+  
   const { user } = useAuthStore()
 
-  useEffect(() => {
+  const fetchProfile = () => {
     if (user?.id) {
       fetch(`/api/profile?user_id=${user.id}`)
         .then(res => res.json())
@@ -37,10 +40,20 @@ export default function DashboardLayout() {
             setUserGroup(data.data.grup || '')
             setUserPekerjaan(data.data.pekerjaan || '')
             setIsSupervisor(data.data.is_supervisor || false)
+            
+            if (data.data.is_face_verified === false) {
+              setShowFaceRegistration(true)
+            } else {
+              setShowFaceRegistration(false)
+            }
           }
         })
         .catch(err => console.error(err))
     }
+  }
+
+  useEffect(() => {
+    fetchProfile()
   }, [user])
 
   useEffect(() => {
@@ -181,7 +194,7 @@ export default function DashboardLayout() {
         </div>
       </header>
       <main className="main-content page-enter" key={location.pathname}>
-        <Outlet />
+        <Outlet context={{ openFaceRegistration: () => setShowFaceRegistration(true) }} />
       </main>
       <nav className="bottom-nav">
         <button 
@@ -206,6 +219,18 @@ export default function DashboardLayout() {
           <span>{t.profile}</span>
         </button>
       </nav>
+
+      {/* Mandatory Face Registration Modal */}
+      <FaceRegistrationModal 
+        isOpen={showFaceRegistration} 
+        onSuccess={() => {
+          setShowFaceRegistration(false);
+          fetchProfile(); // Refresh profile to get the face_verification_url
+        }} 
+        onClose={() => {
+          setShowFaceRegistration(false);
+        }}
+      />
     </div>
   )
 }

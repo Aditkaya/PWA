@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom'
 import * as faceapi from 'face-api.js'
 import Cropper from 'react-easy-crop'
 import getCroppedImg from '../../utils/cropImage'
-import { User, Mail, Briefcase, Phone, MapPin, Key, ChevronRight, Loader2, Camera, X, Save, Eye, EyeOff, Lock } from 'lucide-react'
+import { User, Mail, Briefcase, Phone, MapPin, Key, ChevronRight, Loader2, Camera, X, Save, Eye, EyeOff, Lock, Trash2 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useLangStore } from '../../store/lang.store'
 import { translations } from '../../utils/translations'
@@ -30,6 +30,7 @@ export default function Profile() {
   const [uploading, setUploading] = useState(false)
   const [isViewerOpen, setIsViewerOpen] = useState(false)
   const [activeModal, setActiveModal] = useState<ModalType>(null)
+  const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
   // Cropper state
@@ -230,6 +231,33 @@ export default function Profile() {
     }
   }
 
+  const handleDeleteAvatar = async (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!user?.id) return
+    
+    if (!window.confirm('Apakah Anda yakin ingin menghapus foto profil ini?')) return
+    
+    setUploading(true)
+    try {
+      const response = await fetch('/api/profile/avatar', { 
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id })
+      })
+      if (response.ok) {
+        setProfileData(prev => prev ? { ...prev, avatar_url: undefined, avatar_updated_at: undefined } : null)
+        showToast('Foto profil berhasil dihapus', 'success')
+      } else {
+        const result = await response.json()
+        showToast(result.message || 'Gagal menghapus foto', 'error')
+      }
+    } catch {
+      showToast('Terjadi kesalahan sistem', 'error')
+    } finally {
+      setUploading(false)
+    }
+  }
+
   const isProfileLocked = () => {
     return false
   }
@@ -248,6 +276,20 @@ export default function Profile() {
       return
     }
     if (fileInputRef.current && !uploading) fileInputRef.current.click()
+  }
+
+  const handleAvatarActionClick = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (isProfileLocked()) {
+      showToast(`Foto profil dikunci hingga ${getUnlockDate()}`, 'error')
+      return
+    }
+    
+    if (profileData?.avatar_url) {
+      setIsAvatarMenuOpen(!isAvatarMenuOpen)
+    } else {
+      triggerUpload(e)
+    }
   }
 
   const handleAvatarClick = () => {
@@ -426,7 +468,7 @@ export default function Profile() {
 
       <div className="profile-header glass-panel">
         <div className="profile-avatar-container">
-          <div className="profile-avatar-wrapper" onClick={handleAvatarClick}>
+          <div className="profile-avatar-wrapper" onClick={handleAvatarClick} style={{ position: 'relative' }}>
             <div className="profile-avatar-large">
               {profileData?.avatar_url ? (
                 <img src={profileData.avatar_url} alt="Profile" className="profile-avatar-img" />
@@ -440,9 +482,30 @@ export default function Profile() {
               </div>
             )}
           </div>
-          <button className="avatar-upload-badge" onClick={triggerUpload} style={{ background: isProfileLocked() ? '#ef4444' : undefined, color: isProfileLocked() ? '#fff' : undefined }}>
-            {isProfileLocked() ? <Lock size={14} /> : <Camera size={16} />}
-          </button>
+          <div style={{ display: 'flex', gap: '8px', position: 'absolute', bottom: '0', right: '-10px' }}>
+            <button 
+              onClick={handleAvatarActionClick} 
+              style={{ width: '36px', height: '36px', borderRadius: '50%', background: isProfileLocked() ? '#ef4444' : 'var(--accent-color)', color: '#fff', border: 'none', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', boxShadow: '0 4px 10px rgba(0,0,0,0.1)' }}
+            >
+              {isProfileLocked() ? <Lock size={16} /> : <Camera size={16} />}
+            </button>
+            {isAvatarMenuOpen && (
+              <div className="fade-in" style={{ position: 'absolute', top: '100%', right: 0, marginTop: '8px', background: 'var(--panel-bg)', borderRadius: '12px', padding: '6px', boxShadow: '0 10px 30px rgba(0,0,0,0.3)', border: '1px solid var(--glass-border)', display: 'flex', flexDirection: 'column', zIndex: 100, minWidth: '150px' }}>
+                <button 
+                  onClick={(e) => { setIsAvatarMenuOpen(false); triggerUpload(e); }} 
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', borderRadius: '8px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 500 }}
+                >
+                  <Camera size={16} /> Ganti Foto
+                </button>
+                <button 
+                  onClick={(e) => { setIsAvatarMenuOpen(false); handleDeleteAvatar(e); }} 
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', borderRadius: '8px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 500 }}
+                >
+                  <Trash2 size={16} /> Hapus Foto
+                </button>
+              </div>
+            )}
+          </div>
         </div>
         <input 
           type="file" 

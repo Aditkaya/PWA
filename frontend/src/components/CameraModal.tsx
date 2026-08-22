@@ -266,10 +266,10 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
           }
           const res = await fetch(`/api/profile?user_id=${user.id}`);
           const data = await res.json();
-          if (data.data && data.data.avatar_url) {
+          if (data.data && data.data.face_verification_url) {
             try {
               // Gunakan fetch & blob untuk menghindari bug CORS gambar di Safari/iOS
-              const imgRes = await fetch(data.data.avatar_url);
+              const imgRes = await fetch(data.data.face_verification_url);
               const imgBlob = await imgRes.blob();
               const objUrl = URL.createObjectURL(imgBlob);
               
@@ -288,14 +288,14 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
                 globalUserId = user.id;
                 setProfileDescriptor(detection.descriptor);
               } else {
-                setErrorMsg('Wajah pada foto profil tidak terdeteksi. Harap perbarui foto profil Anda.');
+                setErrorMsg('Wajah pada foto verifikasi tidak terdeteksi.');
               }
             } catch (fetchErr) {
-              console.error("Error fetching avatar", fetchErr);
-              setErrorMsg('Koneksi terputus saat memuat foto profil.');
+              console.error("Error fetching face verification image", fetchErr);
+              setErrorMsg('Koneksi terputus saat memuat foto verifikasi.');
             }
           } else {
-            setErrorMsg('Anda belum mengatur foto profil. Harap unggah foto profil terlebih dahulu.');
+            setErrorMsg('Anda belum melakukan verifikasi wajah.');
           }
         }
         setIsProfileLoaded(true);

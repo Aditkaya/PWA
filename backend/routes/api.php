@@ -81,6 +81,20 @@ if ($uri === '/api/profile/upload' && $method === 'POST') {
     exit();
 }
 
+if ($uri === '/api/profile/avatar' && $method === 'DELETE') {
+    require_once __DIR__ . '/../app/Http/Controllers/ProfileController.php';
+    $controller = new \App\Http\Controllers\ProfileController();
+    $controller->deleteAvatar($requestData);
+    exit();
+}
+
+if ($uri === '/api/face-registration' && $method === 'POST') {
+    require_once __DIR__ . '/../app/Http/Controllers/ProfileController.php';
+    $controller = new \App\Http\Controllers\ProfileController();
+    $controller->registerFace($requestData);
+    exit();
+}
+
 if ($uri === '/api/profile' && $method === 'PUT') {
     require_once __DIR__ . '/../app/Http/Controllers/ProfileController.php';
     $controller = new \App\Http\Controllers\ProfileController();

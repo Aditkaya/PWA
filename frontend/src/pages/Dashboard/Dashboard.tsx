@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
-import { Clock, Coffee, LogOut, LogIn, CalendarDays, Sun, Plane, AlertCircle, Info, XCircle } from 'lucide-react'
+import { useOutletContext } from 'react-router-dom'
+import { Clock, Coffee, LogOut, LogIn, CalendarDays, Sun, Plane, AlertCircle, Info, XCircle, ScanFace } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import CameraModal from '../../components/CameraModal'
 import IzinModal from '../../components/IzinModal'
@@ -33,6 +34,9 @@ export default function Dashboard() {
   const { isOvertimeMode } = useModeStore()
   const t = translations[lang]
   const { showToast } = useToast()
+  
+  // Use Outlet Context for Face Registration Modal
+  const { openFaceRegistration } = useOutletContext<{ openFaceRegistration: () => void }>() || { openFaceRegistration: () => {} };
   
   // Custom Alert States
   const [alertState, setAlertState] = useState<{show: boolean, type: 'warning' | 'info' | 'error', title: string, message: string}>({
@@ -278,13 +282,21 @@ export default function Dashboard() {
         <p>{hasFullDayLeave ? t.statusLeave : (isOvertimeMode ? t.statusOvertime : t.statusActive)}</p>
       </div>
 
-      {userProfile && !userProfile.avatar_url && (
-        <div className="warning-banner glass-panel" style={{ borderLeft: '4px solid #f59e0b', padding: '12px 16px', marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <AlertCircle color="#f59e0b" size={24} style={{ flexShrink: 0 }} />
-          <div>
-            <h4 style={{ margin: '0 0 4px 0', color: '#f59e0b', fontSize: '0.95rem' }}>Foto Profil Belum Diatur</h4>
-            <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Segera lengkapi foto profil Anda terlebih dahulu agar dapat melakukan absensi.</p>
+      {userProfile && userProfile.is_face_verified === false && (
+        <div className="warning-banner glass-panel" style={{ borderLeft: '4px solid #ef4444', padding: '12px 16px', marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <ScanFace color="#ef4444" size={24} style={{ flexShrink: 0 }} />
+            <div>
+              <h4 style={{ margin: '0 0 4px 0', color: '#ef4444', fontSize: '0.95rem' }}>Verifikasi Wajah Belum Dilakukan</h4>
+              <p style={{ margin: 0, fontSize: '0.85rem', color: 'var(--text-secondary)' }}>Anda harus melakukan registrasi wajah (wajib) agar dapat menggunakan fitur absensi.</p>
+            </div>
           </div>
+          <button 
+            onClick={openFaceRegistration}
+            style={{ alignSelf: 'flex-start', background: '#ef4444', color: 'white', border: 'none', padding: '6px 16px', borderRadius: '6px', fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '6px' }}
+          >
+            <ScanFace size={16} /> Buka Kamera Verifikasi
+          </button>
         </div>
       )}
 
@@ -300,7 +312,7 @@ export default function Dashboard() {
           <>
             <button 
               className="btn-attendance overtime-in" 
-              disabled={hasFullDayLeave || !!todayOvertimeIn}
+              disabled={hasFullDayLeave || !!todayOvertimeIn || (userProfile && userProfile.is_face_verified === false)}
               onClick={() => handleAttendanceClick('Mulai Lembur')}
             >
               <Clock size={24} strokeWidth={1.25} />
@@ -312,7 +324,7 @@ export default function Dashboard() {
             </button>
             <button 
               className="btn-attendance overtime-out" 
-              disabled={hasFullDayLeave || !isOvertimeStarted || !!todayOvertimeOut}
+              disabled={hasFullDayLeave || !isOvertimeStarted || !!todayOvertimeOut || (userProfile && userProfile.is_face_verified === false)}
               onClick={() => handleAttendanceClick('Selesai Lembur')}
             >
               <Clock size={24} strokeWidth={1.25} />
@@ -323,7 +335,7 @@ export default function Dashboard() {
           <>
             <button 
               className="btn-attendance check-in" 
-              disabled={hasFullDayLeave || !!todayCheckIn}
+              disabled={hasFullDayLeave || !!todayCheckIn || (userProfile && userProfile.is_face_verified === false)}
               onClick={() => handleAttendanceClick('Masuk')}
             >
               <Clock size={24} strokeWidth={1.25} />
@@ -331,7 +343,7 @@ export default function Dashboard() {
             </button>
             <button 
               className="btn-attendance check-out" 
-              disabled={hasFullDayLeave || !todayCheckIn || !!todayCheckOut}
+              disabled={hasFullDayLeave || !todayCheckIn || !!todayCheckOut || (userProfile && userProfile.is_face_verified === false)}
               onClick={() => handleAttendanceClick('Pulang')}
             >
               <Clock size={24} strokeWidth={1.25} />
@@ -339,7 +351,7 @@ export default function Dashboard() {
             </button>
             <button 
               className="btn-attendance break-out" 
-              disabled={hasFullDayLeave || !todayCheckIn || !!todayBreakOut || !!todayBreakIn || !!todayCheckOut}
+              disabled={hasFullDayLeave || !todayCheckIn || !!todayBreakOut || !!todayBreakIn || !!todayCheckOut || (userProfile && userProfile.is_face_verified === false)}
               onClick={() => handleAttendanceClick('Istirahat Keluar')}
             >
               <Coffee size={24} strokeWidth={1.25} />
@@ -347,7 +359,7 @@ export default function Dashboard() {
             </button>
             <button 
               className="btn-attendance break-in" 
-              disabled={hasFullDayLeave || !todayBreakOut || !!todayBreakIn}
+              disabled={hasFullDayLeave || !todayBreakOut || !!todayBreakIn || (userProfile && userProfile.is_face_verified === false)}
               onClick={() => handleAttendanceClick('Istirahat Masuk')}
             >
               <Coffee size={24} strokeWidth={1.25} />
@@ -355,7 +367,7 @@ export default function Dashboard() {
             </button>
             <button 
               className="btn-attendance permit-out" 
-              disabled={hasFullDayLeave || !todayCheckIn || isCurrentlyOnPermit || !!todayCheckOut}
+              disabled={hasFullDayLeave || !todayCheckIn || isCurrentlyOnPermit || !!todayCheckOut || (userProfile && userProfile.is_face_verified === false)}
               onClick={() => handleAttendanceClick('Izin Keluar')}
             >
               <LogOut size={24} strokeWidth={1.25} />
@@ -363,7 +375,7 @@ export default function Dashboard() {
             </button>
             <button 
               className="btn-attendance permit-in" 
-              disabled={hasFullDayLeave || !isCurrentlyOnPermit}
+              disabled={hasFullDayLeave || !isCurrentlyOnPermit || (userProfile && userProfile.is_face_verified === false)}
               onClick={() => handleAttendanceClick('Izin Masuk')}
             >
               <LogIn size={24} strokeWidth={1.25} />

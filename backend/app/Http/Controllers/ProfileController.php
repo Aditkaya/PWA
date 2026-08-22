@@ -21,7 +21,7 @@ class ProfileController {
             $pdo = Database::getConnection();
             // Combine data from users and karyawans
             $stmt = $pdo->prepare("
-                SELECT u.id as user_id, u.username, u.avatar_updated_at, k.*, k.id as karyawan_id 
+                SELECT u.id as user_id, u.username, u.avatar_updated_at, u.face_verified_at, u.face_photo_path, k.*, k.id as karyawan_id 
                 FROM users u 
                 LEFT JOIN karyawans k ON u.karyawan_id = k.id 
                 WHERE u.id = ?
@@ -36,6 +36,18 @@ class ProfileController {
                     $profile['avatar_url'] = $avatar_path . '?v=' . time();
                 } else {
                     $profile['avatar_url'] = null;
+                }
+
+                // Setup face verification url
+                $profile['is_face_verified'] = $profile['face_verified_at'] ? true : false;
+                if ($profile['face_photo_path']) {
+                    if (file_exists(UPLOAD_BASE_DIR . '/' . ltrim($profile['face_photo_path'], '/'))) {
+                        $profile['face_verification_url'] = '/' . ltrim($profile['face_photo_path'], '/') . '?v=' . time();
+                    } else {
+                        $profile['face_verification_url'] = null;
+                    }
+                } else {
+                    $profile['face_verification_url'] = null;
                 }
 
                 // Check full day leave
@@ -153,25 +165,51 @@ class ProfileController {
             $target_path = $upload_dir . $filename;
             
             if (move_uploaded_file($file['tmp_name'], $target_path)) {
-                $stmt = $pdo->prepare("UPDATE users SET avatar_updated_at = NOW() WHERE id = ?");
-                $stmt->execute([$user_id]);
+                try {
+                    $pdo = Database::getConnection();
+                    $stmt = $pdo->prepare("UPDATE users SET avatar_updated_at = NOW() WHERE id = ?");
+                    $stmt->execute([$user_id]);
 
-                http_response_code(200);
-                echo json_encode([
-                    'message' => 'Berhasil mengunggah foto',
-                    'avatar_url' => '/uploads/avatars/' . $filename . '?v=' . time()
-                ]);
+                    echo json_encode([
+                        'message' => 'Upload sukses', 
+                        'avatar_url' => '/uploads/avatars/' . $filename . '?v=' . time()
+                    ]);
+                } catch (\PDOException $e) {
+                    http_response_code(500);
+                    echo json_encode(['message' => 'Gagal menyimpan ke database']);
+                }
             } else {
                 http_response_code(500);
                 echo json_encode(['message' => 'Gagal menyimpan foto']);
             }
-        } catch (\PDOException $e) {
-            http_response_code(500);
-            error_log('Database error: ' . $e->getMessage());
-            echo json_encode(['message' => 'Terjadi kesalahan pada server']);
         } catch (\Exception $e) {
             http_response_code(500);
             echo json_encode(['message' => 'Terjadi kesalahan sistem']);
+        }
+    }
+
+    public function deleteAvatar($data) {
+        $user_id = $data['user_id'] ?? null;
+        if (!$user_id) {
+            http_response_code(400);
+            echo json_encode(['message' => 'User ID diperlukan']);
+            return;
+        }
+
+        $avatar_path = UPLOAD_BASE_DIR . "/uploads/avatars/avatar_{$user_id}.jpg";
+        if (file_exists($avatar_path)) {
+            unlink($avatar_path);
+        }
+
+        try {
+            $pdo = Database::getConnection();
+            $stmt = $pdo->prepare("UPDATE users SET avatar_updated_at = NULL WHERE id = ?");
+            $stmt->execute([$user_id]);
+
+            echo json_encode(['message' => 'Foto profil berhasil dihapus']);
+        } catch (\PDOException $e) {
+            http_response_code(500);
+            echo json_encode(['message' => 'Gagal mengupdate database']);
         }
     }
 
@@ -260,6 +298,94 @@ class ProfileController {
             http_response_code(500);
             error_log('Database error: ' . $e->getMessage());
             echo json_encode(['message' => 'Terjadi kesalahan pada server']);
+        }
+    }
+
+    public function registerFace($postData) {
+        $user_id = $postData['user_id'] ?? null;
+        $image = $postData['image'] ?? null;
+        
+        if (!$user_id || !$image) {
+            http_response_code(400);
+            echo json_encode(['message' => 'User ID dan file gambar diperlukan']);
+            return;
+        }
+
+        try {
+            $pdo = Database::getConnection();
+            
+            // Get user's NIK and Nama
+            $stmt = $pdo->prepare("
+                SELECT u.id as user_id, u.face_verified_at, k.nik, k.nama_lengkap as nama_karyawan, kt.nik as nik_tt, kt.nama_lengkap as nama_tt
+                FROM users u 
+                LEFT JOIN karyawans k ON u.karyawan_id = k.id 
+                LEFT JOIN karyawan_tidak_tetaps kt ON u.karyawan_tidak_tetap_id = kt.id
+                WHERE u.id = ?
+            ");
+            $stmt->execute([$user_id]);
+            $user = $stmt->fetch();
+
+            if (!$user) {
+                http_response_code(404);
+                echo json_encode(['message' => 'User tidak ditemukan']);
+                return;
+            }
+
+            if ($user['face_verified_at']) {
+                http_response_code(400);
+                echo json_encode(['message' => 'Wajah sudah terverifikasi sebelumnya']);
+                return;
+            }
+
+            $nik = $user['nik'] ?? $user['nik_tt'] ?? 'UNKNOWN';
+            $nama = $user['nama_karyawan'] ?? $user['nama_tt'] ?? 'UNKNOWN';
+            
+            // Clean up strings for filename
+            $nik = preg_replace('/[^A-Za-z0-9\-]/', '', $nik);
+            $nama = preg_replace('/[^A-Za-z0-9\-]/', '_', $nama);
+            $dateStr = date('Ymd_His');
+
+            $upload_dir = UPLOAD_BASE_DIR . '/uploads/face_verifications/';
+            if (!is_dir($upload_dir)) {
+                mkdir($upload_dir, 0777, true);
+            }
+            
+            // Parse base64 image
+            $image_parts = explode(";base64,", $image);
+            if (count($image_parts) != 2) {
+                http_response_code(400);
+                echo json_encode(['message' => 'Format gambar tidak valid']);
+                return;
+            }
+            
+            $image_type_aux = explode("image/", $image_parts[0]);
+            $image_type = $image_type_aux[1] ?? 'jpeg';
+            $image_base64 = base64_decode($image_parts[1]);
+            
+            $filename = $nik . '_' . $nama . '_' . $dateStr . '.' . $image_type;
+            $target_path = $upload_dir . $filename;
+            
+            if (file_put_contents($target_path, $image_base64)) {
+                $dbPath = 'uploads/face_verifications/' . $filename;
+                $stmt = $pdo->prepare("UPDATE users SET face_verified_at = NOW(), face_photo_path = ? WHERE id = ?");
+                $stmt->execute([$dbPath, $user_id]);
+
+                http_response_code(200);
+                echo json_encode([
+                    'message' => 'Berhasil meregistrasi wajah',
+                    'face_verification_url' => '/' . $dbPath . '?v=' . time()
+                ]);
+            } else {
+                http_response_code(500);
+                echo json_encode(['message' => 'Gagal menyimpan foto']);
+            }
+        } catch (\PDOException $e) {
+            http_response_code(500);
+            error_log('Database error: ' . $e->getMessage());
+            echo json_encode(['message' => 'Terjadi kesalahan pada server']);
+        } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode(['message' => 'Terjadi kesalahan sistem']);
         }
     }
 }

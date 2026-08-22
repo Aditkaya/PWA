@@ -20,6 +20,8 @@ interface PermohonanItem {
   created_at: string
   lampiran?: string | null
   foto_profil?: string | null
+  nama_spv?: string | null
+  nama_hrd?: string | null
 }
 
 export default function HrdApproval() {
@@ -377,6 +379,26 @@ export default function HrdApproval() {
                         <span className="detail-label">Keterangan / Alasan</span>
                         <div className="reason-box">{item.keterangan || 'Tidak ada keterangan'}</div>
                       </div>
+                      
+                      {(item.nama_spv || item.nama_hrd) && (
+                        <div className="detail-group full-width mt-3">
+                          <span className="detail-label">Riwayat Persetujuan</span>
+                          <div className="approval-history-box">
+                            {item.nama_spv && (
+                              <div className="approval-history-item">
+                                <CheckCircle size={14} className="text-success" />
+                                <span>Disetujui oleh SPV: <strong>{item.nama_spv}</strong></span>
+                              </div>
+                            )}
+                            {item.nama_hrd && (
+                              <div className="approval-history-item">
+                                <CheckCircle size={14} className="text-success" />
+                                <span>Disetujui oleh HRD: <strong>{item.nama_hrd}</strong></span>
+                              </div>
+                            )}
+                          </div>
+                        </div>
+                      )}
                     </div>
 
                     {item.lampiran && (

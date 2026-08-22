@@ -147,34 +147,77 @@ class ApprovalController {
         try {
             $pdo = Database::getConnection();
 
-            // Check if user is HRD
-            $stmtUser = $pdo->prepare("SELECT u.karyawan_id, k.pekerjaan FROM users u LEFT JOIN karyawans k ON u.karyawan_id = k.id WHERE u.id = ?");
+            // Check user role
+            $stmtUser = $pdo->prepare("SELECT u.karyawan_id, k.pekerjaan, k.nik, k.nama_lengkap FROM users u LEFT JOIN karyawans k ON u.karyawan_id = k.id WHERE u.id = ?");
             $stmtUser->execute([$user_id]);
             $userData = $stmtUser->fetch();
             
-            if (!$userData || (strcasecmp(trim($userData['pekerjaan']), 'HRD') !== 0 && strcasecmp(trim($userData['pekerjaan']), 'IT') !== 0)) {
+            if (!$userData) {
                 http_response_code(403);
-                echo json_encode(['message' => 'Akses ditolak. Hanya HRD dan IT yang dapat melakukan aksi ini.']);
+                echo json_encode(['message' => 'User tidak valid.']);
+                return;
+            }
+
+            $isHRD = strcasecmp(trim($userData['pekerjaan']), 'HRD') === 0 || strcasecmp(trim($userData['pekerjaan']), 'IT') === 0;
+            
+            $isSupervisor = false;
+            if (!$isHRD && $userData['nik']) {
+                $stmtSpv = $pdo->prepare("SELECT id FROM karyawans WHERE nik_supervisor = ? OR supervisor = ? LIMIT 1");
+                $stmtSpv->execute([$userData['nik'], $userData['nama_lengkap']]);
+                if ($stmtSpv->fetch()) {
+                    $isSupervisor = true;
+                }
+            }
+
+            if (!$isHRD && !$isSupervisor) {
+                http_response_code(403);
+                echo json_encode(['message' => 'Akses ditolak.']);
                 return;
             }
 
             $tableName = $tableMap[$tipe];
             
-            // Periksa apakah kolom approved_by ada di tabel tersebut.
-            // Sebelumnya hanya ditambah di permohonan_izins dan cutis. 
-            // Kita coba update, jika gagal karena kolom tidak ada, abaikan kolom approved_by.
-            $hasApprovedBy = false;
-            $stmtCols = $pdo->query("SHOW COLUMNS FROM $tableName LIKE 'approved_by'");
-            if ($stmtCols->fetch()) {
-                $hasApprovedBy = true;
+            // Get current record status
+            $stmtCheck = $pdo->prepare("SELECT status FROM $tableName WHERE id = ?");
+            $stmtCheck->execute([$id]);
+            $record = $stmtCheck->fetch();
+            
+            if (!$record) {
+                http_response_code(404);
+                echo json_encode(['message' => 'Data tidak ditemukan']);
+                return;
             }
-
-            if ($hasApprovedBy) {
-                $stmt = $pdo->prepare("UPDATE $tableName SET status = ?, approved_by = ? WHERE id = ?");
-                $stmt->execute([$status, $user_id, $id]);
-            } else {
-                $stmt = $pdo->prepare("UPDATE $tableName SET status = ? WHERE id = ?");
-                $stmt->execute([$status, $id]);
+            
+            $currentStatus = $record['status'];
+            $newStatus = $status; // 'Disetujui' or 'Ditolak'
+            
+            if ($isHRD) {
+                if ($newStatus === 'Disetujui') {
+                    $stmt = $pdo->prepare("UPDATE $tableName SET status = 'Disetujui', approved_by_hrd = ? WHERE id = ?");
+                    $stmt->execute([$user_id, $id]);
+                } else {
+                    $stmt = $pdo->prepare("UPDATE $tableName SET status = 'Ditolak', approved_by_hrd = ? WHERE id = ?");
+                    $stmt->execute([$user_id, $id]);
+                }
+                
+                // Keep backward compatibility for approved_by if exists
+                $stmtCols = $pdo->query("SHOW COLUMNS FROM $tableName LIKE 'approved_by'");
+                if ($stmtCols->fetch()) {
+                    $pdo->prepare("UPDATE $tableName SET approved_by = ? WHERE id = ?")->execute([$user_id, $id]);
+                }
+            } else if ($isSupervisor) {
+                if ($currentStatus !== 'Pending SPV') {
+                    http_response_code(403);
+                    echo json_encode(['message' => 'Tidak dapat mengubah status pada tahap ini (status saat ini: ' . $currentStatus . ').']);
+                    return;
+                }
+                if ($newStatus === 'Disetujui') {
+                    $stmt = $pdo->prepare("UPDATE $tableName SET status = 'Pending HRD', approved_by_spv = ? WHERE id = ?");
+                    $stmt->execute([$user_id, $id]);
+                } else {
+                    $stmt = $pdo->prepare("UPDATE $tableName SET status = 'Ditolak', approved_by_spv = ? WHERE id = ?");
+                    $stmt->execute([$user_id, $id]);
+                }
             }
 
             echo json_encode(['message' => 'Status berhasil diperbarui']);

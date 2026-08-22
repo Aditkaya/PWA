@@ -35,6 +35,24 @@ export default function HrdApproval() {
   const [actionLoading, setActionLoading] = useState(false)
   const [enlargedPhoto, setEnlargedPhoto] = useState<string | null>(null)
   const [imageErrors, setImageErrors] = useState<string[]>([])
+  
+  const [isSupervisor, setIsSupervisor] = useState(false)
+  const [isHRD, setIsHRD] = useState(false)
+
+  const fetchProfile = async () => {
+    if (!user?.id) return
+    try {
+      const res = await fetch(`/api/profile?user_id=${user.id}`)
+      const data = await res.json()
+      if (data.data) {
+        setIsSupervisor(data.data.is_supervisor || false)
+        const pekerjaan = (data.data.pekerjaan || '').toLowerCase()
+        setIsHRD(pekerjaan === 'hrd' || pekerjaan === 'it')
+      }
+    } catch (err) {
+      console.error(err)
+    }
+  }
 
   const handleImageError = (id: string) => {
     if (!imageErrors.includes(id)) {
@@ -64,8 +82,8 @@ export default function HrdApproval() {
 
         // Mengurutkan agar status "Pending" selalu tampil di urutan paling atas
         deduplicatedData.sort((a: any, b: any) => {
-          const isAPending = a.status.toLowerCase() === 'pending'
-          const isBPending = b.status.toLowerCase() === 'pending'
+          const isAPending = a.status.toLowerCase().includes('pending')
+          const isBPending = b.status.toLowerCase().includes('pending')
           if (isAPending && !isBPending) return -1
           if (!isAPending && isBPending) return 1
           return 0
@@ -83,13 +101,14 @@ export default function HrdApproval() {
   }
 
   useEffect(() => {
+    fetchProfile()
     fetchData(true)
   }, [user])
 
   // Hitung ringkasan statistik
   const stats = useMemo(() => {
     return {
-      pending: data.filter(d => d.status.toLowerCase() === 'pending').length,
+      pending: data.filter(d => d.status.toLowerCase().includes('pending')).length,
       approved: data.filter(d => d.status.toLowerCase() === 'disetujui' || d.status.toLowerCase() === 'approved').length,
       rejected: data.filter(d => d.status.toLowerCase() === 'ditolak' || d.status.toLowerCase() === 'rejected').length,
       total: data.length
@@ -103,7 +122,7 @@ export default function HrdApproval() {
     )
     
     const statusMatch = statusFilter === 'Semua' ? true : 
-      (statusFilter === 'Pending' && item.status.toLowerCase() === 'pending') ||
+      (statusFilter === 'Pending' && item.status.toLowerCase().includes('pending')) ||
       (statusFilter === 'Disetujui' && (item.status.toLowerCase() === 'disetujui' || item.status.toLowerCase() === 'approved')) ||
       (statusFilter === 'Ditolak' && (item.status.toLowerCase() === 'ditolak' || item.status.toLowerCase() === 'rejected'))
 
@@ -180,8 +199,8 @@ export default function HrdApproval() {
       <div className="approval-header-bg"></div>
       
       <div className="approval-header-content">
-        <h1>Persetujuan HRD</h1>
-        <p>Kelola pengajuan perizinan dan cuti karyawan</p>
+        <h1>Approval Karyawan</h1>
+        <p>Kelola pengajuan perizinan dan cuti bawahan Anda</p>
         
         <div className="stats-container fade-in">
           <div className={`stat-card ${statusFilter === 'Pending' ? 'active' : ''}`} onClick={() => setStatusFilter('Pending')}>
@@ -274,7 +293,18 @@ export default function HrdApproval() {
           {filteredData.map((item, index) => {
             const uniqueId = `${item.tipe}-${item.id}`;
             const isExpanded = expandedItems.includes(uniqueId);
-            const isPending = item.status.toLowerCase() === 'pending';
+            
+            const statusLower = item.status.toLowerCase();
+            const isPendingSpv = statusLower === 'pending spv';
+            const isPendingHrd = statusLower === 'pending hrd';
+            
+            let canAction = false;
+            if (isPendingSpv && isSupervisor && !isHRD) {
+              canAction = true;
+            } else if (isHRD && (isPendingHrd || isPendingSpv)) {
+              canAction = true;
+            }
+
             const hasImageError = imageErrors.includes(uniqueId);
             
             return (
@@ -311,7 +341,7 @@ export default function HrdApproval() {
                   </div>
                   
                   <div className="approval-right">
-                    <div className={`status-pill status-${item.status.toLowerCase().replace(' ', '-')}`}>
+                    <div className={`status-pill status-${item.status.toLowerCase().includes('pending') ? 'pending' : item.status.toLowerCase().replace(' ', '-')}`}>
                       {item.status}
                     </div>
                     <div className="expand-icon">
@@ -364,7 +394,7 @@ export default function HrdApproval() {
                       </div>
                     )}
                     
-                    {isPending && (
+                    {canAction && (
                       <div className="approval-actions-modern">
                         <button 
                           className="btn-action reject"

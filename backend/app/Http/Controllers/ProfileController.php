@@ -90,7 +90,7 @@ class ProfileController {
                 $profile['is_supervisor'] = false;
                 if ($profile['karyawan_id']) {
                     $nik = $profile['nik'] ?? '';
-                    $nama = $profile['name'] ?? '';
+                    $nama = $profile['nama_lengkap'] ?? '';
                     $stmtSpv = $pdo->prepare("SELECT id FROM karyawans WHERE nik_supervisor = ? OR supervisor = ? LIMIT 1");
                     $stmtSpv->execute([$nik, $nama]);
                     if ($stmtSpv->fetch()) {

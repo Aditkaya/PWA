@@ -144,7 +144,7 @@ export default function Dashboard() {
   
   const todayOvertimeInHistory = historyData.find(h => isTodayRecord(h) && (h.type.toLowerCase().includes('mulai lembur') || h.type.toLowerCase() === 'lembur' || h.type.toLowerCase() === 'lembur masuk'))
   const todayLemburRequest = permohonanData.find(p => p.tipe === 'Lembur' && p.tanggal_mulai === todayString)
-  const isLemburPending = todayLemburRequest && todayLemburRequest.status.toLowerCase() === 'pending'
+  const isLemburPending = todayLemburRequest && todayLemburRequest.status.toLowerCase().includes('pending')
   const isLemburApproved = todayLemburRequest && (todayLemburRequest.status.toLowerCase() === 'disetujui' || todayLemburRequest.status.toLowerCase() === 'approved')
   
   // Combine history and permohonan data for Mulai Lembur

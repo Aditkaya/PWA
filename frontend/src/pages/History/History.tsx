@@ -360,7 +360,7 @@ export default function History() {
                       <span className={`status-text ${item.status === 'Disetujui' ? 'status-ok' : item.status === 'Ditolak' ? 'status-err-custom' : 'status-warn'}`}>
                         {item.status}
                       </span>
-                      {item.status.toLowerCase() === 'pending' && (
+                      {item.status.toLowerCase().includes('pending') && (
                         <button
                           onClick={(e) => { e.stopPropagation(); setDeleteConfirm({ id: item.id, tipe: item.tipe }); }}
                           title="Hapus permohonan"

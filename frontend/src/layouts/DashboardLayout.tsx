@@ -174,7 +174,7 @@ export default function DashboardLayout() {
                       onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
                     >
                       <ClipboardCheck size={18} />
-                      <span>Persetujuan HRD</span>
+                      <span>Approval Karyawan</span>
                     </button>
                   </>
                 )}

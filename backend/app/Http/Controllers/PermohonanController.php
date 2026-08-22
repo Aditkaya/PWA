@@ -55,8 +55,18 @@ class PermohonanController {
                 }
             }
 
-            $stmt = $pdo->prepare("INSERT INTO permohonan_izins (karyawan_id, nik, nama, divisi, jenis_izin, tanggal_mulai, tanggal_selesai, waktu, alasan, lampiran, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 'Pending', NOW())");
-            $stmt->execute([$karyawan_id, $nik, $nama, $divisi, $jenis_izin, $tanggal_mulai, $tanggal_selesai, $waktu, $alasan, $lampiran_path]);
+            $initialStatus = 'Pending HRD';
+            if ($karyawan_id) {
+                $stmtSpv = $pdo->prepare("SELECT nik_supervisor, supervisor FROM karyawans WHERE id = ?");
+                $stmtSpv->execute([$karyawan_id]);
+                $kData = $stmtSpv->fetch();
+                if ($kData && (!empty(trim($kData['nik_supervisor'])) || !empty(trim($kData['supervisor'])))) {
+                    $initialStatus = 'Pending SPV';
+                }
+            }
+
+            $stmt = $pdo->prepare("INSERT INTO permohonan_izins (karyawan_id, nik, nama, divisi, jenis_izin, tanggal_mulai, tanggal_selesai, waktu, alasan, lampiran, status, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())");
+            $stmt->execute([$karyawan_id, $nik, $nama, $divisi, $jenis_izin, $tanggal_mulai, $tanggal_selesai, $waktu, $alasan, $lampiran_path, $initialStatus]);
             
             http_response_code(200);
             echo json_encode(['message' => 'Permohonan izin berhasil diajukan']);
@@ -92,16 +102,27 @@ class PermohonanController {
                 return;
             }
 
+            $initialStatus = 'Pending HRD';
+            if ($karyawan_id) {
+                $stmtSpv = $pdo->prepare("SELECT nik_supervisor, supervisor FROM karyawans WHERE id = ?");
+                $stmtSpv->execute([$karyawan_id]);
+                $kData = $stmtSpv->fetch();
+                if ($kData && (!empty(trim($kData['nik_supervisor'])) || !empty(trim($kData['supervisor'])))) {
+                    $initialStatus = 'Pending SPV';
+                }
+            }
+
             $stmt = $pdo->prepare("
                 INSERT INTO cutis (karyawan_id, tanggal_mulai, tanggal_selesai, jenis_cuti, keterangan, status, created_at, updated_at) 
-                VALUES (:karyawan_id, :tanggal_mulai, :tanggal_selesai, :jenis_cuti, :keterangan, 'Pending', NOW(), NOW())
+                VALUES (:karyawan_id, :tanggal_mulai, :tanggal_selesai, :jenis_cuti, :keterangan, :status, NOW(), NOW())
             ");
             $stmt->execute([
                 'karyawan_id' => $karyawan_id,
                 'tanggal_mulai' => $tanggal_mulai,
                 'tanggal_selesai' => $tanggal_selesai,
                 'jenis_cuti' => $jenis_cuti,
-                'keterangan' => $keterangan
+                'keterangan' => $keterangan,
+                'status' => $initialStatus
             ]);
 
             echo json_encode(['message' => 'Success']);
@@ -212,7 +233,7 @@ class PermohonanController {
                 return;
             }
 
-            if (strtolower($record['status']) !== 'pending') {
+            if (strpos(strtolower($record['status']), 'pending') === false) {
                 http_response_code(403);
                 echo json_encode(['message' => 'Hanya permohonan berstatus Pending yang dapat dihapus']);
                 return;

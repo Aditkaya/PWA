@@ -279,7 +279,7 @@
 }
 
 .approval-info h4 {
-  font-size: 1.05rem;
+  font-size: 0.95rem;
   font-weight: 600;
   color: var(--text-primary);
   margin-bottom: 4px;
@@ -292,7 +292,7 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.8rem;
+  font-size: 0.75rem;
   color: var(--text-secondary);
 }
 
@@ -300,7 +300,7 @@
   padding: 2px 6px;
   border-radius: 4px;
   font-weight: 600;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
 }
 
 .bullet {
@@ -321,7 +321,7 @@
 .status-pill {
   padding: 4px 10px;
   border-radius: 12px;
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -366,7 +366,7 @@
 }
 
 .detail-label {
-  font-size: 0.75rem;
+  font-size: 0.7rem;
   color: var(--text-secondary);
   text-transform: uppercase;
   letter-spacing: 0.5px;
@@ -374,7 +374,7 @@
 }
 
 .detail-value {
-  font-size: 0.95rem;
+  font-size: 0.85rem;
   color: var(--text-primary);
   font-weight: 500;
 }
@@ -389,7 +389,7 @@
   border: 1px solid var(--glass-border);
   padding: 10px 12px;
   border-radius: 8px;
-  font-size: 0.9rem;
+  font-size: 0.85rem;
   color: var(--text-primary);
   line-height: 1.5;
   white-space: pre-wrap;

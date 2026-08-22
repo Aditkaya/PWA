@@ -28,7 +28,7 @@ export default function HrdApproval() {
   const [data, setData] = useState<PermohonanItem[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [statusFilter, setStatusFilter] = useState<string>('Semua')
+  const [statusFilter, setStatusFilter] = useState<string>('Pending')
   const [typeFilter, setTypeFilter] = useState<string>('Semua')
   const [expandedItems, setExpandedItems] = useState<(number | string)[]>([])
   const [actionConfirm, setActionConfirm] = useState<{ item: PermohonanItem; action: 'Disetujui' | 'Ditolak' } | null>(null)
@@ -49,7 +49,29 @@ export default function HrdApproval() {
       const res = await fetch(`/api/hrd/permohonan?user_id=${user.id}`)
       if (res.ok) {
         const result = await res.json()
-        setData(result.data || [])
+        const rawData = result.data || []
+        
+        // Menghapus duplikasi permohonan yang sama persis di hari yang sama
+        const seen = new Set()
+        const deduplicatedData = rawData.filter((item: any) => {
+          // Tidak menggunakan waktu sebagai pembeda agar pengajuan (seperti Izin Pulang Cepat) 
+          // yang disubmit berulang kali di hari yang sama hanya menampilkan yang terbaru.
+          const key = `${item.nik}-${item.tipe}-${item.jenis}-${item.tanggal_mulai}`
+          if (seen.has(key)) return false
+          seen.add(key)
+          return true
+        })
+
+        // Mengurutkan agar status "Pending" selalu tampil di urutan paling atas
+        deduplicatedData.sort((a: any, b: any) => {
+          const isAPending = a.status.toLowerCase() === 'pending'
+          const isBPending = b.status.toLowerCase() === 'pending'
+          if (isAPending && !isBPending) return -1
+          if (!isAPending && isBPending) return 1
+          return 0
+        })
+        
+        setData(deduplicatedData)
       } else if (res.status === 403) {
         showToast('Akses ditolak. Anda tidak memiliki akses.', 'error')
       }
@@ -301,14 +323,7 @@ export default function HrdApproval() {
                 {isExpanded && (
                   <div className="approval-card-content fade-in">
                     <div className="detail-grid-modern">
-                      <div className="detail-group">
-                        <span className="detail-label">NIK</span>
-                        <span className="detail-value">{item.nik || '-'}</span>
-                      </div>
-                      <div className="detail-group">
-                        <span className="detail-label">Pekerjaan</span>
-                        <span className="detail-value">{item.pekerjaan || '-'}</span>
-                      </div>
+
                       <div className="detail-group">
                         <span className="detail-label">Jenis Pengajuan</span>
                         <span className="detail-value highlight">{item.jenis}</span>

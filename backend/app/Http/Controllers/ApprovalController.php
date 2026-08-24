@@ -249,4 +249,35 @@ class ApprovalController {
             echo json_encode(['message' => 'Terjadi kesalahan pada server']);
         }
     }
+
+    public function destroy($id, $params) {
+        $tipe = $params['tipe'] ?? '';
+        
+        $tableMap = [
+            'Izin' => 'permohonan_izins',
+            'Cuti' => 'permohonan_cutis',
+            'Lupa Absen' => 'permohonan_lupa_absensis',
+            'Lembur' => 'persetujuan_absensi_lemburs'
+        ];
+        
+        if (!isset($tableMap[$tipe])) {
+            http_response_code(400);
+            echo json_encode(['message' => 'Tipe pengajuan tidak valid']);
+            return;
+        }
+
+        $tableName = $tableMap[$tipe];
+
+        try {
+            $pdo = Database::getConnection();
+            $stmt = $pdo->prepare("DELETE FROM $tableName WHERE id = ?");
+            $stmt->execute([$id]);
+            
+            echo json_encode(['message' => 'Data berhasil dihapus']);
+        } catch (\PDOException $e) {
+            http_response_code(500);
+            error_log('Database error in destroy: ' . $e->getMessage());
+            echo json_encode(['message' => 'Terjadi kesalahan pada server']);
+        }
+    }
 }

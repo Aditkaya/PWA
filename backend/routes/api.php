@@ -177,6 +177,13 @@ if ($uri === '/api/hrd/permohonan' && $method === 'GET') {
     exit();
 }
 
+if (preg_match('#^/api/hrd/permohonan/(\d+)$#', $uri, $matches) && $method === 'DELETE') {
+    require_once __DIR__ . '/../app/Http/Controllers/ApprovalController.php';
+    $controller = new \App\Http\Controllers\ApprovalController();
+    $controller->destroy($matches[1], $_GET);
+    exit();
+}
+
 if ($uri === '/api/hrd/permohonan/status' && $method === 'PUT') {
     require_once __DIR__ . '/../app/Http/Controllers/ApprovalController.php';
     $controller = new \App\Http\Controllers\ApprovalController();

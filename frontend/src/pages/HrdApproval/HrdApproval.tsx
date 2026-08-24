@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Check, X, Loader2, FileText, ChevronDown, ChevronUp, AlertTriangle, Search, Filter, Clock, CheckCircle, XCircle } from 'lucide-react'
+import { Check, X, Loader2, FileText, ChevronDown, ChevronUp, AlertTriangle, Search, Filter, Clock, CheckCircle, XCircle, Trash2 } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import './HrdApproval.css'
 import { useToast } from '../../contexts/ToastContext'
@@ -33,7 +33,7 @@ export default function HrdApproval() {
   const [statusFilter, setStatusFilter] = useState<string>('Pending')
   const [typeFilter, setTypeFilter] = useState<string>('Semua')
   const [expandedItems, setExpandedItems] = useState<(number | string)[]>([])
-  const [actionConfirm, setActionConfirm] = useState<{ item: PermohonanItem; action: 'Disetujui' | 'Ditolak' } | null>(null)
+  const [actionConfirm, setActionConfirm] = useState<{ item: PermohonanItem; action: 'Disetujui' | 'Ditolak' | 'Dihapus' } | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
   const [enlargedPhoto, setEnlargedPhoto] = useState<string | null>(null)
   const [imageErrors, setImageErrors] = useState<string[]>([])
@@ -143,16 +143,23 @@ export default function HrdApproval() {
     if (!actionConfirm || !user?.id) return
     setActionLoading(true)
     try {
-      const res = await fetch('/api/hrd/permohonan/status', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ 
-          id: actionConfirm.item.id, 
-          tipe: actionConfirm.item.tipe, 
-          status: actionConfirm.action,
-          user_id: user.id 
-        })
-      })
+      let res;
+      if (actionConfirm.action === 'Dihapus') {
+        res = await fetch(`/api/hrd/permohonan/${actionConfirm.item.id}?tipe=${actionConfirm.item.tipe}`, {
+          method: 'DELETE'
+        });
+      } else {
+        res = await fetch('/api/hrd/permohonan/status', {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ 
+            id: actionConfirm.item.id, 
+            tipe: actionConfirm.item.tipe, 
+            status: actionConfirm.action,
+            user_id: user.id 
+          })
+        });
+      }
 
       const responseData = await res.json()
       if (res.ok) {
@@ -416,28 +423,42 @@ export default function HrdApproval() {
                       </div>
                     )}
                     
-                    {canAction && (
-                      <div className="approval-actions-modern">
-                        <button 
-                          className="btn-action reject"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setActionConfirm({ item, action: 'Ditolak' })
-                          }}
-                        >
-                          <X size={18} /> Tolak Pengajuan
-                        </button>
-                        <button 
-                          className="btn-action approve"
-                          onClick={(e) => {
-                            e.stopPropagation()
-                            setActionConfirm({ item, action: 'Disetujui' })
-                          }}
-                        >
-                          <Check size={18} /> Setujui Pengajuan
-                        </button>
-                      </div>
-                    )}
+                    <div className="approval-actions-modern" style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {canAction && (
+                        <>
+                          <button 
+                            className="btn-action reject"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setActionConfirm({ item, action: 'Ditolak' })
+                            }}
+                          >
+                            <X size={18} /> Tolak Pengajuan
+                          </button>
+                          <button 
+                            className="btn-action approve"
+                            onClick={(e) => {
+                              e.stopPropagation()
+                              setActionConfirm({ item, action: 'Disetujui' })
+                            }}
+                          >
+                            <Check size={18} /> Setujui Pengajuan
+                          </button>
+                        </>
+                      )}
+                      
+                      {/* Tombol Hapus - Selalu Tampil untuk HRD/SPV agar bisa menghapus data jika diperlukan */}
+                      <button 
+                        className="btn-action reject"
+                        style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: 'none', marginLeft: canAction ? 'auto' : '0' }}
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          setActionConfirm({ item, action: 'Dihapus' })
+                        }}
+                      >
+                        <Trash2 size={18} /> Hapus Data
+                      </button>
+                    </div>
                   </div>
                 )}
               </div>
@@ -476,7 +497,7 @@ export default function HrdApproval() {
                 onClick={handleAction}
                 disabled={actionLoading}
               >
-                {actionLoading ? <Loader2 size={18} className="spinner" /> : `Ya, ${actionConfirm.action}`}
+                {actionLoading ? <Loader2 size={18} className="spinner" /> : `Ya, ${actionConfirm.action === 'Dihapus' ? 'Hapus' : actionConfirm.action}`}
               </button>
             </div>
           </div>

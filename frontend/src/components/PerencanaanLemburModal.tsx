@@ -37,6 +37,7 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
 
   const [historyData, setHistoryData] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'form' | 'history'>('form');
+  const [expandedGroups, setExpandedGroups] = useState<Record<string, boolean>>({});
 
   useEffect(() => {
     if (isOpen && user?.id) {
@@ -434,31 +435,46 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
                     {group.keterangan}
                   </div>
                   
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
-                    {group.items.map((item: any) => (
-                      <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(0,0,0,0.2)', padding: '4px 8px', borderRadius: '16px' }}>
-                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
-                          {item.nama_lengkap.split(' ').find((w: string) => w.length > 2 && !w.includes('.')) || item.nama_lengkap.split(' ')[0]}
-                        </span>
-                        <div style={{ display: 'flex', gap: '4px' }}>
-                          <button 
-                            onClick={() => handleEdit(item)}
-                            style={{ background: 'none', color: '#3b82f6', border: 'none', padding: '2px', cursor: 'pointer', display: 'flex' }}
-                            title="Edit Data"
-                          >
-                            <Edit2 size={12} />
-                          </button>
-                          <button 
-                            onClick={() => handleDelete(item.id)}
-                            style={{ background: 'none', color: '#ef4444', border: 'none', padding: '2px', cursor: 'pointer', display: 'flex' }}
-                            title="Hapus Data"
-                          >
-                            <Trash2 size={12} />
-                          </button>
-                        </div>
-                      </div>
-                    ))}
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                      <Users size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }} />
+                      {group.items.length} Karyawan
+                    </div>
+                    <button 
+                      onClick={() => setExpandedGroups(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                      style={{ background: 'none', border: 'none', color: 'var(--accent-color)', fontSize: '0.8rem', cursor: 'pointer', padding: 0 }}
+                    >
+                      {expandedGroups[idx] ? 'Sembunyikan' : 'Lihat Detail'}
+                    </button>
                   </div>
+                  
+                  {expandedGroups[idx] && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginTop: '8px' }}>
+                      {group.items.map((item: any) => (
+                        <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(0,0,0,0.2)', padding: '4px 8px', borderRadius: '16px' }}>
+                          <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                            {item.nama_lengkap.split(' ').find((w: string) => w.length > 2 && !w.includes('.')) || item.nama_lengkap.split(' ')[0]}
+                          </span>
+                          <div style={{ display: 'flex', gap: '4px' }}>
+                            <button 
+                              onClick={() => handleEdit(item)}
+                              style={{ background: 'none', color: '#3b82f6', border: 'none', padding: '2px', cursor: 'pointer', display: 'flex' }}
+                              title="Edit Data"
+                            >
+                              <Edit2 size={12} />
+                            </button>
+                            <button 
+                              onClick={() => handleDelete(item.id)}
+                              style={{ background: 'none', color: '#ef4444', border: 'none', padding: '2px', cursor: 'pointer', display: 'flex' }}
+                              title="Hapus Data"
+                            >
+                              <Trash2 size={12} />
+                            </button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </div>
               ))
             )}

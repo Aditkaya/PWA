@@ -56,7 +56,7 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
       }
 
       try {
-        const detection = await faceapi.detectSingleFace(video).withFaceLandmarks();
+        const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224 })).withFaceLandmarks();
         if (detection) {
           setHasFace(true);
           if (overlayCanvasRef.current) {
@@ -98,7 +98,7 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
       try {
         if (!globalModelsPromise) {
           globalModelsPromise = Promise.all([
-            faceapi.nets.ssdMobilenetv1.loadFromUri('/models'),
+            faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
             faceapi.nets.faceLandmark68Net.loadFromUri('/models')
           ]);
         }
@@ -177,7 +177,7 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
 
     // Basic face detection
     setStatusMsg('Menganalisis wajah...');
-    const detection = await faceapi.detectSingleFace(video).withFaceLandmarks();
+    const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224 })).withFaceLandmarks();
 
     if (detection) {
       setStatusMsg('Mengunggah data wajah...');

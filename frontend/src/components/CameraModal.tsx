@@ -205,7 +205,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       }
 
       try {
-        const detection = await faceapi.detectSingleFace(video).withFaceLandmarks().withFaceDescriptor();
+        const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224 })).withFaceLandmarks().withFaceDescriptor();
         if (detection) {
           const distance = faceapi.euclideanDistance(detection.descriptor, profileDescriptor);
           
@@ -249,7 +249,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       try {
         if (!globalModelsPromise) {
           globalModelsPromise = Promise.all([
-            faceapi.nets.ssdMobilenetv1.loadFromUri('/models'),
+            faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
             faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
             faceapi.nets.faceRecognitionNet.loadFromUri('/models')
           ]);
@@ -280,7 +280,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
                 img.onerror = () => reject(new Error('Gagal memuat gambar profil'));
               });
               
-              const detection = await faceapi.detectSingleFace(img).withFaceLandmarks().withFaceDescriptor();
+              const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ inputSize: 224 })).withFaceLandmarks().withFaceDescriptor();
               URL.revokeObjectURL(objUrl);
 
               if (detection) {
@@ -492,8 +492,8 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
 
     const imageSrc = canvas.toDataURL('image/jpeg', 0.8);
 
-    // Basic face detection
-    const detection = await faceapi.detectSingleFace(video).withFaceLandmarks();
+    // Validasi Wajah
+    const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224 })).withFaceLandmarks();
 
     if (detection) {
       setStatusMsg(t.faceDetected);

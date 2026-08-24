@@ -193,6 +193,12 @@ class ApprovalController {
 
             $tableName = $tableMap[$tipe];
             
+            // Map status correctly for persetujuan_absensi_lemburs which uses english enum
+            $isLembur = ($tableName === 'persetujuan_absensi_lemburs');
+            $valDisetujui = $isLembur ? 'approved' : 'Disetujui';
+            $valDitolak = $isLembur ? 'rejected' : 'Ditolak';
+            $valPendingHrd = $isLembur ? 'approved' : 'Pending HRD'; // Lembur doesn't have 2 steps in enum
+
             // Get current record status
             $stmtCheck = $pdo->prepare("SELECT status FROM $tableName WHERE id = ?");
             $stmtCheck->execute([$id]);
@@ -209,11 +215,11 @@ class ApprovalController {
             
             if ($isHRD) {
                 if ($newStatus === 'Disetujui') {
-                    $stmt = $pdo->prepare("UPDATE $tableName SET status = 'Disetujui', approved_by_hrd = ? WHERE id = ?");
-                    $stmt->execute([$user_id, $id]);
+                    $stmt = $pdo->prepare("UPDATE $tableName SET status = ?, approved_by_hrd = ? WHERE id = ?");
+                    $stmt->execute([$valDisetujui, $user_id, $id]);
                 } else {
-                    $stmt = $pdo->prepare("UPDATE $tableName SET status = 'Ditolak', approved_by_hrd = ? WHERE id = ?");
-                    $stmt->execute([$user_id, $id]);
+                    $stmt = $pdo->prepare("UPDATE $tableName SET status = ?, approved_by_hrd = ? WHERE id = ?");
+                    $stmt->execute([$valDitolak, $user_id, $id]);
                 }
                 
                 // Keep backward compatibility for approved_by if exists
@@ -228,11 +234,11 @@ class ApprovalController {
                     return;
                 }
                 if ($newStatus === 'Disetujui') {
-                    $stmt = $pdo->prepare("UPDATE $tableName SET status = 'Pending HRD', approved_by_spv = ? WHERE id = ?");
-                    $stmt->execute([$user_id, $id]);
+                    $stmt = $pdo->prepare("UPDATE $tableName SET status = ?, approved_by_spv = ? WHERE id = ?");
+                    $stmt->execute([$valPendingHrd, $user_id, $id]);
                 } else {
-                    $stmt = $pdo->prepare("UPDATE $tableName SET status = 'Ditolak', approved_by_spv = ? WHERE id = ?");
-                    $stmt->execute([$user_id, $id]);
+                    $stmt = $pdo->prepare("UPDATE $tableName SET status = ?, approved_by_spv = ? WHERE id = ?");
+                    $stmt->execute([$valDitolak, $user_id, $id]);
                 }
             }
 

@@ -297,7 +297,7 @@ export default function HrdApproval() {
             const isExpanded = expandedItems.includes(uniqueId);
             
             const statusLower = item.status.toLowerCase();
-            const isPendingSpv = statusLower === 'pending spv';
+            const isPendingSpv = statusLower === 'pending spv' || statusLower === 'pending';
             const isPendingHrd = statusLower === 'pending hrd';
             
             let canAction = false;

@@ -17,7 +17,7 @@ class OvertimeValidator {
             if (!$plan) return; // Tidak ada perencanaan, tidak ada yang perlu divalidasi
 
             // Cari absensi lembur aktual (Lembur_Pulang)
-            $stmtActual = $pdo->prepare("SELECT id, waktu, tipe FROM absensis WHERE karyawan_id = ? AND DATE(waktu) = ? AND (tipe = 'Lembur_Pulang' OR tipe = 'Lembur Pulang' OR LOWER(tipe) = 'lembur pulang' OR LOWER(tipe) = 'lembur_pulang') ORDER BY waktu DESC LIMIT 1");
+            $stmtActual = $pdo->prepare("SELECT id, waktu, tipe FROM absensis WHERE karyawan_id = ? AND DATE(waktu) = ? AND LOWER(REPLACE(tipe, '_', ' ')) IN ('lembur pulang', 'selesai lembur', 'lembur keluar') ORDER BY waktu DESC LIMIT 1");
             $stmtActual->execute([$karyawan_id, $tanggal]);
             $actual = $stmtActual->fetch(PDO::FETCH_ASSOC);
 

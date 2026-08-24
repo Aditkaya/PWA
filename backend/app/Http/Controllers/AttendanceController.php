@@ -107,7 +107,7 @@ class AttendanceController {
 
             $normalizedTipe = strtolower(str_replace('_', ' ', $tipe));
             if (in_array($normalizedTipe, ['lembur pulang', 'selesai lembur', 'lembur keluar'])) {
-                require_once __DIR__ . '/../Helpers/OvertimeValidator.php';
+                require_once __DIR__ . '/../../Helpers/OvertimeValidator.php';
                 \App\Helpers\OvertimeValidator::checkAndCreateApproval($karyawan_id, date('Y-m-d'));
             }
 

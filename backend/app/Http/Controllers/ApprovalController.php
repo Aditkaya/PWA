@@ -17,7 +17,7 @@ class ApprovalController {
         $offset = ($page - 1) * $limit;
         
         // Trigger overtime validation automatically to catch data synced from external devices
-        require_once __DIR__ . '/../Helpers/OvertimeValidator.php';
+        require_once __DIR__ . '/../../Helpers/OvertimeValidator.php';
         \App\Helpers\OvertimeValidator::validateAll(date('Y-m-d'));
         \App\Helpers\OvertimeValidator::validateAll(date('Y-m-d', strtotime('-1 day')));
 

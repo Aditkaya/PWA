@@ -156,14 +156,11 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
         setSelectedKaryawan([]);
         setEditId(null);
         
-        // Refresh history if we were on history tab
-        if (editId) {
-          fetchHistory();
-          setActiveTab('history');
-        } else {
-          onClose();
-          if (onSuccess) onSuccess();
-        }
+        // Always refresh history and switch to history tab after saving/updating
+        fetchHistory();
+        setActiveTab('history');
+        
+        if (onSuccess) onSuccess();
       } else {
         const errorData = await res.json();
         showToast(errorData.message || 'Gagal menyimpan data', 'error');

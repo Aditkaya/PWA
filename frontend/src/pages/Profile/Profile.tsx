@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
-import * as faceapi from 'face-api.js'
+
 import Cropper from 'react-easy-crop'
 import getCroppedImg from '../../utils/cropImage'
 import { User, Mail, Briefcase, Phone, MapPin, Key, ChevronRight, Loader2, Camera, X, Save, Eye, EyeOff, Lock, Trash2 } from 'lucide-react'
@@ -53,19 +53,7 @@ export default function Profile() {
   const t = translations[lang]
   const { showToast } = useToast()
 
-  const [modelsLoaded, setModelsLoaded] = useState(false)
 
-  useEffect(() => {
-    const loadModels = async () => {
-      try {
-        await faceapi.nets.ssdMobilenetv1.loadFromUri('/models')
-        setModelsLoaded(true)
-      } catch (error) {
-        console.error("Gagal memuat model face-api", error)
-      }
-    }
-    loadModels()
-  }, [])
 
   const fetchProfile = async () => {
     if (!user?.id) return
@@ -171,43 +159,9 @@ export default function Profile() {
     setUploading(true)
     setIsCropping(false)
 
-    if (!modelsLoaded) {
-      showToast('AI Model belum siap. Silakan coba sebentar lagi.', 'error')
-      setUploading(false)
-      return
-    }
-
     try {
       const croppedFile = await getCroppedImg(cropImageSrc, croppedAreaPixels)
       if (!croppedFile) throw new Error("Gagal memotong gambar")
-
-      const objectUrl = URL.createObjectURL(croppedFile)
-      const img = new Image()
-      img.src = objectUrl
-
-      await new Promise((resolve, reject) => {
-        img.onload = resolve
-        img.onerror = reject
-      })
-
-      const options = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.85 })
-      const detection = await faceapi.detectSingleFace(img, options)
-      URL.revokeObjectURL(objectUrl)
-
-      if (!detection) {
-        showToast('Wajah tidak terdeteksi dengan jelas. Harap pastikan foto terang dan wajah terlihat jelas.', 'error')
-        setUploading(false)
-        return
-      }
-
-      const faceWidthRatio = detection.box.width / img.width
-      const faceHeightRatio = detection.box.height / img.height
-
-      if (faceWidthRatio < 0.2 && faceHeightRatio < 0.2) {
-        showToast('Posisi wajah terlalu jauh/kecil. Gunakan pas foto atau selfie yang lebih fokus pada wajah Anda.', 'error')
-        setUploading(false)
-        return
-      }
 
       // 2. Upload to server
       const formData = new FormData()
@@ -374,7 +328,7 @@ export default function Profile() {
               onClick={handleSaveCrop}
               style={{ width: '100%', padding: '14px', background: 'var(--accent-color)', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 700, fontSize: '1rem', cursor: 'pointer' }}
             >
-              Simpan & Verifikasi
+              Simpan Foto Profil
             </button>
           </div>
         </div>,

@@ -151,6 +151,13 @@ if ($uri === '/api/hrd/perencanaan-lembur' && $method === 'POST') {
     exit();
 }
 
+if ($uri === '/api/hrd/perencanaan-lembur/history' && $method === 'GET') {
+    require_once __DIR__ . '/../app/Http/Controllers/PerencanaanLemburController.php';
+    $controller = new \App\Http\Controllers\PerencanaanLemburController();
+    $controller->getHistory($_GET);
+    exit();
+}
+
 if ($uri === '/api/hrd/permohonan' && $method === 'GET') {
     require_once __DIR__ . '/../app/Http/Controllers/ApprovalController.php';
     $controller = new \App\Http\Controllers\ApprovalController();

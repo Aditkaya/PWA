@@ -84,4 +84,30 @@ class PerencanaanLemburController {
             echo json_encode(['message' => 'Gagal menyimpan perencanaan lembur', 'error' => $e->getMessage()]);
         }
     }
+    public function getHistory($params) {
+        $user_id = $params['user_id'] ?? null;
+        if (!$user_id) {
+            http_response_code(400);
+            echo json_encode(['message' => 'User ID is required']);
+            return;
+        }
+
+        try {
+            $pdo = Database::getConnection();
+            $stmt = $pdo->prepare("
+                SELECT p.*, k.nama_lengkap, k.nik, k.pekerjaan 
+                FROM perencanaan_lemburs p 
+                LEFT JOIN karyawans k ON p.karyawan_id = k.id 
+                WHERE p.created_by = ? 
+                ORDER BY p.created_at DESC
+            ");
+            $stmt->execute([$user_id]);
+            $history = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            
+            echo json_encode(['data' => $history]);
+        } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode(['message' => 'Gagal mengambil riwayat', 'error' => $e->getMessage()]);
+        }
+    }
 }

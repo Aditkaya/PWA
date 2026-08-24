@@ -34,11 +34,33 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
 
+  const [historyData, setHistoryData] = useState<any[]>([]);
+  const [activeTab, setActiveTab] = useState<'form' | 'history'>('form');
+
   useEffect(() => {
     if (isOpen && user?.id) {
-      fetchBawahan();
+      if (activeTab === 'form') {
+        fetchBawahan();
+      } else {
+        fetchHistory();
+      }
     }
-  }, [isOpen, user]);
+  }, [isOpen, user, activeTab]);
+
+  const fetchHistory = async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/hrd/perencanaan-lembur/history?user_id=${user?.id}`);
+      if (res.ok) {
+        const result = await res.json();
+        setHistoryData(result.data || []);
+      }
+    } catch (err) {
+      console.error('Failed to fetch history', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const fetchBawahan = async () => {
     setLoading(true);
@@ -144,6 +166,36 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
           </button>
         </div>
 
+        <div style={{ display: 'flex', borderBottom: '1px solid var(--glass-border)', marginBottom: '16px' }}>
+          <button 
+            type="button"
+            onClick={() => setActiveTab('form')}
+            style={{ 
+              flex: 1, padding: '12px', background: 'transparent', border: 'none', 
+              borderBottom: activeTab === 'form' ? '2px solid var(--accent-color)' : '2px solid transparent',
+              color: activeTab === 'form' ? 'var(--accent-color)' : 'var(--text-secondary)',
+              fontWeight: activeTab === 'form' ? 600 : 400,
+              cursor: 'pointer'
+            }}
+          >
+            Formulir
+          </button>
+          <button 
+            type="button"
+            onClick={() => setActiveTab('history')}
+            style={{ 
+              flex: 1, padding: '12px', background: 'transparent', border: 'none', 
+              borderBottom: activeTab === 'history' ? '2px solid var(--accent-color)' : '2px solid transparent',
+              color: activeTab === 'history' ? 'var(--accent-color)' : 'var(--text-secondary)',
+              fontWeight: activeTab === 'history' ? 600 : 400,
+              cursor: 'pointer'
+            }}
+          >
+            Riwayat
+          </button>
+        </div>
+
+        {activeTab === 'form' ? (
         <form className="izin-modal-form" onSubmit={handleSubmit}>
           <div className="form-group">
             <label><Calendar size={16} /> Tanggal Lembur</label>
@@ -261,6 +313,31 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
             {submitting ? 'Menyimpan...' : 'Simpan Perencanaan'}
           </button>
         </form>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+            {loading ? (
+              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)' }}>Memuat riwayat...</div>
+            ) : historyData.length === 0 ? (
+              <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)' }}>Belum ada riwayat perencanaan lembur.</div>
+            ) : (
+              historyData.map(item => (
+                <div key={item.id} style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '12px', padding: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{new Date(item.tanggal).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                    <span style={{ color: 'var(--accent-color)', fontWeight: 600, fontSize: '0.9rem' }}>{item.jam_mulai} - {item.jam_selesai}</span>
+                  </div>
+                  <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                    {item.keterangan}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)', background: 'rgba(0,0,0,0.2)', padding: '6px 10px', borderRadius: '6px', width: 'fit-content' }}>
+                    <Users size={14} />
+                    <span>{item.nama_lengkap} ({item.nik})</span>
+                  </div>
+                </div>
+              ))
+            )}
+          </div>
+        )}
       </div>
     </div>,
     document.body

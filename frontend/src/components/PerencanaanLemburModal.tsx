@@ -434,27 +434,26 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
                     {group.keterangan}
                   </div>
                   
-                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: '8px' }}>
                     {group.items.map((item: any) => (
-                      <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: '8px 12px', borderRadius: '8px' }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
-                          <Users size={14} />
-                          <span>{item.nama_lengkap} ({item.nik})</span>
-                        </div>
-                        <div style={{ display: 'flex', gap: '8px' }}>
+                      <div key={item.id} style={{ display: 'flex', alignItems: 'center', gap: '6px', background: 'rgba(0,0,0,0.2)', padding: '4px 8px', borderRadius: '16px' }}>
+                        <span style={{ fontSize: '0.8rem', color: 'var(--text-secondary)' }}>
+                          {item.nama_lengkap.split(' ').find((w: string) => w.length > 2 && !w.includes('.')) || item.nama_lengkap.split(' ')[0]}
+                        </span>
+                        <div style={{ display: 'flex', gap: '4px' }}>
                           <button 
                             onClick={() => handleEdit(item)}
-                            style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            style={{ background: 'none', color: '#3b82f6', border: 'none', padding: '2px', cursor: 'pointer', display: 'flex' }}
                             title="Edit Data"
                           >
-                            <Edit2 size={14} />
+                            <Edit2 size={12} />
                           </button>
                           <button 
                             onClick={() => handleDelete(item.id)}
-                            style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            style={{ background: 'none', color: '#ef4444', border: 'none', padding: '2px', cursor: 'pointer', display: 'flex' }}
                             title="Hapus Data"
                           >
-                            <Trash2 size={14} />
+                            <Trash2 size={12} />
                           </button>
                         </div>
                       </div>

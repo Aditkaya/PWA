@@ -215,6 +215,21 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
     setActiveTab('history');
   };
 
+  const groupedHistory = historyData.reduce((acc, item) => {
+    const key = `${item.tanggal}_${item.jam_mulai}_${item.jam_selesai}_${item.keterangan}`;
+    if (!acc[key]) {
+      acc[key] = {
+        tanggal: item.tanggal,
+        jam_mulai: item.jam_mulai,
+        jam_selesai: item.jam_selesai,
+        keterangan: item.keterangan,
+        items: []
+      };
+    }
+    acc[key].items.push(item);
+    return acc;
+  }, {} as Record<string, any>);
+
   if (!isOpen) return null;
 
   return createPortal(
@@ -410,38 +425,41 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
             ) : historyData.length === 0 ? (
               <div style={{ textAlign: 'center', padding: '20px', color: 'var(--text-secondary)' }}>Belum ada riwayat perencanaan lembur.</div>
             ) : (
-              historyData.map(item => (
-                <div key={item.id} style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '12px', padding: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-                    <div>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{new Date(item.tanggal).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+              Object.values(groupedHistory).map((group: any, idx) => (
+                <div key={idx} style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '12px', padding: '16px' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{new Date(group.tanggal).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                  </div>
+                  <div style={{ color: 'var(--accent-color)', fontWeight: 600, fontSize: '0.9rem', marginBottom: '8px' }}>{group.jam_mulai.substring(0, 5)} - {group.jam_selesai.substring(0, 5)}</div>
+                  <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '12px' }}>
+                    {group.keterangan}
+                  </div>
+                  
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                    {group.items.map((item: any) => (
+                      <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: '8px 12px', borderRadius: '8px' }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                          <Users size={14} />
+                          <span>{item.nama_lengkap} ({item.nik})</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px' }}>
+                          <button 
+                            onClick={() => handleEdit(item)}
+                            style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            title="Edit Data"
+                          >
+                            <Edit2 size={14} />
+                          </button>
+                          <button 
+                            onClick={() => handleDelete(item.id)}
+                            style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: 'none', padding: '6px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                            title="Hapus Data"
+                          >
+                            <Trash2 size={14} />
+                          </button>
+                        </div>
                       </div>
-                      <div style={{ color: 'var(--accent-color)', fontWeight: 600, fontSize: '0.9rem', marginBottom: '8px' }}>{item.jam_mulai.substring(0, 5)} - {item.jam_selesai.substring(0, 5)}</div>
-                      <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                        {item.keterangan}
-                      </div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)', background: 'rgba(0,0,0,0.2)', padding: '6px 10px', borderRadius: '6px', width: 'fit-content' }}>
-                        <Users size={14} />
-                        <span>{item.nama_lengkap} ({item.nik})</span>
-                      </div>
-                    </div>
-                    <div style={{ display: 'flex', gap: '8px' }}>
-                      <button 
-                        onClick={() => handleEdit(item)}
-                        style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: 'none', padding: '8px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        title="Edit Data"
-                      >
-                        <Edit2 size={16} />
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(item.id)}
-                        style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: 'none', padding: '8px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
-                        title="Hapus Data"
-                      >
-                        <Trash2 size={16} />
-                      </button>
-                    </div>
+                    ))}
                   </div>
                 </div>
               ))

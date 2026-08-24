@@ -27,6 +27,7 @@ export default function Dashboard() {
   const [time, setTime] = useState(new Date())
   const { user } = useAuthStore()
   const [historyData, setHistoryData] = useState<HistoryItem[]>([])
+  const [permohonanData, setPermohonanData] = useState<any[]>([])
   const [userGroup, setUserGroup] = useState<string>('')
   const [userProfile, setUserProfile] = useState<any>(null)
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0)
@@ -98,7 +99,12 @@ export default function Dashboard() {
         setHistoryData(histData.data)
       }
       
-
+      // Fetch Permohonan
+      const permRes = await fetch(`/api/permohonan?user_id=${user.id}`)
+      if (permRes.ok) {
+        const permData = await permRes.json()
+        setPermohonanData(permData.data)
+      }
 
       // Fetch Profile
       const profRes = await fetch(`/api/profile?user_id=${user.id}`)

@@ -105,6 +105,11 @@ class AttendanceController {
             $stmt = $pdo->prepare("INSERT INTO absensis (karyawan_id, nik, waktu, tipe, status, foto, latitude, longitude, detail_lokasi, keterangan) VALUES (?, ?, NOW(), ?, 'Selesai', ?, ?, ?, ?, ?)");
             $stmt->execute([$karyawan_id, $nik, $tipe, $db_photo_path, $latitude, $longitude, $detail_lokasi, $keterangan]);
 
+            if (strtolower(str_replace('_', ' ', $tipe)) === 'lembur pulang') {
+                require_once __DIR__ . '/../Helpers/OvertimeValidator.php';
+                \App\Helpers\OvertimeValidator::checkAndCreateApproval($karyawan_id, date('Y-m-d'));
+            }
+
             http_response_code(200);
             echo json_encode(['message' => 'Absensi berhasil']);
         } catch (\PDOException $e) {

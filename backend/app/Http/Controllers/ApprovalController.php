@@ -222,7 +222,7 @@ class ApprovalController {
                     $pdo->prepare("UPDATE $tableName SET approved_by = ? WHERE id = ?")->execute([$user_id, $id]);
                 }
             } else if ($isSupervisor) {
-                if ($currentStatus !== 'Pending SPV') {
+                if ($currentStatus !== 'Pending SPV' && strtolower($currentStatus) !== 'pending') {
                     http_response_code(403);
                     echo json_encode(['message' => 'Tidak dapat mengubah status pada tahap ini (status saat ini: ' . $currentStatus . ').']);
                     return;

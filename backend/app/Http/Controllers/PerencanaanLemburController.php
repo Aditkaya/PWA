@@ -74,6 +74,12 @@ class PerencanaanLemburController {
             }
             
             $pdo->commit();
+
+            require_once __DIR__ . '/../Helpers/OvertimeValidator.php';
+            foreach ($karyawan_ids as $kid) {
+                \App\Helpers\OvertimeValidator::checkAndCreateApproval($kid, $tanggal);
+            }
+
             echo json_encode(['message' => 'Perencanaan lembur berhasil disimpan']);
             
         } catch (\Exception $e) {

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Calendar, Clock, FileText, CheckCircle, Users, Search } from 'lucide-react';
+import { X, Calendar, Clock, FileText, CheckCircle, Users, Search, Edit2, Trash2 } from 'lucide-react';
 import { useAuthStore } from '../store/auth.store';
 import { useToast } from '../contexts/ToastContext';
 import '../styles/izinmodal.css'; 
@@ -33,6 +33,7 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
   const [selectedKaryawan, setSelectedKaryawan] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
+  const [editId, setEditId] = useState<number | null>(null);
 
   const [historyData, setHistoryData] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'form' | 'history'>('form');
@@ -115,30 +116,54 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
 
     setSubmitting(true);
     try {
-      const res = await fetch('/api/hrd/perencanaan-lembur', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({
-          user_id: user?.id,
-          tanggal,
-          jam_mulai: jamMulai,
-          jam_selesai: jamSelesai,
-          keterangan,
-          karyawan_ids: selectedKaryawan
-        })
-      });
+      let res;
+      if (editId) {
+        res = await fetch(`/api/hrd/perencanaan-lembur/${editId}`, {
+          method: 'PUT',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            tanggal,
+            jam_mulai: jamMulai,
+            jam_selesai: jamSelesai,
+            keterangan
+          })
+        });
+      } else {
+        res = await fetch('/api/hrd/perencanaan-lembur', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({
+            user_id: user?.id,
+            tanggal,
+            jam_mulai: jamMulai,
+            jam_selesai: jamSelesai,
+            keterangan,
+            karyawan_ids: selectedKaryawan
+          })
+        });
+      }
 
       if (res.ok) {
-        showToast('Perencanaan lembur berhasil disimpan', 'success');
+        showToast(editId ? 'Perencanaan lembur berhasil diupdate' : 'Perencanaan lembur berhasil disimpan', 'success');
         setTanggal(new Date().toISOString().split('T')[0]);
         setJamMulai('17:00');
         setJamSelesai('19:00');
         setKeterangan('');
         setSelectedKaryawan([]);
-        onClose();
-        if (onSuccess) onSuccess();
+        setEditId(null);
+        
+        // Refresh history if we were on history tab
+        if (editId) {
+          fetchHistory();
+          setActiveTab('history');
+        } else {
+          onClose();
+          if (onSuccess) onSuccess();
+        }
       } else {
         const errorData = await res.json();
         showToast(errorData.message || 'Gagal menyimpan data', 'error');
@@ -149,6 +174,45 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
     } finally {
       setSubmitting(false);
     }
+  };
+
+  const handleEdit = (item: any) => {
+    setEditId(item.id);
+    setTanggal(item.tanggal);
+    setJamMulai(item.jam_mulai.substring(0, 5));
+    setJamSelesai(item.jam_selesai.substring(0, 5));
+    setKeterangan(item.keterangan);
+    setSelectedKaryawan([item.karyawan_id]);
+    setActiveTab('form');
+  };
+
+  const handleDelete = async (id: number) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus perencanaan lembur ini?')) return;
+    
+    try {
+      const res = await fetch(`/api/hrd/perencanaan-lembur/${id}?user_id=${user?.id}`, {
+        method: 'DELETE'
+      });
+      if (res.ok) {
+        showToast('Data berhasil dihapus', 'success');
+        fetchHistory();
+      } else {
+        const err = await res.json();
+        showToast(err.message || 'Gagal menghapus data', 'error');
+      }
+    } catch (error) {
+      showToast('Terjadi kesalahan pada sistem', 'error');
+    }
+  };
+
+  const handleCancelEdit = () => {
+    setEditId(null);
+    setTanggal(new Date().toISOString().split('T')[0]);
+    setJamMulai('17:00');
+    setJamSelesai('19:00');
+    setKeterangan('');
+    setSelectedKaryawan([]);
+    setActiveTab('history');
   };
 
   if (!isOpen) return null;
@@ -240,6 +304,7 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
             />
           </div>
 
+          {!editId && (
           <div className="form-group" style={{ marginBottom: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <label style={{ marginBottom: 0 }}><Users size={16} /> Daftar Karyawan</label>
@@ -307,11 +372,36 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
               Terpilih: {selectedKaryawan.length} dari {bawahan.length} karyawan
             </div>
           </div>
+          )}
 
-          <button type="submit" className="btn-submit" disabled={submitting}>
-            <CheckCircle size={18} />
-            {submitting ? 'Menyimpan...' : 'Simpan Perencanaan'}
-          </button>
+          {editId && (
+            <div className="form-group" style={{ marginBottom: '16px' }}>
+              <label>Karyawan</label>
+              <div style={{ padding: '10px', background: 'rgba(0,0,0,0.1)', border: '1px solid var(--glass-border)', borderRadius: '8px' }}>
+                {bawahan.find(k => k.id === selectedKaryawan[0])?.nama_lengkap || 'Karyawan'}
+              </div>
+            </div>
+          )}
+
+          <div style={{ display: 'flex', gap: '12px' }}>
+            {editId && (
+              <button 
+                type="button" 
+                onClick={handleCancelEdit}
+                style={{ 
+                  flex: 1, padding: '12px', borderRadius: '8px', border: '1px solid var(--glass-border)',
+                  background: 'transparent', color: 'var(--text-primary)', cursor: 'pointer',
+                  fontWeight: 600, display: 'flex', justifyContent: 'center', alignItems: 'center'
+                }}
+              >
+                Batal Edit
+              </button>
+            )}
+            <button type="submit" className="btn-submit" disabled={submitting} style={{ flex: editId ? 1 : 'unset', width: editId ? 'auto' : '100%' }}>
+              <CheckCircle size={18} />
+              {submitting ? 'Menyimpan...' : (editId ? 'Update Perencanaan' : 'Simpan Perencanaan')}
+            </button>
+          </div>
         </form>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -322,16 +412,36 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
             ) : (
               historyData.map(item => (
                 <div key={item.id} style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '12px', padding: '16px' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
-                    <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{new Date(item.tanggal).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
-                    <span style={{ color: 'var(--accent-color)', fontWeight: 600, fontSize: '0.9rem' }}>{item.jam_mulai} - {item.jam_selesai}</span>
-                  </div>
-                  <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>
-                    {item.keterangan}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)', background: 'rgba(0,0,0,0.2)', padding: '6px 10px', borderRadius: '6px', width: 'fit-content' }}>
-                    <Users size={14} />
-                    <span>{item.nama_lengkap} ({item.nik})</span>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                    <div>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                        <span style={{ fontWeight: 600, color: 'var(--text-primary)' }}>{new Date(item.tanggal).toLocaleDateString('id-ID', { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })}</span>
+                      </div>
+                      <div style={{ color: 'var(--accent-color)', fontWeight: 600, fontSize: '0.9rem', marginBottom: '8px' }}>{item.jam_mulai.substring(0, 5)} - {item.jam_selesai.substring(0, 5)}</div>
+                      <div style={{ fontSize: '0.9rem', color: 'var(--text-secondary)', marginBottom: '8px' }}>
+                        {item.keterangan}
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)', background: 'rgba(0,0,0,0.2)', padding: '6px 10px', borderRadius: '6px', width: 'fit-content' }}>
+                        <Users size={14} />
+                        <span>{item.nama_lengkap} ({item.nik})</span>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', gap: '8px' }}>
+                      <button 
+                        onClick={() => handleEdit(item)}
+                        style={{ background: 'rgba(59, 130, 246, 0.1)', color: '#3b82f6', border: 'none', padding: '8px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        title="Edit Data"
+                      >
+                        <Edit2 size={16} />
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(item.id)}
+                        style={{ background: 'rgba(239, 68, 68, 0.1)', color: '#ef4444', border: 'none', padding: '8px', borderRadius: '6px', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                        title="Hapus Data"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))

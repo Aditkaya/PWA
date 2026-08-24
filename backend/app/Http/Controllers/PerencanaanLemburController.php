@@ -116,4 +116,63 @@ class PerencanaanLemburController {
             echo json_encode(['message' => 'Gagal mengambil riwayat', 'error' => $e->getMessage()]);
         }
     }
+
+    public function update($id, $postData) {
+        $tanggal = $postData['tanggal'] ?? null;
+        $jam_mulai = $postData['jam_mulai'] ?? null;
+        $jam_selesai = $postData['jam_selesai'] ?? null;
+        $keterangan = $postData['keterangan'] ?? null;
+
+        if (!$tanggal || !$jam_mulai || !$jam_selesai) {
+            http_response_code(400);
+            echo json_encode(['message' => 'Semua field harus diisi']);
+            return;
+        }
+
+        try {
+            $pdo = Database::getConnection();
+            $stmt = $pdo->prepare("UPDATE perencanaan_lemburs SET tanggal = ?, jam_mulai = ?, jam_selesai = ?, keterangan = ?, updated_at = NOW() WHERE id = ?");
+            $stmt->execute([$tanggal, $jam_mulai, $jam_selesai, $keterangan, $id]);
+            
+            // Check if overtime validation needs to be re-run
+            $stmtCheck = $pdo->prepare("SELECT karyawan_id, tanggal FROM perencanaan_lemburs WHERE id = ?");
+            $stmtCheck->execute([$id]);
+            $row = $stmtCheck->fetch(PDO::FETCH_ASSOC);
+            if ($row) {
+                require_once __DIR__ . '/../Helpers/OvertimeValidator.php';
+                \App\Helpers\OvertimeValidator::checkAndCreateApproval($row['karyawan_id'], $row['tanggal']);
+            }
+
+            echo json_encode(['message' => 'Perencanaan lembur berhasil diupdate']);
+        } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode(['message' => 'Gagal mengupdate perencanaan', 'error' => $e->getMessage()]);
+        }
+    }
+
+    public function destroy($id, $params) {
+        $user_id = $params['user_id'] ?? null;
+        
+        try {
+            $pdo = Database::getConnection();
+            // Optional: Check if the user owns this record
+            if ($user_id) {
+                $stmtCheck = $pdo->prepare("SELECT id FROM perencanaan_lemburs WHERE id = ? AND created_by = ?");
+                $stmtCheck->execute([$id, $user_id]);
+                if (!$stmtCheck->fetch()) {
+                    http_response_code(403);
+                    echo json_encode(['message' => 'Tidak diizinkan menghapus data ini']);
+                    return;
+                }
+            }
+
+            $stmt = $pdo->prepare("DELETE FROM perencanaan_lemburs WHERE id = ?");
+            $stmt->execute([$id]);
+            
+            echo json_encode(['message' => 'Perencanaan lembur berhasil dihapus']);
+        } catch (\Exception $e) {
+            http_response_code(500);
+            echo json_encode(['message' => 'Gagal menghapus perencanaan', 'error' => $e->getMessage()]);
+        }
+    }
 }

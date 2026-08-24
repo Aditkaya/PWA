@@ -158,6 +158,18 @@ if ($uri === '/api/hrd/perencanaan-lembur/history' && $method === 'GET') {
     exit();
 }
 
+if (preg_match('#^/api/hrd/perencanaan-lembur/(\d+)$#', $uri, $matches)) {
+    require_once __DIR__ . '/../app/Http/Controllers/PerencanaanLemburController.php';
+    $controller = new \App\Http\Controllers\PerencanaanLemburController();
+    $id = $matches[1];
+    if ($method === 'PUT' || $method === 'PATCH') {
+        $controller->update($id, $requestData);
+    } else if ($method === 'DELETE') {
+        $controller->destroy($id, $_GET);
+    }
+    exit();
+}
+
 if ($uri === '/api/hrd/permohonan' && $method === 'GET') {
     require_once __DIR__ . '/../app/Http/Controllers/ApprovalController.php';
     $controller = new \App\Http\Controllers\ApprovalController();

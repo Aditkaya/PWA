@@ -40,14 +40,16 @@ class OvertimeValidator {
             }
 
             // Cek apakah sudah ada di persetujuan_absensi_lemburs untuk tanggal ini agar tidak duplikat
-            $stmtCheck = $pdo->prepare("SELECT id FROM persetujuan_absensi_lemburs WHERE karyawan_id = ? AND tanggal = ?");
+            $stmtCheck = $pdo->prepare("SELECT id, status FROM persetujuan_absensi_lemburs WHERE karyawan_id = ? AND tanggal = ?");
             $stmtCheck->execute([$karyawan_id, $tanggal]);
             $existing = $stmtCheck->fetch(PDO::FETCH_ASSOC);
 
             if ($existing) {
-                // Update yang sudah ada
-                $stmtUpdate = $pdo->prepare("UPDATE persetujuan_absensi_lemburs SET jam_mulai = ?, jam_selesai = ?, keterangan = ?, status = 'pending' WHERE id = ?");
-                $stmtUpdate->execute([$plan['jam_mulai'], $actualEndTime, $keterangan, $existing['id']]);
+                // Hanya update jika statusnya masih pending, atau mungkin kita biarkan saja jika sudah approved/rejected?
+                if (strtolower($existing['status']) === 'pending' || strtolower($existing['status']) === 'pending hrd' || strtolower($existing['status']) === 'pending spv') {
+                    $stmtUpdate = $pdo->prepare("UPDATE persetujuan_absensi_lemburs SET jam_mulai = ?, jam_selesai = ?, keterangan = ? WHERE id = ?");
+                    $stmtUpdate->execute([$plan['jam_mulai'], $actualEndTime, $keterangan, $existing['id']]);
+                }
             } else {
                 // Insert baru
                 $stmtInsert = $pdo->prepare("INSERT INTO persetujuan_absensi_lemburs (karyawan_id, tanggal, jam_mulai, jam_selesai, keterangan, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'pending', NOW(), NOW())");
@@ -56,6 +58,21 @@ class OvertimeValidator {
 
         } catch (\Exception $e) {
             error_log("Error in OvertimeValidator: " . $e->getMessage());
+        }
+    }
+
+    public static function validateAll($tanggal) {
+        try {
+            $pdo = Database::getConnection();
+            $stmtPlan = $pdo->prepare("SELECT DISTINCT karyawan_id FROM perencanaan_lemburs WHERE tanggal = ?");
+            $stmtPlan->execute([$tanggal]);
+            $plans = $stmtPlan->fetchAll(PDO::FETCH_ASSOC);
+
+            foreach ($plans as $plan) {
+                self::checkAndCreateApproval($plan['karyawan_id'], $tanggal);
+            }
+        } catch (\Exception $e) {
+            error_log("Error in validateAll: " . $e->getMessage());
         }
     }
 }

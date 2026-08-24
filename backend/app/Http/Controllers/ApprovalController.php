@@ -11,6 +11,16 @@ class ApprovalController {
     
     public function getAllPermohonan($getData) {
         $user_id = $getData['user_id'] ?? null;
+        $status = $getData['status'] ?? null;
+        $page = isset($getData['page']) ? (int)$getData['page'] : 1;
+        $limit = isset($getData['limit']) ? (int)$getData['limit'] : 10;
+        $offset = ($page - 1) * $limit;
+        
+        // Trigger overtime validation automatically to catch data synced from external devices
+        require_once __DIR__ . '/../Helpers/OvertimeValidator.php';
+        \App\Helpers\OvertimeValidator::validateAll(date('Y-m-d'));
+        \App\Helpers\OvertimeValidator::validateAll(date('Y-m-d', strtotime('-1 day')));
+
         if (!$user_id) {
             http_response_code(400);
             echo json_encode(['message' => 'User ID diperlukan']);

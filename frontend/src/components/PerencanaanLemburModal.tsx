@@ -33,16 +33,6 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
   const [selectedKaryawan, setSelectedKaryawan] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [deleteConfirm, setDeleteConfirm] = useState<number | null>(null);
-
-  const getNamaPanggilan = (namaLengkap: string) => {
-    if (!namaLengkap) return '';
-    const parts = namaLengkap.trim().split(' ');
-    if (parts.length === 1) return parts[0];
-    if (parts[0].length <= 2) return parts.slice(0, 2).join(' ');
-    return parts[0];
-  };
-
   const [editId, setEditId] = useState<number | null>(null);
 
   const [historyData, setHistoryData] = useState<any[]>([]);
@@ -387,9 +377,9 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
                     />
                     <label htmlFor={`karyawan-${k.id}`} style={{ cursor: 'pointer', flex: 1, display: 'flex', flexDirection: 'column' }}>
                       <span style={{ fontSize: '0.9rem', fontWeight: 500 }}>
-                        {getNamaPanggilan(k.nama_lengkap)}
+                        {k.nama_lengkap.split(' ').find(w => w.length > 2 && !w.includes('.')) || k.nama_lengkap.split(' ')[0]}
                       </span>
-                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{k.nik} - {k.pekerjaan}</span>
+                      <span style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>{k.pekerjaan}</span>
                     </label>
                   </div>
                 ))
@@ -405,7 +395,7 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
             <div className="form-group" style={{ marginBottom: '16px' }}>
               <label>Karyawan</label>
               <div style={{ padding: '10px', background: 'rgba(0,0,0,0.1)', border: '1px solid var(--glass-border)', borderRadius: '8px' }}>
-                {getNamaPanggilan(bawahan.find(k => k.id === selectedKaryawan[0])?.nama_lengkap || '') || 'Karyawan'}
+                {bawahan.find(k => k.id === selectedKaryawan[0])?.nama_lengkap || 'Karyawan'}
               </div>
             </div>
           )}
@@ -452,7 +442,7 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
                       <div key={item.id} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'rgba(0,0,0,0.2)', padding: '8px 12px', borderRadius: '8px' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: '8px', fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
                           <Users size={14} />
-                          <span>{getNamaPanggilan(item.nama_lengkap)} ({item.nik})</span>
+                          <span>{item.nama_lengkap} ({item.nik})</span>
                         </div>
                         <div style={{ display: 'flex', gap: '8px' }}>
                           <button 

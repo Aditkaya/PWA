@@ -1,7 +1,7 @@
 
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth.store'
-import { Home, History, User, LogOut as LogOutIcon, Download, Sun, Moon, Globe, MoreVertical, ClipboardCheck } from 'lucide-react'
+import { Home, History, User, LogOut as LogOutIcon, Download, Sun, Moon, Globe, MoreVertical } from 'lucide-react'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { useState, useEffect, useRef } from 'react'
 import { useLangStore } from '../store/lang.store'
@@ -25,8 +25,8 @@ export default function DashboardLayout() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const [userGroup, setUserGroup] = useState('')
-  const [userPekerjaan, setUserPekerjaan] = useState('')
-  const [isSupervisor, setIsSupervisor] = useState(false)
+  const [, setUserPekerjaan] = useState('')
+  const [, setIsSupervisor] = useState(false)
   const [showFaceRegistration, setShowFaceRegistration] = useState(false)
   
   const { user } = useAuthStore()

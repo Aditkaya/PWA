@@ -27,7 +27,7 @@ export default function Dashboard() {
   const [time, setTime] = useState(new Date())
   const { user } = useAuthStore()
   const [historyData, setHistoryData] = useState<HistoryItem[]>([])
-  const [permohonanData, setPermohonanData] = useState<any[]>([])
+  const [, setPermohonanData] = useState<any[]>([])
   const [userGroup, setUserGroup] = useState<string>('')
   const [userProfile, setUserProfile] = useState<any>(null)
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0)

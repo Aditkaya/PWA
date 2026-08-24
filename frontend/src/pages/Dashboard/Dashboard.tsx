@@ -187,7 +187,7 @@ export default function Dashboard() {
   const permitOuts = historyData.filter(h => isTodayRecord(h) && h.type.toLowerCase().includes('izin keluar'))
   const permitIns = historyData.filter(h => isTodayRecord(h) && h.type.toLowerCase().includes('izin masuk'))
   
-  const todayOvertimeInHistory = historyData.find(h => isTodayRecord(h) && (h.type.toLowerCase().includes('mulai lembur') || h.type.toLowerCase() === 'lembur' || h.type.toLowerCase() === 'lembur masuk'))
+  const todayOvertimeInHistory = historyData.find(h => isTodayRecord(h) && (h.type.toLowerCase().includes('mulai lembur') || h.type.toLowerCase() === 'lembur' || h.type.toLowerCase().includes('lembur masuk') || h.type.toLowerCase().includes('lembur_masuk')))
   
   // Directly use history data for Mulai Lembur since it no longer requires approval
   const todayOvertimeIn = todayOvertimeInHistory;

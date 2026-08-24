@@ -1,13 +1,13 @@
 import { useState, useEffect } from 'react'
-import { useOutletContext } from 'react-router-dom'
-import { Clock, Coffee, LogOut, LogIn, CalendarDays, Sun, Plane, AlertCircle, Info, XCircle, ScanFace } from 'lucide-react'
+import { useOutletContext, useNavigate } from 'react-router-dom'
+import { Clock, Coffee, LogOut, LogIn, CalendarDays, Sun, Plane, AlertCircle, Info, XCircle, ScanFace, ClipboardCheck, CalendarClock } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import CameraModal from '../../components/CameraModal'
 import IzinModal from '../../components/IzinModal'
 import CutiModal from '../../components/CutiModal'
 import PermitOutModal from '../../components/PermitOutModal'
 import LupaAbsenModal from '../../components/LupaAbsenModal'
-import LemburModal from '../../components/LemburModal'
+import PerencanaanLemburModal from '../../components/PerencanaanLemburModal'
 import { useLangStore } from '../../store/lang.store'
 import { useModeStore } from '../../store/mode.store'
 import { translations } from '../../utils/translations'
@@ -23,12 +23,13 @@ interface HistoryItem {
 }
 
 export default function Dashboard() {
+  const navigate = useNavigate()
   const [time, setTime] = useState(new Date())
   const { user } = useAuthStore()
   const [historyData, setHistoryData] = useState<HistoryItem[]>([])
-  const [permohonanData, setPermohonanData] = useState<any[]>([])
   const [userGroup, setUserGroup] = useState<string>('')
   const [userProfile, setUserProfile] = useState<any>(null)
+  const [pendingApprovalCount, setPendingApprovalCount] = useState(0)
   
   const { lang } = useLangStore()
   const { isOvertimeMode } = useModeStore()
@@ -48,7 +49,7 @@ export default function Dashboard() {
   const [izinModalType, setIzinModalType] = useState('Izin 1/2 Hari')
   const [isCutiModalOpen, setIsCutiModalOpen] = useState(false)
   const [isLupaAbsenModalOpen, setIsLupaAbsenModalOpen] = useState(false)
-  const [isLemburModalOpen, setIsLemburModalOpen] = useState(false)
+  const [isPerencanaanModalOpen, setIsPerencanaanModalOpen] = useState(false)
 
   
   // Camera Modal States
@@ -97,12 +98,7 @@ export default function Dashboard() {
         setHistoryData(histData.data)
       }
       
-      // Fetch Permohonan
-      const permRes = await fetch(`/api/permohonan?user_id=${user.id}`)
-      if (permRes.ok) {
-        const permData = await permRes.json()
-        setPermohonanData(permData.data)
-      }
+
 
       // Fetch Profile
       const profRes = await fetch(`/api/profile?user_id=${user.id}`)
@@ -110,6 +106,49 @@ export default function Dashboard() {
         const profData = await profRes.json()
         setUserProfile(profData.data)
         setUserGroup(profData.data?.grup || '')
+        
+        const isSpv = profData.data?.is_supervisor;
+        const job = profData.data?.pekerjaan?.trim().toUpperCase();
+        if (isSpv || job === 'HRD' || job === 'IT') {
+          try {
+            const apprRes = await fetch(`/api/hrd/permohonan?user_id=${user.id}`)
+            if (apprRes.ok) {
+              const apprResult = await apprRes.json();
+              const rawData = apprResult.data || [];
+              
+              const seen = new Set();
+              const deduplicatedData = rawData.filter((item: any) => {
+                const key = `${item.nik}-${item.tipe}-${item.jenis}-${item.tanggal_mulai}`;
+                if (seen.has(key)) return false;
+                seen.add(key);
+                return true;
+              });
+              
+              const pendingCount = deduplicatedData.filter((item: any) => item.status.toLowerCase().includes('pending')).length;
+              setPendingApprovalCount(pendingCount);
+              
+              const lastCount = parseInt(sessionStorage.getItem('pending_approval_count') || '0', 10);
+              if (pendingCount > lastCount && pendingCount > 0) {
+                showToast(`Ada ${pendingCount} permohonan izin/cuti baru yang menunggu persetujuan.`, 'info');
+                
+                if ('Notification' in window) {
+                  if (Notification.permission === 'granted') {
+                    new Notification('Permohonan Masuk', { body: `Ada ${pendingCount} permohonan izin/cuti baru.` });
+                  } else if (Notification.permission !== 'denied') {
+                    Notification.requestPermission().then(permission => {
+                      if (permission === 'granted') {
+                        new Notification('Permohonan Masuk', { body: `Ada ${pendingCount} permohonan izin/cuti baru.` });
+                      }
+                    });
+                  }
+                }
+              }
+              sessionStorage.setItem('pending_approval_count', pendingCount.toString());
+            }
+          } catch (e) {
+            console.error("Failed to fetch approvals", e);
+          }
+        }
       }
     } catch (error) {
       console.error("Failed to fetch data", error)
@@ -143,12 +182,9 @@ export default function Dashboard() {
   const permitIns = historyData.filter(h => isTodayRecord(h) && h.type.toLowerCase().includes('izin masuk'))
   
   const todayOvertimeInHistory = historyData.find(h => isTodayRecord(h) && (h.type.toLowerCase().includes('mulai lembur') || h.type.toLowerCase() === 'lembur' || h.type.toLowerCase() === 'lembur masuk'))
-  const todayLemburRequest = permohonanData.find(p => p.tipe === 'Lembur' && p.tanggal_mulai === todayString)
-  const isLemburPending = todayLemburRequest && todayLemburRequest.status.toLowerCase().includes('pending')
-  const isLemburApproved = todayLemburRequest && (todayLemburRequest.status.toLowerCase() === 'disetujui' || todayLemburRequest.status.toLowerCase() === 'approved')
   
-  // Combine history and permohonan data for Mulai Lembur
-  const todayOvertimeIn = todayOvertimeInHistory || (todayLemburRequest && (isLemburPending || isLemburApproved) ? { time: new Date(todayLemburRequest.created_at).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' }).replace(/\./g, ':') } : null)
+  // Directly use history data for Mulai Lembur since it no longer requires approval
+  const todayOvertimeIn = todayOvertimeInHistory;
   const isOvertimeStarted = !!todayOvertimeIn;
 
   const todayOvertimeOut = historyData.find(h => isTodayRecord(h) && (h.type.toLowerCase().includes('selesai lembur') || h.type.toLowerCase() === 'lembur_pulang' || h.type.toLowerCase() === 'pulang lembur'))
@@ -164,8 +200,6 @@ export default function Dashboard() {
     setPermitReason('')
     if (type.toLowerCase().includes('izin keluar') || type.toLowerCase().includes('permit out')) {
       setIsPermitOutOpen(true)
-    } else if (type === 'Mulai Lembur') {
-      setIsLemburModalOpen(true)
     } else {
       setIsCameraOpen(true)
     }
@@ -195,41 +229,17 @@ export default function Dashboard() {
         formData.append('keterangan', permitReason)
       }
 
-      if (attendanceType === 'Mulai Lembur') {
-        // Use the lembur API endpoint
-        const now = new Date()
-        formData.append('tanggal', now.toISOString().split('T')[0])
-        formData.append('jam_mulai', now.toTimeString().slice(0, 5))
-        formData.append('jam_selesai', '00:00') // Placeholder as it was removed from UI
-        // Keterangan is already appended above, but we can ensure it's there
-        if (!formData.has('keterangan')) {
-          formData.append('keterangan', permitReason)
-        }
-        // For foto we need to make sure the backend accepts it
-        const response = await fetch('/api/attendance/lembur', {
-          method: 'POST',
-          body: formData,
-        })
-        
-        if (response.ok) {
-          showToast('Pengajuan Lembur berhasil dikirim', 'success')
-          fetchHistoryAndProfile() // Refresh data
-        } else {
-          showToast(t.attendanceFailed, 'error')
-        }
-      } else {
-        // Default attendance logic
-        const response = await fetch('/api/attendance/break', {
-          method: 'POST',
-          body: formData,
-        })
+      // All attendance (including Mulai Lembur without approval) goes to the same default handler
+      const response = await fetch('/api/attendance/break', {
+        method: 'POST',
+        body: formData,
+      })
 
-        if (response.ok) {
-          showToast(t.attendanceRecorded.replace('{type}', attendanceType), 'success')
-          fetchHistoryAndProfile() // Refresh data
-        } else {
-          showToast(t.attendanceFailed, 'error')
-        }
+      if (response.ok) {
+        showToast(t.attendanceRecorded.replace('{type}', attendanceType), 'success')
+        fetchHistoryAndProfile() // Refresh data
+      } else {
+        showToast(t.attendanceFailed, 'error')
       }
     } catch (error) {
       console.error("Attendance Error:", error)
@@ -239,13 +249,6 @@ export default function Dashboard() {
     setPermitReason('')
   }
 
-  const handleLemburSubmit = (keterangan: string) => {
-    setPermitReason(keterangan);
-    setIsLemburModalOpen(false);
-    setTimeout(() => {
-      setIsCameraOpen(true);
-    }, 100);
-  }
 
   const handlePermitOutSubmit = async (keterangan: string, _locationData: {lat: number, lng: number, address: string} | null) => {
     // Simpan keterangan dan buka kamera
@@ -317,9 +320,7 @@ export default function Dashboard() {
             >
               <Clock size={24} strokeWidth={1.25} />
               <span>
-                {todayOvertimeIn 
-                  ? (isLemburPending ? `Menunggu Approval` : `${t.startOvertime}: ${todayOvertimeIn.time}`) 
-                  : t.startOvertime}
+                {todayOvertimeIn ? `${t.startOvertime}: ${todayOvertimeIn.time}` : t.startOvertime}
               </span>
             </button>
             <button 
@@ -428,6 +429,46 @@ export default function Dashboard() {
               <Clock size={24} strokeWidth={1.25} />
               <span>Lupa Absen</span>
             </button>
+            {userProfile && (userProfile.pekerjaan?.trim().toUpperCase() === 'HRD' || userProfile.pekerjaan?.trim().toUpperCase() === 'IT' || userProfile.is_supervisor) && (
+              <>
+                <button 
+                  className="btn-leave" 
+                  onClick={() => setIsPerencanaanModalOpen(true)}
+                >
+                  <CalendarClock size={24} strokeWidth={1.25} />
+                  <span>Perencanaan Lembur</span>
+                </button>
+                <button 
+                  className="btn-leave" 
+                  onClick={() => navigate('/hrd/approval')}
+                  style={{ position: 'relative' }}
+                >
+                  {pendingApprovalCount > 0 && (
+                    <div style={{
+                      position: 'absolute',
+                      top: '-6px',
+                      right: '-6px',
+                      background: '#ef4444',
+                      color: 'white',
+                      fontSize: '0.75rem',
+                      fontWeight: 'bold',
+                      width: '24px',
+                      height: '24px',
+                      borderRadius: '50%',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      border: '2px solid var(--panel-bg)',
+                      boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+                    }}>
+                      {pendingApprovalCount}
+                    </div>
+                  )}
+                  <ClipboardCheck size={24} strokeWidth={1.25} />
+                  <span>Approval Karyawan</span>
+                </button>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -484,11 +525,11 @@ export default function Dashboard() {
         userProfile={userProfile}
       />
 
-      <LemburModal
-        isOpen={isLemburModalOpen}
-        onClose={() => setIsLemburModalOpen(false)}
+      <PerencanaanLemburModal
+        isOpen={isPerencanaanModalOpen}
+        onClose={() => setIsPerencanaanModalOpen(false)}
         userProfile={userProfile}
-        onSubmit={handleLemburSubmit}
+        onSuccess={() => fetchHistoryAndProfile()}
       />
 
       <PermitOutModal

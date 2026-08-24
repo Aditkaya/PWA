@@ -137,6 +137,20 @@ if ($uri === '/api/permohonan' && $method === 'DELETE') {
     exit();
 }
 
+if ($uri === '/api/hrd/bawahan' && $method === 'GET') {
+    require_once __DIR__ . '/../app/Http/Controllers/PerencanaanLemburController.php';
+    $controller = new \App\Http\Controllers\PerencanaanLemburController();
+    $controller->getBawahan($_GET);
+    exit();
+}
+
+if ($uri === '/api/hrd/perencanaan-lembur' && $method === 'POST') {
+    require_once __DIR__ . '/../app/Http/Controllers/PerencanaanLemburController.php';
+    $controller = new \App\Http\Controllers\PerencanaanLemburController();
+    $controller->store($requestData);
+    exit();
+}
+
 if ($uri === '/api/hrd/permohonan' && $method === 'GET') {
     require_once __DIR__ . '/../app/Http/Controllers/ApprovalController.php';
     $controller = new \App\Http\Controllers\ApprovalController();

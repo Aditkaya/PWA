@@ -483,36 +483,36 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
                     {group.keterangan}
                   </div>
                   
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
-                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: '12px', marginBottom: '8px' }}>
+                    <div style={{ fontSize: '0.85rem', color: 'var(--text-secondary)', marginTop: '4px' }}>
                       <Users size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }} />
                       {group.items.length} Karyawan
                     </div>
-                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'flex-end' }}>
                       <button 
                         onClick={() => handleAddKaryawan(group)}
-                        style={{ background: 'none', border: 'none', color: '#10b981', fontSize: '0.8rem', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '4px' }}
                         title="Tambah Karyawan ke Rencana Ini"
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', fontSize: '0.75rem', borderRadius: '6px', border: '1px solid rgba(16, 185, 129, 0.3)', color: '#10b981', background: 'rgba(16, 185, 129, 0.05)', cursor: 'pointer', fontWeight: 500 }}
                       >
-                        <UserPlus size={14} /> Tambah Karyawan
+                        <UserPlus size={14} /> Tambah
                       </button>
                       <button 
                         onClick={() => handleEditGroup(group)}
-                        style={{ background: 'none', color: '#3b82f6', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                         title="Edit Rencana"
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', fontSize: '0.75rem', borderRadius: '6px', border: '1px solid rgba(59, 130, 246, 0.3)', color: '#3b82f6', background: 'rgba(59, 130, 246, 0.05)', cursor: 'pointer', fontWeight: 500 }}
                       >
-                        <Edit2 size={12} /> Edit Group
+                        <Edit2 size={14} /> Edit
                       </button>
                       <button 
                         onClick={() => handleDeleteGroup(group)}
-                        style={{ background: 'none', color: '#ef4444', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
                         title="Hapus Rencana"
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', fontSize: '0.75rem', borderRadius: '6px', border: '1px solid rgba(239, 68, 68, 0.3)', color: '#ef4444', background: 'rgba(239, 68, 68, 0.05)', cursor: 'pointer', fontWeight: 500 }}
                       >
-                        <Trash2 size={12} /> Hapus Group
+                        <Trash2 size={14} /> Hapus
                       </button>
                       <button 
                         onClick={() => setExpandedGroups(prev => ({ ...prev, [idx]: !prev[idx] }))}
-                        style={{ background: 'none', border: 'none', color: 'var(--accent-color)', fontSize: '0.8rem', cursor: 'pointer', padding: 0 }}
+                        style={{ display: 'flex', alignItems: 'center', gap: '6px', padding: '6px 12px', fontSize: '0.75rem', borderRadius: '6px', border: '1px solid var(--glass-border)', color: 'var(--text-primary)', background: 'var(--glass-bg)', cursor: 'pointer', fontWeight: 500 }}
                       >
                         {expandedGroups[idx] ? 'Sembunyikan' : 'Lihat Detail'}
                       </button>

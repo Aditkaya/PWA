@@ -416,7 +416,7 @@ export default function Dashboard() {
           <h3 className="section-title">{t.leavePermit}</h3>
           <div className="leave-grid">
             <button className="btn-leave" onClick={() => {
-              setIzinModalType('Izin Full Day')
+              setIzinModalType('Izin Sakit')
               setIsIzinModalOpen(true)
             }}>
               <CalendarDays size={24} strokeWidth={1.25} />

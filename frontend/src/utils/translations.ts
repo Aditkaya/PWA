@@ -32,7 +32,7 @@ export const translations = {
     
     // Dashboard Sections
     leavePermit: "Pengajuan Cuti & Izin",
-    fullDayPermit: "Izin Full Day",
+    fullDayPermit: "Izin Sakit",
     halfDayPermit: "Izin 1/2 Hari",
     annualLeave: "Cuti Tahunan",
     
@@ -166,7 +166,7 @@ export const translations = {
     
     // Dashboard Sections
     leavePermit: "Leave & Permit Application",
-    fullDayPermit: "Full Day Permit",
+    fullDayPermit: "Sick Leave",
     halfDayPermit: "Half Day Permit",
     annualLeave: "Annual Leave",
     

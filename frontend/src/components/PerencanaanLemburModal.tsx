@@ -33,7 +33,7 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
   const [selectedKaryawan, setSelectedKaryawan] = useState<number[]>([]);
   const [loading, setLoading] = useState(false);
   const [submitting, setSubmitting] = useState(false);
-  const [editId, setEditId] = useState<number | null>(null);
+  const [editGroupItems, setEditGroupItems] = useState<any[] | null>(null);
 
   const [historyData, setHistoryData] = useState<any[]>([]);
   const [activeTab, setActiveTab] = useState<'form' | 'history'>('form');
@@ -117,26 +117,49 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
 
     setSubmitting(true);
     try {
-      let res;
-      if (editId) {
-        res = await fetch(`/api/hrd/perencanaan-lembur/${editId}`, {
-          method: 'PUT',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            tanggal,
-            jam_mulai: jamMulai,
-            jam_selesai: jamSelesai,
-            keterangan
-          })
-        });
+      let resOk = false;
+      let errMsg = '';
+      if (editGroupItems) {
+        const oldKaryawanIds = editGroupItems.map((i: any) => i.karyawan_id);
+        
+        const toDeleteIds = editGroupItems.filter((i: any) => !selectedKaryawan.includes(i.karyawan_id)).map((i: any) => i.id);
+        const toUpdateItems = editGroupItems.filter((i: any) => selectedKaryawan.includes(i.karyawan_id));
+        const toCreateKaryawanIds = selectedKaryawan.filter(kid => !oldKaryawanIds.includes(kid));
+
+        const promises = [];
+        for (const id of toDeleteIds) {
+          promises.push(fetch(`/api/hrd/perencanaan-lembur/${id}?user_id=${user?.id}`, { method: 'DELETE' }));
+        }
+        for (const item of toUpdateItems) {
+          promises.push(fetch(`/api/hrd/perencanaan-lembur/${item.id}`, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tanggal, jam_mulai: jamMulai, jam_selesai: jamSelesai, keterangan })
+          }));
+        }
+        if (toCreateKaryawanIds.length > 0) {
+          promises.push(fetch('/api/hrd/perencanaan-lembur', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ user_id: user?.id, tanggal, jam_mulai: jamMulai, jam_selesai: jamSelesai, keterangan, karyawan_ids: toCreateKaryawanIds })
+          }));
+        }
+
+        try {
+          const results = await Promise.all(promises);
+          const allOk = results.every(r => r.ok);
+          if (allOk) {
+            resOk = true;
+          } else {
+            errMsg = 'Gagal memproses beberapa data';
+          }
+        } catch (e) {
+          errMsg = 'Kesalahan jaringan saat memproses data';
+        }
       } else {
-        res = await fetch('/api/hrd/perencanaan-lembur', {
+        const res = await fetch('/api/hrd/perencanaan-lembur', {
           method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
+          headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             user_id: user?.id,
             tanggal,
@@ -146,25 +169,27 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
             karyawan_ids: selectedKaryawan
           })
         });
+        if (res.ok) resOk = true;
+        else {
+          const errorData = await res.json();
+          errMsg = errorData.message || 'Gagal menyimpan data';
+        }
       }
 
-      if (res.ok) {
-        showToast(editId ? 'Perencanaan lembur berhasil diupdate' : 'Perencanaan lembur berhasil disimpan', 'success');
+      if (resOk) {
+        showToast(editGroupItems ? 'Perencanaan lembur berhasil diupdate' : 'Perencanaan lembur berhasil disimpan', 'success');
         setTanggal(new Date().toISOString().split('T')[0]);
         setJamMulai('17:00');
         setJamSelesai('19:00');
         setKeterangan('');
         setSelectedKaryawan([]);
-        setEditId(null);
+        setEditGroupItems(null);
         
-        // Always refresh history and switch to history tab after saving/updating
         fetchHistory();
         setActiveTab('history');
-        
         if (onSuccess) onSuccess();
       } else {
-        const errorData = await res.json();
-        showToast(errorData.message || 'Gagal menyimpan data', 'error');
+        showToast(errMsg, 'error');
       }
     } catch (err) {
       console.error(err);
@@ -175,7 +200,7 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
   };
 
   const handleEdit = (item: any) => {
-    setEditId(item.id);
+    setEditGroupItems([item]);
     setTanggal(item.tanggal);
     setJamMulai(item.jam_mulai.substring(0, 5));
     setJamSelesai(item.jam_selesai.substring(0, 5));
@@ -204,7 +229,7 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
   };
 
   const handleCancelEdit = () => {
-    setEditId(null);
+    setEditGroupItems(null);
     setTanggal(new Date().toISOString().split('T')[0]);
     setJamMulai('17:00');
     setJamSelesai('19:00');
@@ -213,8 +238,32 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
     setActiveTab('history');
   };
 
+  const handleEditGroup = (group: any) => {
+    setEditGroupItems(group.items);
+    setTanggal(group.tanggal);
+    setJamMulai(group.jam_mulai.substring(0, 5));
+    setJamSelesai(group.jam_selesai.substring(0, 5));
+    setKeterangan(group.keterangan);
+    setSelectedKaryawan(group.items.map((i: any) => i.karyawan_id));
+    setActiveTab('form');
+  };
+
+  const handleDeleteGroup = async (group: any) => {
+    if (!confirm('Apakah Anda yakin ingin menghapus seluruh data perencanaan lembur pada grup ini?')) return;
+    setSubmitting(true);
+    try {
+      await Promise.all(group.items.map((item: any) => fetch(`/api/hrd/perencanaan-lembur/${item.id}?user_id=${user?.id}`, { method: 'DELETE' })));
+      showToast('Data grup berhasil dihapus', 'success');
+      fetchHistory();
+    } catch (error) {
+      showToast('Terjadi kesalahan pada sistem', 'error');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
   const handleAddKaryawan = (group: any) => {
-    setEditId(null);
+    setEditGroupItems(null);
     setTanggal(group.tanggal);
     setJamMulai(group.jam_mulai.substring(0, 5));
     setJamSelesai(group.jam_selesai.substring(0, 5));
@@ -327,7 +376,6 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
             />
           </div>
 
-          {!editId && (
           <div className="form-group" style={{ marginBottom: '16px' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
               <label style={{ marginBottom: 0 }}><Users size={16} /> Daftar Karyawan</label>
@@ -397,19 +445,9 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
               Terpilih: {selectedKaryawan.length} dari {bawahan.length} karyawan
             </div>
           </div>
-          )}
-
-          {editId && (
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label>Karyawan</label>
-              <div style={{ padding: '10px', background: 'rgba(0,0,0,0.1)', border: '1px solid var(--glass-border)', borderRadius: '8px' }}>
-                {bawahan.find(k => k.id === selectedKaryawan[0])?.nama_lengkap || 'Karyawan'}
-              </div>
-            </div>
-          )}
 
           <div style={{ display: 'flex', gap: '12px' }}>
-            {editId && (
+            {editGroupItems && (
               <button 
                 type="button" 
                 onClick={handleCancelEdit}
@@ -422,9 +460,9 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
                 Batal Edit
               </button>
             )}
-            <button type="submit" className="btn-submit" disabled={submitting} style={{ flex: editId ? 1 : 'unset', width: editId ? 'auto' : '100%' }}>
+            <button type="submit" className="btn-submit" disabled={submitting} style={{ flex: editGroupItems ? 1 : 'unset', width: editGroupItems ? 'auto' : '100%' }}>
               <CheckCircle size={18} />
-              {submitting ? 'Menyimpan...' : (editId ? 'Update Perencanaan' : 'Simpan Perencanaan')}
+              {submitting ? 'Menyimpan...' : (editGroupItems ? 'Update Perencanaan' : 'Simpan Perencanaan')}
             </button>
           </div>
         </form>
@@ -457,6 +495,20 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
                         title="Tambah Karyawan ke Rencana Ini"
                       >
                         <UserPlus size={14} /> Tambah Karyawan
+                      </button>
+                      <button 
+                        onClick={() => handleEditGroup(group)}
+                        style={{ background: 'none', color: '#3b82f6', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        title="Edit Rencana"
+                      >
+                        <Edit2 size={12} /> Edit Group
+                      </button>
+                      <button 
+                        onClick={() => handleDeleteGroup(group)}
+                        style={{ background: 'none', color: '#ef4444', border: 'none', padding: 0, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px' }}
+                        title="Hapus Rencana"
+                      >
+                        <Trash2 size={12} /> Hapus Group
                       </button>
                       <button 
                         onClick={() => setExpandedGroups(prev => ({ ...prev, [idx]: !prev[idx] }))}

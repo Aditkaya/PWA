@@ -29,6 +29,8 @@ interface PermohonanItem {
   status: string
   created_at: string
   approved_by_name?: string
+  keterangan_rencana?: string
+  keterangan_karyawan?: string
 }
 
 interface HolidayItem {
@@ -54,6 +56,9 @@ export default function History() {
   const [expandedItems, setExpandedItems] = useState<(number | string)[]>([])
   const [deleteConfirm, setDeleteConfirm] = useState<{ id: number; tipe: string } | null>(null)
   const [deleting, setDeleting] = useState(false)
+  const [editingKeterangan, setEditingKeterangan] = useState<number | null>(null)
+  const [keteranganInput, setKeteranganInput] = useState('')
+  const [savingKeterangan, setSavingKeterangan] = useState(false)
 
   const fetchData = async (showLoading = false) => {
     if (!user?.id) return
@@ -157,6 +162,26 @@ export default function History() {
       console.error('Gagal menghapus permohonan', e)
     } finally {
       setDeleting(false)
+    }
+  }
+
+  const handleSaveKeterangan = async (id: number) => {
+    if (!user?.id) return
+    setSavingKeterangan(true)
+    try {
+      const res = await fetch('/api/permohonan/keterangan', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id, user_id: user.id, keterangan: keteranganInput })
+      })
+      if (res.ok) {
+        setEditingKeterangan(null)
+        await fetchData(false)
+      }
+    } catch (e) {
+      console.error(e)
+    } finally {
+      setSavingKeterangan(false)
     }
   }
 
@@ -403,7 +428,49 @@ export default function History() {
                         </div>
                         <div className="permohonan-detail-text-wrap">
                           <span className="permohonan-detail-label">{t.descReason}</span>
-                          <span className="permohonan-detail-value-light">{item.keterangan || '-'}</span>
+                          <span className="permohonan-detail-value-light" style={{ display: 'flex', flexDirection: 'column' }}>
+                            {item.tipe !== 'Lembur' && <span>{item.keterangan || '-'}</span>}
+                            {item.tipe === 'Lembur' && (
+                              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                {item.keterangan_rencana && (
+                                  <div>
+                                    <strong style={{ fontSize: '0.85em', color: 'var(--text-secondary)' }}>Keterangan Rencana Lembur:</strong>
+                                    <div style={{ marginTop: '4px' }}>{item.keterangan_rencana}</div>
+                                  </div>
+                                )}
+                                <div style={{ paddingTop: item.keterangan_rencana ? '8px' : '0', borderTop: item.keterangan_rencana ? '1px solid rgba(255,255,255,0.1)' : 'none' }}>
+                                  <strong style={{ fontSize: '0.85em', color: 'var(--text-secondary)' }}>Keterangan Karyawan:</strong>
+                                  {editingKeterangan === item.id ? (
+                                    <div style={{ marginTop: '8px', display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                                      <textarea 
+                                        value={keteranganInput}
+                                        onChange={(e) => setKeteranganInput(e.target.value)}
+                                        placeholder="Tuliskan alasan/keterangan aktual..."
+                                        style={{ width: '100%', minHeight: '60px', padding: '8px', borderRadius: '8px', background: 'rgba(0,0,0,0.2)', border: '1px solid rgba(255,255,255,0.1)', color: 'white', resize: 'vertical' }}
+                                        onClick={(e) => e.stopPropagation()}
+                                      />
+                                      <div style={{ display: 'flex', gap: '8px', justifyContent: 'flex-end' }}>
+                                        <button className="btn-cancel" style={{ padding: '4px 12px', fontSize: '0.85em' }} onClick={(e) => { e.stopPropagation(); setEditingKeterangan(null); }}>Batal</button>
+                                        <button className="btn-confirm success" style={{ padding: '4px 12px', fontSize: '0.85em' }} onClick={(e) => { e.stopPropagation(); handleSaveKeterangan(item.id); }} disabled={savingKeterangan}>{savingKeterangan ? 'Menyimpan...' : 'Simpan'}</button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div style={{ marginTop: '4px' }}>
+                                      {item.keterangan_karyawan || <span style={{ fontStyle: 'italic', opacity: 0.5 }}>Belum ada keterangan</span>}
+                                      {item.status.toLowerCase().includes('pending') && (
+                                        <button 
+                                          style={{ display: 'block', marginTop: '4px', background: 'none', border: 'none', color: 'var(--accent-color)', cursor: 'pointer', fontSize: '0.85em', padding: 0, textDecoration: 'underline' }}
+                                          onClick={(e) => { e.stopPropagation(); setKeteranganInput(item.keterangan_karyawan || ''); setEditingKeterangan(item.id); }}
+                                        >
+                                          {item.keterangan_karyawan ? 'Edit Keterangan' : '+ Tambah Keterangan'}
+                                        </button>
+                                      )}
+                                    </div>
+                                  )}
+                                </div>
+                              </div>
+                            )}
+                          </span>
                         </div>
                       </div>
                       <div className="permohonan-detail-item">

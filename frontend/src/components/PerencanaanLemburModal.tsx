@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
-import { X, Calendar, Clock, FileText, CheckCircle, Users, Search, Edit2, Trash2 } from 'lucide-react';
+import { X, Calendar, Clock, FileText, CheckCircle, Users, Search, Edit2, Trash2, UserPlus } from 'lucide-react';
 import { useAuthStore } from '../store/auth.store';
 import { useToast } from '../contexts/ToastContext';
 import '../styles/izinmodal.css'; 
@@ -211,6 +211,16 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
     setKeterangan('');
     setSelectedKaryawan([]);
     setActiveTab('history');
+  };
+
+  const handleAddKaryawan = (group: any) => {
+    setEditId(null);
+    setTanggal(group.tanggal);
+    setJamMulai(group.jam_mulai.substring(0, 5));
+    setJamSelesai(group.jam_selesai.substring(0, 5));
+    setKeterangan(group.keterangan);
+    setSelectedKaryawan([]);
+    setActiveTab('form');
   };
 
   const groupedHistory = historyData.reduce((acc, item) => {
@@ -440,12 +450,21 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
                       <Users size={14} style={{ display: 'inline', marginRight: '4px', verticalAlign: 'text-bottom' }} />
                       {group.items.length} Karyawan
                     </div>
-                    <button 
-                      onClick={() => setExpandedGroups(prev => ({ ...prev, [idx]: !prev[idx] }))}
-                      style={{ background: 'none', border: 'none', color: 'var(--accent-color)', fontSize: '0.8rem', cursor: 'pointer', padding: 0 }}
-                    >
-                      {expandedGroups[idx] ? 'Sembunyikan' : 'Lihat Detail'}
-                    </button>
+                    <div style={{ display: 'flex', gap: '16px', alignItems: 'center' }}>
+                      <button 
+                        onClick={() => handleAddKaryawan(group)}
+                        style={{ background: 'none', border: 'none', color: '#10b981', fontSize: '0.8rem', cursor: 'pointer', padding: 0, display: 'flex', alignItems: 'center', gap: '4px' }}
+                        title="Tambah Karyawan ke Rencana Ini"
+                      >
+                        <UserPlus size={14} /> Tambah Karyawan
+                      </button>
+                      <button 
+                        onClick={() => setExpandedGroups(prev => ({ ...prev, [idx]: !prev[idx] }))}
+                        style={{ background: 'none', border: 'none', color: 'var(--accent-color)', fontSize: '0.8rem', cursor: 'pointer', padding: 0 }}
+                      >
+                        {expandedGroups[idx] ? 'Sembunyikan' : 'Lihat Detail'}
+                      </button>
+                    </div>
                   </div>
                   
                   {expandedGroups[idx] && (

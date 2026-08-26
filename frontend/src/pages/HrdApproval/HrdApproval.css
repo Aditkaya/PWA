@@ -731,3 +731,60 @@
 .text-success {
   color: #22c55e;
 }
+
+/* Time Input Styling */
+.time-edit-container {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 8px;
+  background: rgba(0, 0, 0, 0.2);
+  padding: 10px 16px;
+  border-radius: 12px;
+  border: 1px solid var(--glass-border);
+}
+
+.time-input-group {
+  display: flex;
+  align-items: center;
+  background: var(--card-bg-light, rgba(255, 255, 255, 0.05));
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 8px;
+  overflow: hidden;
+  transition: all 0.2s ease;
+}
+
+.time-input-group:focus-within {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 2px rgba(var(--accent-color-rgb, 59, 130, 246), 0.25);
+}
+
+.time-input-professional {
+  background: transparent;
+  border: none;
+  color: var(--text-primary, white);
+  padding: 8px 12px;
+  font-size: 1.05rem;
+  font-weight: 500;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+  letter-spacing: 1px;
+}
+
+.time-input-professional::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  opacity: 0.6;
+  cursor: pointer;
+  transition: opacity 0.2s;
+}
+
+.time-input-professional::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
+}
+
+.time-separator {
+  color: var(--text-secondary);
+  font-weight: 600;
+  font-size: 1.1rem;
+}

@@ -104,6 +104,25 @@ export default function Dashboard() {
       if (permRes.ok) {
         const permData = await permRes.json()
         setPermohonanData(permData.data)
+
+        const pendingLembur = permData.data.filter((item: any) => item.tipe === 'Lembur' && item.status.toLowerCase().includes('pending')).length;
+        const lastPendingLembur = parseInt(sessionStorage.getItem('pending_lembur_karyawan') || '0', 10);
+        
+        if (pendingLembur > lastPendingLembur && pendingLembur > 0) {
+          showToast(`Data lembur Anda telah masuk ke dalam antrean approval.`, 'info');
+          if ('Notification' in window) {
+            if (Notification.permission === 'granted') {
+              new Notification('Pengajuan Lembur', { body: `Data lembur Anda telah masuk dan menunggu persetujuan.` });
+            } else if (Notification.permission !== 'denied') {
+              Notification.requestPermission().then(permission => {
+                if (permission === 'granted') {
+                  new Notification('Pengajuan Lembur', { body: `Data lembur Anda telah masuk dan menunggu persetujuan.` });
+                }
+              });
+            }
+          }
+        }
+        sessionStorage.setItem('pending_lembur_karyawan', pendingLembur.toString());
       }
 
       // Fetch Profile

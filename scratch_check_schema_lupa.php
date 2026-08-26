@@ -2,5 +2,5 @@
 $_SERVER['SERVER_NAME'] = 'localhost';
 require 'backend/config/database.php';
 $pdo = Database::getConnection();
-$stmt = $pdo->query('DESCRIBE persetujuan_absensi_lemburs');
+$stmt = $pdo->query("SHOW COLUMNS FROM persetujuan_absensi_lupas");
 print_r($stmt->fetchAll(PDO::FETCH_ASSOC));

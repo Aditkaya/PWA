@@ -112,7 +112,7 @@ class ApprovalController {
             $lupa = $stmtLupa->fetchAll();
 
             $stmtLembur = $pdo->prepare("
-                SELECT b.id, b.karyawan_id, kr.nama_lengkap as pengaju, kr.nik, kr.pekerjaan, CONCAT('/uploads/avatars/avatar_', u.id, '.jpg') as foto_profil, 'Lembur' as tipe, 'Pengajuan Lembur' as jenis, b.tanggal as tanggal_mulai, b.tanggal as tanggal_selesai, CONCAT(b.jam_mulai, ' - ', b.jam_selesai) as waktu, b.keterangan, b.status, b.created_at, NULL as lampiran, spv_kr.nama_lengkap as nama_spv, hrd_kr.nama_lengkap as nama_hrd 
+                SELECT b.id, b.karyawan_id, kr.nama_lengkap as pengaju, kr.nik, kr.pekerjaan, CONCAT('/uploads/avatars/avatar_', u.id, '.jpg') as foto_profil, 'Lembur' as tipe, 'Pengajuan Lembur' as jenis, b.tanggal as tanggal_mulai, b.tanggal as tanggal_selesai, CONCAT(b.jam_mulai, ' - ', b.jam_selesai) as waktu, b.keterangan, b.keterangan_karyawan, b.status, b.created_at, NULL as lampiran, spv_kr.nama_lengkap as nama_spv, hrd_kr.nama_lengkap as nama_hrd, pl.keterangan as keterangan_rencana
                 FROM persetujuan_absensi_lemburs b 
                 LEFT JOIN karyawans kr ON b.karyawan_id = kr.id 
                 LEFT JOIN users u ON u.karyawan_id = kr.id
@@ -120,6 +120,7 @@ class ApprovalController {
                 LEFT JOIN karyawans spv_kr ON spv_u.karyawan_id = spv_kr.id
                 LEFT JOIN users hrd_u ON b.approved_by_hrd = hrd_u.id
                 LEFT JOIN karyawans hrd_kr ON hrd_u.karyawan_id = hrd_kr.id
+                LEFT JOIN perencanaan_lemburs pl ON pl.karyawan_id = b.karyawan_id AND pl.tanggal = b.tanggal
                 $whereClause
                 ORDER BY b.created_at DESC
             ");
@@ -223,32 +224,74 @@ class ApprovalController {
             $currentStatus = $record['status'];
             $newStatus = $status; // 'Disetujui' or 'Ditolak'
             
+            $jam_mulai = $requestData['jam_mulai'] ?? null;
+            $jam_selesai = $requestData['jam_selesai'] ?? null;
+            
+            $updateFields = "status = ?";
+            $updateParams = [];
+            
             if ($isHRD) {
-                if ($newStatus === 'Disetujui') {
-                    $stmt = $pdo->prepare("UPDATE $tableName SET status = ?, approved_by_hrd = ? WHERE id = ?");
-                    $stmt->execute([$valDisetujui, $user_id, $id]);
-                } else {
-                    $stmt = $pdo->prepare("UPDATE $tableName SET status = ?, approved_by_hrd = ? WHERE id = ?");
-                    $stmt->execute([$valDitolak, $user_id, $id]);
-                }
-                
-                // Keep backward compatibility for approved_by if exists
-                $stmtCols = $pdo->query("SHOW COLUMNS FROM $tableName LIKE 'approved_by'");
-                if ($stmtCols->fetch()) {
-                    $pdo->prepare("UPDATE $tableName SET approved_by = ? WHERE id = ?")->execute([$user_id, $id]);
-                }
+                $updateParams[] = ($newStatus === 'Disetujui') ? $valDisetujui : $valDitolak;
+                $updateFields .= ", approved_by_hrd = ?";
+                $updateParams[] = $user_id;
             } else if ($isSupervisor) {
                 if ($currentStatus !== 'Pending SPV' && strtolower($currentStatus) !== 'pending') {
                     http_response_code(403);
                     echo json_encode(['message' => 'Tidak dapat mengubah status pada tahap ini (status saat ini: ' . $currentStatus . ').']);
                     return;
                 }
-                if ($newStatus === 'Disetujui') {
-                    $stmt = $pdo->prepare("UPDATE $tableName SET status = ?, approved_by_spv = ? WHERE id = ?");
-                    $stmt->execute([$valPendingHrd, $user_id, $id]);
-                } else {
-                    $stmt = $pdo->prepare("UPDATE $tableName SET status = ?, approved_by_spv = ? WHERE id = ?");
-                    $stmt->execute([$valDitolak, $user_id, $id]);
+                $updateParams[] = ($newStatus === 'Disetujui') ? $valPendingHrd : $valDitolak;
+                $updateFields .= ", approved_by_spv = ?";
+                $updateParams[] = $user_id;
+            }
+
+            if ($isLembur && $jam_mulai && $jam_selesai) {
+                $updateFields .= ", jam_mulai = ?, jam_selesai = ?";
+                $updateParams[] = $jam_mulai;
+                $updateParams[] = $jam_selesai;
+            }
+            
+            $updateParams[] = $id;
+
+            $stmt = $pdo->prepare("UPDATE $tableName SET $updateFields WHERE id = ?");
+            $stmt->execute($updateParams);
+
+            if ($isLembur && $jam_mulai && $jam_selesai && $newStatus === 'Disetujui') {
+                $stmtGet = $pdo->prepare("SELECT karyawan_id, tanggal FROM $tableName WHERE id = ?");
+                $stmtGet->execute([$id]);
+                $lemburData = $stmtGet->fetch();
+                
+                if ($lemburData) {
+                    $kId = $lemburData['karyawan_id'];
+                    $tgl = $lemburData['tanggal'];
+                    
+                    // Update absensis untuk jam masuk lembur
+                    $stmtUpdateMasuk = $pdo->prepare("
+                        UPDATE absensis 
+                        SET waktu = CONCAT(?, ' ', ?) 
+                        WHERE karyawan_id = ? 
+                          AND DATE(waktu) = ? 
+                          AND LOWER(REPLACE(tipe, '_', ' ')) IN ('lembur masuk', 'mulai lembur', 'lembur')
+                    ");
+                    $stmtUpdateMasuk->execute([$tgl, $jam_mulai, $kId, $tgl]);
+                    
+                    // Update absensis untuk jam selesai lembur
+                    $stmtUpdateSelesai = $pdo->prepare("
+                        UPDATE absensis 
+                        SET waktu = CONCAT(?, ' ', ?) 
+                        WHERE karyawan_id = ? 
+                          AND DATE(waktu) = ? 
+                          AND LOWER(REPLACE(tipe, '_', ' ')) IN ('lembur pulang', 'selesai lembur', 'lembur keluar')
+                    ");
+                    $stmtUpdateSelesai->execute([$tgl, $jam_selesai, $kId, $tgl]);
+                }
+            }
+
+            if ($isHRD) {
+                // Keep backward compatibility for approved_by if exists
+                $stmtCols = $pdo->query("SHOW COLUMNS FROM $tableName LIKE 'approved_by'");
+                if ($stmtCols->fetch()) {
+                    $pdo->prepare("UPDATE $tableName SET approved_by = ? WHERE id = ?")->execute([$user_id, $id]);
                 }
             }
 

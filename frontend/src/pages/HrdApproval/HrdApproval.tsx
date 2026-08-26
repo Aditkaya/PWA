@@ -22,6 +22,8 @@ interface PermohonanItem {
   foto_profil?: string | null
   nama_spv?: string | null
   nama_hrd?: string | null
+  keterangan_rencana?: string | null
+  keterangan_karyawan?: string | null
 }
 
 export default function HrdApproval() {
@@ -37,6 +39,7 @@ export default function HrdApproval() {
   const [actionLoading, setActionLoading] = useState(false)
   const [enlargedPhoto, setEnlargedPhoto] = useState<string | null>(null)
   const [imageErrors, setImageErrors] = useState<string[]>([])
+  const [editedTimes, setEditedTimes] = useState<Record<number, { jam_mulai: string, jam_selesai: string }>>({})
   
   const [isSupervisor, setIsSupervisor] = useState(false)
   const [isHRD, setIsHRD] = useState(false)
@@ -71,18 +74,14 @@ export default function HrdApproval() {
         const result = await res.json()
         const rawData = result.data || []
         
-        // Menghapus duplikasi permohonan yang sama persis di hari yang sama
         const seen = new Set()
         const deduplicatedData = rawData.filter((item: any) => {
-          // Tidak menggunakan waktu sebagai pembeda agar pengajuan (seperti Izin Pulang Cepat) 
-          // yang disubmit berulang kali di hari yang sama hanya menampilkan yang terbaru.
           const key = `${item.nik}-${item.tipe}-${item.jenis}-${item.tanggal_mulai}`
           if (seen.has(key)) return false
           seen.add(key)
           return true
         })
 
-        // Mengurutkan agar status "Pending" selalu tampil di urutan paling atas
         deduplicatedData.sort((a: any, b: any) => {
           const isAPending = a.status.toLowerCase().includes('pending')
           const isBPending = b.status.toLowerCase().includes('pending')
@@ -107,7 +106,6 @@ export default function HrdApproval() {
     fetchData(true)
   }, [user])
 
-  // Hitung ringkasan statistik
   const stats = useMemo(() => {
     return {
       pending: data.filter(d => d.status.toLowerCase().includes('pending')).length,
@@ -149,15 +147,22 @@ export default function HrdApproval() {
           method: 'DELETE'
         });
       } else {
+        const body: any = { 
+          id: actionConfirm.item.id, 
+          tipe: actionConfirm.item.tipe, 
+          status: actionConfirm.action,
+          user_id: user.id 
+        };
+        
+        if (actionConfirm.item.tipe === 'Lembur' && editedTimes[actionConfirm.item.id]) {
+          body.jam_mulai = editedTimes[actionConfirm.item.id].jam_mulai;
+          body.jam_selesai = editedTimes[actionConfirm.item.id].jam_selesai;
+        }
+
         res = await fetch('/api/hrd/permohonan/status', {
           method: 'PUT',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            id: actionConfirm.item.id, 
-            tipe: actionConfirm.item.tipe, 
-            status: actionConfirm.action,
-            user_id: user.id 
-          })
+          body: JSON.stringify(body)
         });
       }
 
@@ -379,12 +384,63 @@ export default function HrdApproval() {
                       {item.waktu && (
                         <div className="detail-group">
                           <span className="detail-label">Waktu</span>
-                          <span className="detail-value">{item.waktu}</span>
+                          {item.tipe === 'Lembur' && item.status.toLowerCase().includes('pending') ? (
+                            <div className="time-edit-container">
+                              <div className="time-input-group">
+                                <input 
+                                  type="time" 
+                                  className="time-input-professional"
+                                  value={editedTimes[item.id]?.jam_mulai || item.waktu.split(' - ')[0]} 
+                                  onChange={(e) => {
+                                    const current = editedTimes[item.id] || { jam_mulai: (item.waktu || '').split(' - ')[0], jam_selesai: (item.waktu || '').split(' - ')[1] }
+                                    setEditedTimes({ ...editedTimes, [item.id]: { ...current, jam_mulai: e.target.value } })
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+                              <span className="time-separator">-</span>
+                              <div className="time-input-group">
+                                <input 
+                                  type="time" 
+                                  className="time-input-professional"
+                                  value={editedTimes[item.id]?.jam_selesai || item.waktu.split(' - ')[1]} 
+                                  onChange={(e) => {
+                                    const current = editedTimes[item.id] || { jam_mulai: (item.waktu || '').split(' - ')[0], jam_selesai: (item.waktu || '').split(' - ')[1] }
+                                    setEditedTimes({ ...editedTimes, [item.id]: { ...current, jam_selesai: e.target.value } })
+                                  }}
+                                  onClick={(e) => e.stopPropagation()}
+                                />
+                              </div>
+                            </div>
+                          ) : (
+                            <span className="detail-value">{item.waktu}</span>
+                          )}
                         </div>
                       )}
                       <div className="detail-group full-width">
                         <span className="detail-label">Keterangan / Alasan</span>
-                        <div className="reason-box">{item.keterangan || 'Tidak ada keterangan'}</div>
+                        <div className="reason-box">
+                          {item.tipe !== 'Lembur' && (item.keterangan || 'Tidak ada keterangan')}
+                          {item.tipe === 'Lembur' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              {item.keterangan_rencana && (
+                                <div>
+                                  <strong style={{ fontSize: '0.85em', color: 'var(--text-secondary)' }}>Keterangan Rencana Lembur:</strong>
+                                  <div style={{ marginTop: '4px' }}>{item.keterangan_rencana}</div>
+                                </div>
+                              )}
+                              {item.keterangan_karyawan && (
+                                <div style={{ paddingTop: item.keterangan_rencana ? '8px' : '0', borderTop: item.keterangan_rencana ? '1px solid rgba(255,255,255,0.1)' : 'none' }}>
+                                  <strong style={{ fontSize: '0.85em', color: 'var(--text-secondary)' }}>Keterangan Aktual Karyawan:</strong>
+                                  <div style={{ marginTop: '4px' }}>{item.keterangan_karyawan}</div>
+                                </div>
+                              )}
+                              {!item.keterangan_rencana && !item.keterangan_karyawan && (
+                                <span style={{ fontStyle: 'italic', opacity: 0.5 }}>Belum ada keterangan</span>
+                              )}
+                            </div>
+                          )}
+                        </div>
                       </div>
                       
                       {(item.nama_spv || item.nama_hrd) && (

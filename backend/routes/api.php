@@ -140,6 +140,13 @@ if ($uri === '/api/cuti' && $method === 'POST') {
     exit();
 }
 
+if ($uri === '/api/attendance/lupa' && $method === 'POST') {
+    require_once __DIR__ . '/../app/Http/Controllers/PermohonanController.php';
+    $controller = new \App\Http\Controllers\PermohonanController();
+    $controller->submitLupaAbsen($_POST);
+    exit();
+}
+
 if ($uri === '/api/permohonan' && $method === 'GET') {
     require_once __DIR__ . '/../app/Http/Controllers/PermohonanController.php';
     $controller = new \App\Http\Controllers\PermohonanController();
@@ -151,6 +158,13 @@ if ($uri === '/api/permohonan' && $method === 'DELETE') {
     require_once __DIR__ . '/../app/Http/Controllers/PermohonanController.php';
     $controller = new \App\Http\Controllers\PermohonanController();
     $controller->deletePermohonan($requestData);
+    exit();
+}
+
+if ($uri === '/api/permohonan/keterangan' && $method === 'PUT') {
+    require_once __DIR__ . '/../app/Http/Controllers/PermohonanController.php';
+    $controller = new \App\Http\Controllers\PermohonanController();
+    $controller->updateKeteranganKaryawan($requestData);
     exit();
 }
 

@@ -133,6 +133,52 @@ class PermohonanController {
         }
     }
 
+    public function submitLupaAbsen($postData) {
+        $user_id = $postData['user_id'] ?? null;
+        $tanggal = $postData['tanggal'] ?? null;
+        $tipe_absen = $postData['tipe_absen'] ?? null;
+        $waktu = $postData['waktu'] ?? null;
+        $alasan = $postData['alasan'] ?? '';
+
+        if (!$user_id || !$tanggal || !$tipe_absen || !$waktu) {
+            http_response_code(400);
+            echo json_encode(['message' => 'Lengkapi semua field tanggal, waktu, dan alasan!']);
+            return;
+        }
+
+        try {
+            $pdo = Database::getConnection();
+            $stmtUser = $pdo->prepare("SELECT karyawan_id FROM users WHERE id = ?");
+            $stmtUser->execute([$user_id]);
+            $userData = $stmtUser->fetch();
+            $karyawan_id = $userData ? $userData['karyawan_id'] : null;
+
+            if (!$karyawan_id) {
+                http_response_code(400);
+                echo json_encode(['message' => 'Data karyawan tidak ditemukan']);
+                return;
+            }
+
+            $stmt = $pdo->prepare("
+                INSERT INTO persetujuan_absensi_lupas (karyawan_id, tanggal, tipe_absen, waktu, alasan, status, created_at, updated_at) 
+                VALUES (:karyawan_id, :tanggal, :tipe_absen, :waktu, :alasan, 'pending', NOW(), NOW())
+            ");
+            $stmt->execute([
+                'karyawan_id' => $karyawan_id,
+                'tanggal' => $tanggal,
+                'tipe_absen' => $tipe_absen,
+                'waktu' => $waktu,
+                'alasan' => $alasan
+            ]);
+
+            echo json_encode(['message' => 'Success']);
+        } catch (\PDOException $e) {
+            http_response_code(500);
+            error_log('Database error: ' . $e->getMessage());
+            echo json_encode(['message' => 'Terjadi kesalahan pada server']);
+        }
+    }
+
     public function getPermohonan($getData) {
         $user_id = $getData['user_id'] ?? null;
         if (!$user_id) {
@@ -165,7 +211,7 @@ class PermohonanController {
             $stmtLupa->execute([$karyawan_id]);
             $lupa = $stmtLupa->fetchAll();
 
-            $stmtLembur = $pdo->prepare("SELECT b.id, 'Lembur' as tipe, 'Pengajuan Lembur' as jenis, b.tanggal as tanggal_mulai, b.tanggal as tanggal_selesai, CONCAT(b.jam_mulai, ' - ', b.jam_selesai) as waktu, b.keterangan, b.status, b.created_at, COALESCE(k.nama_lengkap, u.username) as approved_by_name FROM persetujuan_absensi_lemburs b LEFT JOIN users u ON b.approved_by = u.id LEFT JOIN karyawans k ON u.karyawan_id = k.id WHERE b.karyawan_id = ? ORDER BY b.created_at DESC");
+            $stmtLembur = $pdo->prepare("SELECT b.id, 'Lembur' as tipe, 'Pengajuan Lembur' as jenis, b.tanggal as tanggal_mulai, b.tanggal as tanggal_selesai, CONCAT(b.jam_mulai, ' - ', b.jam_selesai) as waktu, b.keterangan, b.keterangan_karyawan, b.status, b.created_at, COALESCE(k.nama_lengkap, u.username) as approved_by_name, pl.keterangan as keterangan_rencana FROM persetujuan_absensi_lemburs b LEFT JOIN users u ON b.approved_by = u.id LEFT JOIN karyawans k ON u.karyawan_id = k.id LEFT JOIN perencanaan_lemburs pl ON pl.karyawan_id = b.karyawan_id AND pl.tanggal = b.tanggal WHERE b.karyawan_id = ? ORDER BY b.created_at DESC");
             $stmtLembur->execute([$karyawan_id]);
             $lembur = $stmtLembur->fetchAll();
 
@@ -244,6 +290,58 @@ class PermohonanController {
 
             http_response_code(200);
             echo json_encode(['message' => 'Permohonan berhasil dihapus']);
+        } catch (\PDOException $e) {
+            http_response_code(500);
+            error_log('Database error: ' . $e->getMessage());
+            echo json_encode(['message' => 'Terjadi kesalahan pada server']);
+        }
+    }
+    
+    public function updateKeteranganKaryawan($requestData) {
+        $id = $requestData['id'] ?? null;
+        $keterangan = $requestData['keterangan'] ?? null;
+        $user_id = $requestData['user_id'] ?? null;
+
+        if (!$id || !$user_id || $keterangan === null) {
+            http_response_code(400);
+            echo json_encode(['message' => 'Data id, keterangan, dan user_id diperlukan']);
+            return;
+        }
+
+        try {
+            $pdo = Database::getConnection();
+            
+            $stmtUser = $pdo->prepare("SELECT karyawan_id FROM users WHERE id = ?");
+            $stmtUser->execute([$user_id]);
+            $userData = $stmtUser->fetch();
+            if (!$userData) {
+                http_response_code(404);
+                echo json_encode(['message' => 'User tidak ditemukan']);
+                return;
+            }
+            $karyawan_id = $userData['karyawan_id'];
+
+            $stmtCek = $pdo->prepare("SELECT id, status FROM persetujuan_absensi_lemburs WHERE id = ? AND karyawan_id = ?");
+            $stmtCek->execute([$id, $karyawan_id]);
+            $record = $stmtCek->fetch();
+
+            if (!$record) {
+                http_response_code(404);
+                echo json_encode(['message' => 'Permohonan lembur tidak ditemukan']);
+                return;
+            }
+
+            if (strpos(strtolower($record['status']), 'pending') === false) {
+                http_response_code(403);
+                echo json_encode(['message' => 'Hanya permohonan berstatus Pending yang dapat diubah']);
+                return;
+            }
+
+            $stmtUpdate = $pdo->prepare("UPDATE persetujuan_absensi_lemburs SET keterangan_karyawan = ? WHERE id = ?");
+            $stmtUpdate->execute([$keterangan, $id]);
+
+            http_response_code(200);
+            echo json_encode(['message' => 'Keterangan berhasil disimpan']);
         } catch (\PDOException $e) {
             http_response_code(500);
             error_log('Database error: ' . $e->getMessage());

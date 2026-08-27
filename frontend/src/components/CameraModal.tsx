@@ -440,7 +440,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
 
     ctx.fillStyle = '#06b6d4';
     ctx.font = `bold ${9.5 * s}px sans-serif`;
-    ctx.fillText('© AYPSIS Attendance', padding + (12 * s), currentY);
+    ctx.fillText('© AYPSIS Attendance | AI: SSD MobileNet V1', padding + (12 * s), currentY);
 
     if (locationCoords) {
       try {
@@ -568,6 +568,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
               {currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':')}
             </p>
             <p className="brand-text">© AYPSIS Attendance</p>
+            <p style={{ fontSize: '0.75rem', color: '#4ade80', marginTop: '2px', fontWeight: 'bold' }}>AI Engine: SSD MobileNet V1</p>
           </div>
 
           {outOfRangeMessage && (

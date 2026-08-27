@@ -114,6 +114,45 @@ export default function History() {
     setSelectedDay(null)
   }
 
+  const getIndicatorsForDay = (day: number) => {
+    const formattedMonth = String(currentDate.getMonth() + 1).padStart(2, '0')
+    const formattedDay = String(day).padStart(2, '0')
+    const dateString = `${currentDate.getFullYear()}-${formattedMonth}-${formattedDay}`
+    
+    const dayEvents = historyData.filter(event => event.date === dateString)
+    const dayPermohonan = permohonanData.filter(p => p.tanggal_mulai <= dateString && p.tanggal_selesai >= dateString && p.status === 'Disetujui')
+    
+    const dots: { id: string | number, class: string, title: string }[] = []
+    
+    dayEvents.forEach(ev => {
+      let dotClass = 'dot-default'
+      if (ev.type.toLowerCase().includes('in') || ev.type.toLowerCase().includes('masuk')) {
+        dotClass = 'dot-checkin'
+        if (ev.status.toLowerCase().includes('terlambat')) dotClass = 'dot-late'
+      } else if (ev.type.toLowerCase().includes('out') || ev.type.toLowerCase().includes('pulang')) {
+        dotClass = 'dot-checkout'
+        if (ev.status.toLowerCase().includes('cepat')) dotClass = 'dot-early'
+      } else if (ev.type.toLowerCase().includes('izin')) {
+        dotClass = 'dot-permit'
+      } else if (ev.type.toLowerCase().includes('istirahat')) {
+        dotClass = 'dot-break'
+      }
+      dots.push({ id: `ev-${ev.id}`, class: dotClass, title: `${ev.type} - ${ev.status}` })
+    })
+
+    dayPermohonan.forEach(p => {
+      if (p.tipe === 'Izin' && p.jenis.toLowerCase().includes('sakit')) {
+        dots.push({ id: `p-${p.id}`, class: 'dot-sick', title: 'Sakit' })
+      } else if (p.tipe === 'Cuti') {
+        dots.push({ id: `p-${p.id}`, class: 'dot-leave', title: 'Cuti' })
+      } else if (p.tipe === 'Izin' && !p.jenis.toLowerCase().includes('sakit')) {
+        dots.push({ id: `p-${p.id}`, class: 'dot-permit', title: 'Izin' })
+      }
+    })
+
+    return dots
+  }
+
   // Get events for a specific day
   const getEventsForDay = (day: number) => {
     const formattedMonth = String(currentDate.getMonth() + 1).padStart(2, '0')
@@ -230,7 +269,6 @@ export default function History() {
                 <div key={`blank-${idx}`} className="calendar-cell empty"></div>
               ))}
               {days.map((day) => {
-                const events = getEventsForDay(day)
                 const realToday = new Date()
                 const isToday = day === realToday.getDate() && currentDate.getMonth() === realToday.getMonth() && currentDate.getFullYear() === realToday.getFullYear()
                 const isSelected = selectedDay === day
@@ -248,15 +286,9 @@ export default function History() {
                   >
                     <span className="day-number">{day}</span>
                     <div className="event-dots">
-                      {events.map(ev => {
-                        let dotClass = 'dot-default'
-                        if (ev.type.toLowerCase().includes('in') || ev.type.toLowerCase().includes('masuk')) dotClass = 'dot-checkin'
-                        if (ev.type.toLowerCase().includes('out') || ev.type.toLowerCase().includes('pulang')) dotClass = 'dot-checkout'
-                        if (ev.type.toLowerCase().includes('izin')) dotClass = 'dot-permit'
-                        if (ev.type.toLowerCase().includes('istirahat')) dotClass = 'dot-break'
-                        
-                        return <span key={ev.id} className={`event-dot ${dotClass}`} title={ev.type}></span>
-                      })}
+                      {getIndicatorsForDay(day).map(dot => (
+                        <span key={dot.id} className={`event-dot ${dot.class}`} title={dot.title}></span>
+                      ))}
                     </div>
                     {holiday && <span className="holiday-desc">{holiday.keterangan}</span>}
                   </div>

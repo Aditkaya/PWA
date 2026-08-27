@@ -795,6 +795,10 @@ body {
 .event-dot.dot-checkin { background: #34d399; box-shadow: 0 0 6px rgba(52, 211, 153, 0.6); }
 .event-dot.dot-checkout { background: #f87171; box-shadow: 0 0 6px rgba(248, 113, 113, 0.6); }
 .event-dot.dot-permit { background: #c084fc; box-shadow: 0 0 6px rgba(192, 132, 252, 0.6); }
+.event-dot.dot-late { background: #f97316; box-shadow: 0 0 6px rgba(249, 115, 22, 0.6); }
+.event-dot.dot-early { background: #eab308; box-shadow: 0 0 6px rgba(234, 179, 8, 0.6); }
+.event-dot.dot-sick { background: #3b82f6; box-shadow: 0 0 6px rgba(59, 130, 246, 0.6); }
+.event-dot.dot-leave { background: #06b6d4; box-shadow: 0 0 6px rgba(6, 182, 212, 0.6); }
 
 .calendar-cell.selected {
   background: var(--accent-color);

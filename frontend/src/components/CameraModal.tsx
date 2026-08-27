@@ -586,40 +586,9 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
 
           {/* Center Guide */}
           {isCameraReady && (
-            <svg className="camera-overlay-frame" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
-              <defs>
-                <mask id="cutout-mask">
-                  <rect width="100%" height="100%" fill="white" />
-                  <svg x="50%" y="45%" style={{ overflow: 'visible' }}>
-                    <path d="M 0 -170
-                             C -80 -170, -120 -130, -120 -60
-                             C -120 0, -100 40, -80 60
-                             C -70 80, -70 100, -90 120
-                             C -120 140, -150 160, -150 200
-                             L 150 200
-                             C 150 160, 120 140, 90 120
-                             C 70 100, 70 80, 80 60
-                             C 100 40, 120 0, 120 -60
-                             C 120 -130, 80 -170, 0 -170 Z" 
-                          fill="black" />
-                  </svg>
-                </mask>
-              </defs>
-              <rect width="100%" height="100%" fill="rgba(0, 0, 0, 0.6)" mask="url(#cutout-mask)" />
-              <svg x="50%" y="45%" style={{ overflow: 'visible' }}>
-                <path d="M 0 -170
-                         C -80 -170, -120 -130, -120 -60
-                         C -120 0, -100 40, -80 60
-                         C -70 80, -70 100, -90 120
-                         C -120 140, -150 160, -150 200
-                         L 150 200
-                         C 150 160, 120 140, 90 120
-                         C 70 100, 70 80, 80 60
-                         C 100 40, 120 0, 120 -60
-                         C 120 -130, 80 -170, 0 -170 Z" 
-                      fill="none" stroke="white" strokeWidth={3} strokeDasharray="10 10" strokeLinecap="round" />
-              </svg>
-            </svg>
+            <div className="camera-overlay-frame">
+              <div className="face-guide"></div>
+            </div>
           )}
 
         {/* Status Overlay */}

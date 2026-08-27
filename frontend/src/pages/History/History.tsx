@@ -297,10 +297,20 @@ export default function History() {
                   </div>
                 )
               })}
+              </div>
             </div>
-          </div>
 
-          {selectedDay && (
+            <div className="calendar-legend glass-panel">
+              <div className="legend-item"><span className="event-dot dot-checkin"></span> Tepat Waktu</div>
+              <div className="legend-item"><span className="event-dot dot-late"></span> Terlambat</div>
+              <div className="legend-item"><span className="event-dot dot-checkout"></span> Pulang</div>
+              <div className="legend-item"><span className="event-dot dot-early"></span> Pulang Cepat</div>
+              <div className="legend-item"><span className="event-dot dot-sick"></span> Sakit</div>
+              <div className="legend-item"><span className="event-dot dot-leave"></span> Cuti</div>
+              <div className="legend-item"><span className="event-dot dot-permit"></span> Izin</div>
+            </div>
+
+            {selectedDay && (
             <div className="selected-date-details fade-in">
               <h3 className="detail-title">
                 {t.detail}: {selectedDay} {monthNames[currentDate.getMonth()]} {currentDate.getFullYear()}

@@ -12,8 +12,9 @@ interface FaceRegistrationModalProps {
   onClose: () => void;
 }
 
-// Global cache variables to prevent reloading AI models
 let globalModelsPromise: Promise<any> | null = null;
+
+const faceDetectorOptions = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 });
 
 export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: FaceRegistrationModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -56,7 +57,7 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
       }
 
       try {
-        const detection = await faceapi.detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })).withFaceLandmarks();
+        const detection = await faceapi.detectSingleFace(video, faceDetectorOptions).withFaceLandmarks();
         if (detection) {
           setHasFace(true);
           if (overlayCanvasRef.current) {
@@ -177,7 +178,7 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
 
     // Basic face detection
     setStatusMsg('Menganalisis wajah...');
-    const detection = await faceapi.detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })).withFaceLandmarks();
+    const detection = await faceapi.detectSingleFace(video, faceDetectorOptions).withFaceLandmarks();
 
     if (detection) {
       setStatusMsg('Mengunggah data wajah...');

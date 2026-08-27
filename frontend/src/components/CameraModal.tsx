@@ -13,6 +13,11 @@ let globalModelsPromise: Promise<any> | null = null;
 let globalProfileDescriptor: Float32Array | null = null;
 let globalUserId: number | string | null = null;
 
+const faceDetectorOptions = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 });
+const activeAiModel = ((faceDetectorOptions as any) instanceof faceapi.SsdMobilenetv1Options) ? 'SSD MobileNet V1' : 
+                      ((faceDetectorOptions as any) instanceof faceapi.TinyFaceDetectorOptions) ? 'Tiny Face Detector' : 
+                      'AI Engine';
+
 interface CameraModalProps {
   isOpen: boolean;
   onClose: () => void;
@@ -205,7 +210,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       }
 
       try {
-        const detection = await faceapi.detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })).withFaceLandmarks().withFaceDescriptor();
+        const detection = await faceapi.detectSingleFace(video, faceDetectorOptions).withFaceLandmarks().withFaceDescriptor();
         if (detection) {
           const distance = faceapi.euclideanDistance(detection.descriptor, profileDescriptor);
           
@@ -280,7 +285,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
                 img.onerror = () => reject(new Error('Gagal memuat gambar profil'));
               });
               
-              const detection = await faceapi.detectSingleFace(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })).withFaceLandmarks().withFaceDescriptor();
+              const detection = await faceapi.detectSingleFace(img, faceDetectorOptions).withFaceLandmarks().withFaceDescriptor();
               URL.revokeObjectURL(objUrl);
 
               if (detection) {
@@ -440,7 +445,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
 
     ctx.fillStyle = '#06b6d4';
     ctx.font = `bold ${9.5 * s}px sans-serif`;
-    ctx.fillText('© AYPSIS Attendance | AI: SSD MobileNet V1', padding + (12 * s), currentY);
+    ctx.fillText(`© AYPSIS Attendance | AI: ${activeAiModel}`, padding + (12 * s), currentY);
 
     if (locationCoords) {
       try {
@@ -493,7 +498,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     const imageSrc = canvas.toDataURL('image/jpeg', 0.8);
 
     // Validasi Wajah
-    const detection = await faceapi.detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })).withFaceLandmarks();
+    const detection = await faceapi.detectSingleFace(video, faceDetectorOptions).withFaceLandmarks();
 
     if (detection) {
       setStatusMsg(t.faceDetected);
@@ -568,7 +573,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
               {currentTime.toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit', second: '2-digit' }).replace(/\./g, ':')}
             </p>
             <p className="brand-text">© AYPSIS Attendance</p>
-            <p style={{ fontSize: '0.75rem', color: '#4ade80', marginTop: '2px', fontWeight: 'bold' }}>AI Engine: SSD MobileNet V1</p>
+            <p style={{ fontSize: '0.75rem', color: '#4ade80', marginTop: '2px', fontWeight: 'bold' }}>AI Engine: {activeAiModel}</p>
           </div>
 
           {outOfRangeMessage && (

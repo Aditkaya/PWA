@@ -120,7 +120,10 @@ export default function History() {
     const dateString = `${currentDate.getFullYear()}-${formattedMonth}-${formattedDay}`
     
     const dayEvents = historyData.filter(event => event.date === dateString)
-    const dayPermohonan = permohonanData.filter(p => p.tanggal_mulai <= dateString && p.tanggal_selesai >= dateString && p.status === 'Disetujui')
+    const dayPermohonan = permohonanData.filter(p => {
+      const isApproved = p.status.toLowerCase() === 'disetujui' || p.status.toLowerCase() === 'approved';
+      return p.tanggal_mulai <= dateString && p.tanggal_selesai >= dateString && isApproved;
+    })
     
     const dots: { id: string | number, class: string, title: string }[] = []
     
@@ -128,16 +131,16 @@ export default function History() {
       let dotClass = 'dot-default'
       if (ev.type.toLowerCase().includes('in') || ev.type.toLowerCase().includes('masuk')) {
         dotClass = 'dot-checkin'
-        if (ev.status.toLowerCase().includes('terlambat')) dotClass = 'dot-late'
+        if (ev.time > '09:00' || (ev.status && ev.status.toLowerCase().includes('terlambat'))) dotClass = 'dot-late'
       } else if (ev.type.toLowerCase().includes('out') || ev.type.toLowerCase().includes('pulang')) {
         dotClass = 'dot-checkout'
-        if (ev.status.toLowerCase().includes('cepat')) dotClass = 'dot-early'
+        if (ev.time < '17:00' || (ev.status && ev.status.toLowerCase().includes('cepat'))) dotClass = 'dot-early'
       } else if (ev.type.toLowerCase().includes('izin')) {
         dotClass = 'dot-permit'
       } else if (ev.type.toLowerCase().includes('istirahat')) {
         dotClass = 'dot-break'
       }
-      dots.push({ id: `ev-${ev.id}`, class: dotClass, title: `${ev.type} - ${ev.status}` })
+      dots.push({ id: `ev-${ev.id}`, class: dotClass, title: `${ev.type} - ${ev.time}` })
     })
 
     dayPermohonan.forEach(p => {

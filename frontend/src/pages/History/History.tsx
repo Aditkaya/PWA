@@ -131,15 +131,11 @@ export default function History() {
       let dotClass = null
       let dotTitle = null
       if (ev.type.toLowerCase().includes('in') || ev.type.toLowerCase().includes('masuk')) {
-        if (ev.time > '09:00' || (ev.status && ev.status.toLowerCase().includes('terlambat'))) {
-          dotClass = 'dot-late'
-          dotTitle = `Terlambat - ${ev.time}`
-        }
+        dotClass = 'dot-checkin'
+        dotTitle = `Masuk - ${ev.time}`
       } else if (ev.type.toLowerCase().includes('out') || ev.type.toLowerCase().includes('pulang')) {
-        if (ev.time < '17:00' || (ev.status && ev.status.toLowerCase().includes('cepat'))) {
-          dotClass = 'dot-early'
-          dotTitle = `Pulang Cepat - ${ev.time}`
-        }
+        dotClass = 'dot-checkout'
+        dotTitle = `Pulang - ${ev.time}`
       } else if (ev.type.toLowerCase().includes('izin')) {
         dotClass = 'dot-permit'
         dotTitle = `Izin - ${ev.time}`
@@ -308,8 +304,8 @@ export default function History() {
             </div>
 
             <div className="calendar-legend glass-panel">
-              <div className="legend-item"><span className="event-dot dot-late"></span> Terlambat</div>
-              <div className="legend-item"><span className="event-dot dot-early"></span> Pulang Cepat</div>
+              <div className="legend-item"><span className="event-dot dot-checkin"></span> Masuk</div>
+              <div className="legend-item"><span className="event-dot dot-checkout"></span> Pulang</div>
               <div className="legend-item"><span className="event-dot dot-sick"></span> Sakit</div>
               <div className="legend-item"><span className="event-dot dot-leave"></span> Cuti</div>
               <div className="legend-item"><span className="event-dot dot-permit"></span> Izin</div>

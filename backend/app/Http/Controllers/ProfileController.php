@@ -331,11 +331,11 @@ class ProfileController {
                 return;
             }
 
-            if ($user['face_verified_at']) {
-                http_response_code(400);
-                echo json_encode(['message' => 'Wajah sudah terverifikasi sebelumnya']);
-                return;
-            }
+            // if ($user['face_verified_at']) {
+            //     http_response_code(400);
+            //     echo json_encode(['message' => 'Wajah sudah terverifikasi sebelumnya']);
+            //     return;
+            // }
 
             $nik = $user['nik'] ?? $user['nik_tt'] ?? 'UNKNOWN';
             $nama = $user['nama_karyawan'] ?? $user['nama_tt'] ?? 'UNKNOWN';

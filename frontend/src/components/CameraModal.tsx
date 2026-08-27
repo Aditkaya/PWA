@@ -205,11 +205,11 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       }
 
       try {
-        const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224 })).withFaceLandmarks().withFaceDescriptor();
+        const detection = await faceapi.detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })).withFaceLandmarks().withFaceDescriptor();
         if (detection) {
           const distance = faceapi.euclideanDistance(detection.descriptor, profileDescriptor);
           
-          if (distance < 0.55) {
+          if (distance < 0.58) {
             setIsLivenessPassed(true);
             setLivenessMsg("Wajah Cocok! Verifikasi Berhasil.");
             
@@ -249,7 +249,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       try {
         if (!globalModelsPromise) {
           globalModelsPromise = Promise.all([
-            faceapi.nets.tinyFaceDetector.loadFromUri('/models'),
+            faceapi.nets.ssdMobilenetv1.loadFromUri('/models'),
             faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
             faceapi.nets.faceRecognitionNet.loadFromUri('/models')
           ]);
@@ -280,7 +280,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
                 img.onerror = () => reject(new Error('Gagal memuat gambar profil'));
               });
               
-              const detection = await faceapi.detectSingleFace(img, new faceapi.TinyFaceDetectorOptions({ inputSize: 224 })).withFaceLandmarks().withFaceDescriptor();
+              const detection = await faceapi.detectSingleFace(img, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })).withFaceLandmarks().withFaceDescriptor();
               URL.revokeObjectURL(objUrl);
 
               if (detection) {
@@ -493,7 +493,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     const imageSrc = canvas.toDataURL('image/jpeg', 0.8);
 
     // Validasi Wajah
-    const detection = await faceapi.detectSingleFace(video, new faceapi.TinyFaceDetectorOptions({ inputSize: 224 })).withFaceLandmarks();
+    const detection = await faceapi.detectSingleFace(video, new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 })).withFaceLandmarks();
 
     if (detection) {
       setStatusMsg(t.faceDetected);

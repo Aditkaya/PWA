@@ -127,18 +127,31 @@ export default function History() {
     
     const dots: { id: string | number, class: string, title: string }[] = []
     
+    let hasCheckin = false;
+    let hasCheckout = false;
+    let hasPermit = false;
+    
     dayEvents.forEach(ev => {
       let dotClass = null
       let dotTitle = null
       if (ev.type.toLowerCase().includes('in') || ev.type.toLowerCase().includes('masuk')) {
-        dotClass = 'dot-checkin'
-        dotTitle = `Masuk - ${ev.time}`
+        if (!hasCheckin) {
+          dotClass = 'dot-checkin'
+          dotTitle = `Masuk - ${ev.time}`
+          hasCheckin = true
+        }
       } else if (ev.type.toLowerCase().includes('out') || ev.type.toLowerCase().includes('pulang')) {
-        dotClass = 'dot-checkout'
-        dotTitle = `Pulang - ${ev.time}`
+        if (!hasCheckout) {
+          dotClass = 'dot-checkout'
+          dotTitle = `Pulang - ${ev.time}`
+          hasCheckout = true
+        }
       } else if (ev.type.toLowerCase().includes('izin')) {
-        dotClass = 'dot-permit'
-        dotTitle = `Izin - ${ev.time}`
+        if (!hasPermit) {
+          dotClass = 'dot-permit'
+          dotTitle = `Izin - ${ev.time}`
+          hasPermit = true
+        }
       }
       
       if (dotClass && dotTitle) {

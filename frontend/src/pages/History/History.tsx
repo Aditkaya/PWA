@@ -128,19 +128,26 @@ export default function History() {
     const dots: { id: string | number, class: string, title: string }[] = []
     
     dayEvents.forEach(ev => {
-      let dotClass = 'dot-default'
+      let dotClass = null
+      let dotTitle = null
       if (ev.type.toLowerCase().includes('in') || ev.type.toLowerCase().includes('masuk')) {
-        dotClass = 'dot-checkin'
-        if (ev.time > '09:00' || (ev.status && ev.status.toLowerCase().includes('terlambat'))) dotClass = 'dot-late'
+        if (ev.time > '09:00' || (ev.status && ev.status.toLowerCase().includes('terlambat'))) {
+          dotClass = 'dot-late'
+          dotTitle = `Terlambat - ${ev.time}`
+        }
       } else if (ev.type.toLowerCase().includes('out') || ev.type.toLowerCase().includes('pulang')) {
-        dotClass = 'dot-checkout'
-        if (ev.time < '17:00' || (ev.status && ev.status.toLowerCase().includes('cepat'))) dotClass = 'dot-early'
+        if (ev.time < '17:00' || (ev.status && ev.status.toLowerCase().includes('cepat'))) {
+          dotClass = 'dot-early'
+          dotTitle = `Pulang Cepat - ${ev.time}`
+        }
       } else if (ev.type.toLowerCase().includes('izin')) {
         dotClass = 'dot-permit'
-      } else if (ev.type.toLowerCase().includes('istirahat')) {
-        dotClass = 'dot-break'
+        dotTitle = `Izin - ${ev.time}`
       }
-      dots.push({ id: `ev-${ev.id}`, class: dotClass, title: `${ev.type} - ${ev.time}` })
+      
+      if (dotClass && dotTitle) {
+        dots.push({ id: `ev-${ev.id}`, class: dotClass, title: dotTitle })
+      }
     })
 
     dayPermohonan.forEach(p => {
@@ -301,9 +308,7 @@ export default function History() {
             </div>
 
             <div className="calendar-legend glass-panel">
-              <div className="legend-item"><span className="event-dot dot-checkin"></span> Tepat Waktu</div>
               <div className="legend-item"><span className="event-dot dot-late"></span> Terlambat</div>
-              <div className="legend-item"><span className="event-dot dot-checkout"></span> Pulang</div>
               <div className="legend-item"><span className="event-dot dot-early"></span> Pulang Cepat</div>
               <div className="legend-item"><span className="event-dot dot-sick"></span> Sakit</div>
               <div className="legend-item"><span className="event-dot dot-leave"></span> Cuti</div>

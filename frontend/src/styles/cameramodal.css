@@ -88,27 +88,14 @@
   left: 0;
   width: 100%;
   height: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   pointer-events: none;
   z-index: 5;
 }
 
-.face-guide-svg {
-  width: 100%;
-  height: 100%;
-}
 
-.head-shape-group {
-  /* Center the 300x400 path in the middle of the screen */
-  transform: translate(calc(50% - 150px), calc(50% - 200px));
-}
-
-@media (max-width: 500px) {
-  .head-shape-group {
-    /* Scale down slightly for very small mobile screens */
-    transform: translate(calc(50% - 150px), calc(50% - 200px)) scale(0.85);
-    transform-origin: center;
-  }
-}
 
 /* BOTTOM CONTROLS */
 .camera-bottom-controls {

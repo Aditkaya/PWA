@@ -584,12 +584,43 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
           )}
         </div>
 
-        {/* Center Guide */}
-        {isCameraReady && (
-          <div className="camera-overlay-frame">
-            <div className="face-guide"></div>
-          </div>
-        )}
+          {/* Center Guide (Head Silhouette) */}
+          {isCameraReady && (
+            <div className="camera-overlay-frame">
+              <svg width="100%" height="100%" className="face-guide-svg">
+                <defs>
+                  <mask id="head-mask">
+                    <rect width="100%" height="100%" fill="white" />
+                    <g className="head-shape-group">
+                      <path d="M 150 40 
+                               C 90 40, 70 80, 70 140 
+                               C 70 190, 90 220, 110 240 
+                               C 115 260, 110 270, 90 280 
+                               C 50 300, 20 340, 10 400 
+                               L 290 400 
+                               C 280 340, 250 300, 210 280 
+                               C 190 270, 185 260, 190 240 
+                               C 210 220, 230 190, 230 140 
+                               C 230 80, 210 40, 150 40 Z" fill="black" />
+                    </g>
+                  </mask>
+                </defs>
+                <rect width="100%" height="100%" fill="rgba(0,0,0,0.7)" mask="url(#head-mask)" />
+                <g className="head-shape-group">
+                  <path d="M 150 40 
+                           C 90 40, 70 80, 70 140 
+                           C 70 190, 90 220, 110 240 
+                           C 115 260, 110 270, 90 280 
+                           C 50 300, 20 340, 10 400 
+                           L 290 400 
+                           C 280 340, 250 300, 210 280 
+                           C 190 270, 185 260, 190 240 
+                           C 210 220, 230 190, 230 140 
+                           C 230 80, 210 40, 150 40 Z" fill="none" stroke="white" strokeWidth="3" strokeDasharray="10 10" strokeLinecap="round" />
+                </g>
+              </svg>
+            </div>
+          )}
 
         {/* Status Overlay */}
         {(statusMsg || errorMsg) && (

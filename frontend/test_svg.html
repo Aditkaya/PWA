@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html>
+<body style="background: gray; margin: 0; padding: 0; height: 100vh;">
+  <div style="position: absolute; top:0; left:0; width: 100%; height: 100%;">
+    <svg width="100%" height="100%">
+      <defs>
+        <mask id="head-mask">
+          <rect width="100%" height="100%" fill="white" />
+          <g style="transform: translate(calc(50% - 150px), calc(50% - 200px));">
+            <path d="M 150 40 
+                     C 90 40, 70 80, 70 140 
+                     C 70 190, 90 220, 110 240 
+                     C 115 260, 110 270, 90 280 
+                     C 50 300, 20 340, 10 400 
+                     L 290 400 
+                     C 280 340, 250 300, 210 280 
+                     C 190 270, 185 260, 190 240 
+                     C 210 220, 230 190, 230 140 
+                     C 230 80, 210 40, 150 40 Z" fill="black" />
+          </g>
+        </mask>
+      </defs>
+      <rect width="100%" height="100%" fill="rgba(0,0,0,0.6)" mask="url(#head-mask)" />
+      <g style="transform: translate(calc(50% - 150px), calc(50% - 200px));">
+        <path d="M 150 40 
+                 C 90 40, 70 80, 70 140 
+                 C 70 190, 90 220, 110 240 
+                 C 115 260, 110 270, 90 280 
+                 C 50 300, 20 340, 10 400 
+                 L 290 400 
+                 C 280 340, 250 300, 210 280 
+                 C 190 270, 185 260, 190 240 
+                 C 210 220, 230 190, 230 140 
+                 C 230 80, 210 40, 150 40 Z" fill="none" stroke="white" stroke-width="3" stroke-dasharray="10 10" stroke-linecap="round" />
+      </g>
+    </svg>
+  </div>
+</body>
+</html>

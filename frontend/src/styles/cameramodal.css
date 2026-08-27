@@ -88,22 +88,26 @@
   left: 0;
   width: 100%;
   height: 100%;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   pointer-events: none;
   z-index: 5;
 }
 
-.face-guide {
-  width: 280px;
-  height: 360px;
-  max-width: 80vw;
-  max-height: 65vh;
-  border: 3px solid rgba(255, 255, 255, 0.4);
-  border-radius: 32px;
-  box-shadow: 0 0 0 4000px rgba(0, 0, 0, 0.6), inset 0 0 20px rgba(255,255,255,0.2);
-  transition: border-color 0.3s ease;
+.face-guide-svg {
+  width: 100%;
+  height: 100%;
+}
+
+.head-shape-group {
+  /* Center the 300x400 path in the middle of the screen */
+  transform: translate(calc(50% - 150px), calc(50% - 200px));
+}
+
+@media (max-width: 500px) {
+  .head-shape-group {
+    /* Scale down slightly for very small mobile screens */
+    transform: translate(calc(50% - 150px), calc(50% - 200px)) scale(0.85);
+    transform-origin: center;
+  }
 }
 
 /* BOTTOM CONTROLS */

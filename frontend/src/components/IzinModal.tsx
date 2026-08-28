@@ -108,22 +108,22 @@ export default function IzinModal({ isOpen, onClose, userProfile, defaultType = 
                 <>
                   <label className="radio-label">
                     <input type="radio" name="jenis_izin" value={t.late} checked={jenisIzin === t.late} onChange={(e) => setJenisIzin(e.target.value)} />
-                    {t.late}
+                    <span style={{ marginLeft: '8px' }}>{t.late}</span>
                   </label>
                   <label className="radio-label">
                     <input type="radio" name="jenis_izin" value={t.leaveEarly} checked={jenisIzin === t.leaveEarly} onChange={(e) => setJenisIzin(e.target.value)} />
-                    {t.leaveEarly}
+                    <span style={{ marginLeft: '8px' }}>{t.leaveEarly}</span>
                   </label>
                 </>
               ) : (
                 <>
                   <label className="radio-label">
                     <input type="radio" name="jenis_izin" value={t.notPresent} checked={jenisIzin === t.notPresent} onChange={(e) => setJenisIzin(e.target.value)} />
-                    {t.notPresent}
+                    <span style={{ marginLeft: '8px' }}>{t.notPresent}</span>
                   </label>
                   <label className="radio-label">
                     <input type="radio" name="jenis_izin" value={t.outOfOffice} checked={jenisIzin === t.outOfOffice} onChange={(e) => setJenisIzin(e.target.value)} />
-                    {t.outOfOffice}
+                    <span style={{ marginLeft: '8px' }}>{t.outOfOffice}</span>
                   </label>
                 </>
               )}

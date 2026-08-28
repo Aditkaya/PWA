@@ -145,7 +145,7 @@ export default function CutiModal({ isOpen, onClose, userProfile }: CutiModalPro
                       checked={jenisCuti === opt} 
                       onChange={(e) => setJenisCuti(e.target.value)} 
                     />
-                    <span style={{ marginLeft: '8px', display: 'block', flex: 1, textAlign: 'left', lineHeight: '1.2' }}>{opt}</span>
+                    <span style={{ marginLeft: '8px' }}>{opt}</span>
                   </label>
                 ))}
               </div>

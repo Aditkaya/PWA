@@ -90,8 +90,7 @@ export default function CutiModal({ isOpen, onClose, userProfile }: CutiModalPro
       setIsSubmitting(false);
     }
   };
-
-  const cutiOptions = ['Tahunan', 'Menikah', 'Hamil', 'Haji'];
+  const cutiOptions = ['Tahunan', 'Menikah', 'Hamil', 'Haji', 'Duka'];
 
   return createPortal(
     <div className="izin-modal-overlay">
@@ -146,7 +145,7 @@ export default function CutiModal({ isOpen, onClose, userProfile }: CutiModalPro
                       checked={jenisCuti === opt} 
                       onChange={(e) => setJenisCuti(e.target.value)} 
                     />
-                    {opt}
+                    <span style={{ marginLeft: '8px' }}>{opt}</span>
                   </label>
                 ))}
               </div>

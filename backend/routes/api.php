@@ -25,6 +25,13 @@ if ($isLocalServer) {
 
 // Serve static files (like uploaded images) with CORS headers
 $file_path = UPLOAD_BASE_DIR . $uri;
+if (!file_exists($file_path) && defined('AYPSIS_PUBLIC_DIR')) {
+    $fallback_path = AYPSIS_PUBLIC_DIR . $uri;
+    if (file_exists($fallback_path) && is_file($fallback_path)) {
+        $file_path = $fallback_path;
+    }
+}
+
 if (file_exists($file_path) && is_file($file_path)) {
     $ext = strtolower(pathinfo($file_path, PATHINFO_EXTENSION));
     $mimes = [

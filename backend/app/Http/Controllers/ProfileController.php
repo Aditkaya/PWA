@@ -41,13 +41,18 @@ class ProfileController {
                 // Setup face verification url
                 $profile['is_face_verified'] = $profile['face_verified_at'] ? true : false;
                 if ($profile['face_photo_path']) {
-                    if (file_exists(UPLOAD_BASE_DIR . '/' . ltrim($profile['face_photo_path'], '/'))) {
-                        $profile['face_verification_url'] = '/' . ltrim($profile['face_photo_path'], '/') . '?v=' . time();
+                    $ltrimPath = ltrim($profile['face_photo_path'], '/');
+                    if (file_exists(UPLOAD_BASE_DIR . '/' . $ltrimPath)) {
+                        $profile['face_verification_url'] = '/' . $ltrimPath . '?v=' . time();
+                    } elseif (defined('AYPSIS_PUBLIC_DIR') && file_exists(AYPSIS_PUBLIC_DIR . '/' . $ltrimPath)) {
+                        $profile['face_verification_url'] = '/' . $ltrimPath . '?v=' . time();
                     } else {
                         $profile['face_verification_url'] = null;
+                        $profile['is_face_verified'] = false; // Force re-registration if file is missing
                     }
                 } else {
                     $profile['face_verification_url'] = null;
+                    $profile['is_face_verified'] = false; // Force re-registration if path is missing
                 }
 
                 // Check full day leave

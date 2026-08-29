@@ -339,7 +339,6 @@ export default function PerencanaanLemburModal({ isOpen, onClose, onSuccess }: P
               type="date" 
               value={tanggal}
               onChange={(e) => setTanggal(e.target.value)}
-              min={new Date().toISOString().split('T')[0]}
               required
             />
           </div>

@@ -362,6 +362,12 @@ class ApprovalController {
                         ");
                         $stmtInsertAbs->execute([$kId, $nik, $fullWaktu, $dbTipe, $alasan]);
                     }
+
+                    // Jika Lupa Absen terkait Lembur, validasi ulang dengan Perencanaan Lembur
+                    if (in_array(strtolower(str_replace('_', ' ', $dbTipe)), ['lembur masuk', 'mulai lembur', 'lembur pulang', 'selesai lembur', 'lembur keluar'])) {
+                        require_once __DIR__ . '/../../Helpers/OvertimeValidator.php';
+                        \App\Helpers\OvertimeValidator::checkAndCreateApproval($kId, $tgl);
+                    }
                 }
             }
 

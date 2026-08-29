@@ -17,26 +17,52 @@ class OvertimeValidator {
             if (!$plan) return; // Tidak ada perencanaan, tidak ada yang perlu divalidasi
 
             // Cari absensi lembur aktual (Lembur_Pulang)
-            $stmtActual = $pdo->prepare("SELECT id, waktu, tipe FROM absensis WHERE karyawan_id = ? AND DATE(waktu) = ? AND LOWER(REPLACE(tipe, '_', ' ')) IN ('lembur pulang', 'selesai lembur', 'lembur keluar') ORDER BY waktu DESC LIMIT 1");
-            $stmtActual->execute([$karyawan_id, $tanggal]);
+            // Batasi pencarian dari jam 12 siang hari-H sampai jam 12 siang besoknya 
+            // agar bisa mendeteksi lembur yang melewati tengah malam tanpa mengambil lembur di hari berikutnya.
+            $startCheck = $tanggal . ' 12:00:00';
+            $endCheck = date('Y-m-d H:i:s', strtotime($tanggal . ' +1 day 12:00:00'));
+
+            $stmtActual = $pdo->prepare("
+                SELECT id, waktu, tipe 
+                FROM absensis 
+                WHERE karyawan_id = ? 
+                  AND waktu >= ? AND waktu <= ?
+                  AND LOWER(REPLACE(tipe, '_', ' ')) IN ('lembur pulang', 'selesai lembur', 'lembur keluar') 
+                ORDER BY waktu ASC LIMIT 1
+            ");
+            $stmtActual->execute([$karyawan_id, $startCheck, $endCheck]);
             $actual = $stmtActual->fetch(PDO::FETCH_ASSOC);
 
             if (!$actual) return; // Karyawan belum melakukan absen pulang lembur
 
-            // Parse jam selesai
-            $plannedEndTime = date('H:i', strtotime($plan['jam_selesai']));
-            $actualEndTime = date('H:i', strtotime($actual['waktu']));
+            // Bentuk waktu datetime utuh untuk perbandingan akurat
+            $plannedEndDateTime = $tanggal . ' ' . $plan['jam_selesai'];
+            if (strtotime($plan['jam_selesai']) < strtotime($plan['jam_mulai'])) {
+                // Jam selesai lebih kecil dari jam mulai = lembur melewati tengah malam (hari berikutnya)
+                $plannedEndDateTime = date('Y-m-d H:i:s', strtotime($plannedEndDateTime . ' +1 day'));
+            }
+            $actualEndDateTime = $actual['waktu'];
             
-            if ($actualEndTime === $plannedEndTime) {
+            $plannedTs = strtotime($plannedEndDateTime);
+            $actualTs = strtotime($actualEndDateTime);
+
+            // Hilangkan detik untuk komparasi sama persis (menit)
+            $plannedHm = date('Y-m-d H:i', $plannedTs);
+            $actualHm = date('Y-m-d H:i', $actualTs);
+            
+            if ($actualHm === $plannedHm) {
                 // Sesuai tepat waktu, tidak perlu persetujuan
                 return;
             }
 
+            $plannedEndStr = date('d M Y H:i', $plannedTs);
+            $actualEndStr = date('d M Y H:i', $actualTs);
+
             $keterangan = "";
-            if (strtotime($actualEndTime) > strtotime($plannedEndTime)) {
-                $keterangan = "Jam lembur melewati batas (Rencana Selesai: $plannedEndTime, Aktual Selesai: $actualEndTime)";
+            if ($actualTs > $plannedTs) {
+                $keterangan = "Jam lembur melewati batas (Rencana Selesai: $plannedEndStr, Aktual Selesai: $actualEndStr)";
             } else {
-                $keterangan = "Jam lembur kurang dari batas (Rencana Selesai: $plannedEndTime, Aktual Selesai: $actualEndTime)";
+                $keterangan = "Jam lembur kurang dari batas (Rencana Selesai: $plannedEndStr, Aktual Selesai: $actualEndStr)";
             }
 
             // Cek apakah sudah ada di persetujuan_absensi_lemburs untuk tanggal ini agar tidak duplikat

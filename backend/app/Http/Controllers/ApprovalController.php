@@ -204,11 +204,12 @@ class ApprovalController {
 
             $tableName = $tableMap[$tipe];
             
-            // Map status correctly for persetujuan_absensi_lemburs which uses english enum
+            // Map status correctly for tables using english enum (Lembur and Lupa Absen)
             $isLembur = ($tableName === 'persetujuan_absensi_lemburs');
-            $valDisetujui = $isLembur ? 'approved' : 'Disetujui';
-            $valDitolak = $isLembur ? 'rejected' : 'Ditolak';
-            $valPendingHrd = $isLembur ? 'approved' : 'Pending HRD'; // Lembur doesn't have 2 steps in enum
+            $isEnglishEnum = ($isLembur || $tableName === 'persetujuan_absensi_lupas');
+            $valDisetujui = $isEnglishEnum ? 'approved' : 'Disetujui';
+            $valDitolak = $isEnglishEnum ? 'rejected' : 'Ditolak';
+            $valPendingHrd = $isEnglishEnum ? 'approved' : 'Pending HRD'; // Lembur/Lupa Absen don't have 2 steps in enum
 
             // Get current record status
             $stmtCheck = $pdo->prepare("SELECT status FROM $tableName WHERE id = ?");
@@ -287,6 +288,83 @@ class ApprovalController {
                 }
             }
 
+            $isLupa = ($tableName === 'persetujuan_absensi_lupas');
+            if ($isLupa && $isHRD && $newStatus === 'Disetujui') {
+                $stmtGet = $pdo->prepare("SELECT l.karyawan_id, l.tanggal, l.tipe_absen, l.waktu, l.alasan, k.nik FROM persetujuan_absensi_lupas l JOIN karyawans k ON l.karyawan_id = k.id WHERE l.id = ?");
+                $stmtGet->execute([$id]);
+                $lupaData = $stmtGet->fetch();
+                
+                if ($lupaData) {
+                    $kId = $lupaData['karyawan_id'];
+                    $nik = $lupaData['nik'];
+                    $tgl = $lupaData['tanggal'];
+                    $tipeAbsen = $lupaData['tipe_absen'];
+                    $wkt = $lupaData['waktu'];
+                    $alasan = $lupaData['alasan'];
+                    
+                    $fullWaktu = $tgl . ' ' . $wkt;
+                    
+                    // Map tipe_absen to tipe of absensis table
+                    $tipeMapAbsen = [
+                        'Check In'         => 'masuk',
+                        'Pulang'           => 'pulang',
+                        'Istirahat Keluar' => 'istirahat_keluar',
+                        'Istirahat Masuk'  => 'istirahat_masuk',
+                        'Mulai Lembur'     => 'lembur_masuk',
+                        'Selesai Lembur'   => 'lembur_pulang'
+                    ];
+                    
+                    $dbTipe = isset($tipeMapAbsen[$tipeAbsen]) ? $tipeMapAbsen[$tipeAbsen] : strtolower($tipeAbsen);
+                    
+                    // Search terms to find existing record
+                    $searchTipes = [];
+                    if (strcasecmp($tipeAbsen, 'Check In') === 0) {
+                        $searchTipes = ['masuk', 'check in'];
+                    } else if (strcasecmp($tipeAbsen, 'Pulang') === 0) {
+                        $searchTipes = ['pulang', 'keluar'];
+                    } else if (strcasecmp($tipeAbsen, 'Istirahat Keluar') === 0) {
+                        $searchTipes = ['istirahat_keluar', 'istirahat keluar'];
+                    } else if (strcasecmp($tipeAbsen, 'Istirahat Masuk') === 0) {
+                        $searchTipes = ['istirahat_masuk', 'istirahat masuk'];
+                    } else if (strcasecmp($tipeAbsen, 'Mulai Lembur') === 0) {
+                        $searchTipes = ['lembur_masuk', 'lembur masuk', 'mulai lembur'];
+                    } else if (strcasecmp($tipeAbsen, 'Selesai Lembur') === 0) {
+                        $searchTipes = ['lembur_pulang', 'lembur pulang', 'selesai lembur'];
+                    } else {
+                        $searchTipes = [strtolower($tipeAbsen)];
+                    }
+                    
+                    $placeholders = implode(',', array_fill(0, count($searchTipes), '?'));
+                    $checkParams = array_merge([$kId, $tgl], $searchTipes);
+                    
+                    $stmtCheckAbs = $pdo->prepare("
+                        SELECT id 
+                        FROM absensis 
+                        WHERE karyawan_id = ? 
+                          AND DATE(waktu) = ? 
+                          AND LOWER(tipe) IN ($placeholders)
+                        LIMIT 1
+                    ");
+                    $stmtCheckAbs->execute($checkParams);
+                    $existingAbs = $stmtCheckAbs->fetch();
+                    
+                    if ($existingAbs) {
+                        $stmtUpdateAbs = $pdo->prepare("
+                            UPDATE absensis 
+                            SET waktu = ?, keterangan = ? 
+                            WHERE id = ?
+                        ");
+                        $stmtUpdateAbs->execute([$fullWaktu, $alasan, $existingAbs['id']]);
+                    } else {
+                        $stmtInsertAbs = $pdo->prepare("
+                            INSERT INTO absensis (karyawan_id, nik, waktu, tipe, status, keterangan) 
+                            VALUES (?, ?, ?, ?, 'Selesai', ?)
+                        ");
+                        $stmtInsertAbs->execute([$kId, $nik, $fullWaktu, $dbTipe, $alasan]);
+                    }
+                }
+            }
+
             if ($isHRD) {
                 // Keep backward compatibility for approved_by if exists
                 $stmtCols = $pdo->query("SHOW COLUMNS FROM $tableName LIKE 'approved_by'");
@@ -308,8 +386,8 @@ class ApprovalController {
         
         $tableMap = [
             'Izin' => 'permohonan_izins',
-            'Cuti' => 'permohonan_cutis',
-            'Lupa Absen' => 'permohonan_lupa_absensis',
+            'Cuti' => 'cutis',
+            'Lupa Absen' => 'persetujuan_absensi_lupas',
             'Lembur' => 'persetujuan_absensi_lemburs'
         ];
         

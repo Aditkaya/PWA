@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef } from 'react'
 import { createPortal } from 'react-dom'
+import { useOutletContext } from 'react-router-dom'
 
 import Cropper from 'react-easy-crop'
 import getCroppedImg from '../../utils/cropImage'
-import { User, Mail, Briefcase, Phone, MapPin, Key, ChevronRight, Loader2, Camera, X, Save, Eye, EyeOff, Lock, Trash2 } from 'lucide-react'
+import { User, Mail, Briefcase, Phone, MapPin, Key, ChevronRight, Loader2, Camera, X, Save, Eye, EyeOff, Lock, Trash2, Scan } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useLangStore } from '../../store/lang.store'
 import { translations } from '../../utils/translations'
@@ -49,6 +50,8 @@ export default function Profile() {
   const [showPw, setShowPw] = useState({ old: false, new: false, confirm: false })
   const [savingPw, setSavingPw] = useState(false)
 
+  const { openFaceRegistration } = useOutletContext<{ openFaceRegistration: () => void }>()
+  
   const { lang } = useLangStore()
   const t = translations[lang]
   const { showToast } = useToast()
@@ -520,6 +523,15 @@ export default function Profile() {
             </div>
             <ChevronRight size={20} />
           </button>
+          
+          <button className="setting-btn" onClick={() => openFaceRegistration()}>
+            <div className="setting-btn-left">
+              <Scan size={20} />
+              <span>Verifikasi Ulang Wajah</span>
+            </div>
+            <ChevronRight size={20} />
+          </button>
+
           <button className="setting-btn" onClick={() => setActiveModal('changePassword')}>
             <div className="setting-btn-left">
               <Key size={20} />

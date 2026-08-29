@@ -20,11 +20,23 @@ export default function LupaAbsenModal({ isOpen, onClose, userProfile }: LupaAbs
   const { showToast } = useToast();
 
   const [tanggal, setTanggal] = useState('');
-  const [waktu, setWaktu] = useState('');
+  const [waktu, setWaktu] = useState(() => {
+    const now = new Date();
+    return now.toTimeString().slice(0, 5);
+  });
   const [tipeAbsen, setTipeAbsen] = useState('Check In');
   const [alasan, setAlasan] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  React.useEffect(() => {
+    if (isOpen) {
+      setTanggal(new Date().toISOString().split('T')[0]);
+      const now = new Date();
+      setWaktu(now.toTimeString().slice(0, 5));
+      setAlasan('');
+    }
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -126,12 +138,37 @@ export default function LupaAbsenModal({ isOpen, onClose, userProfile }: LupaAbs
               </div>
               <div className="form-group half">
                 <label><Clock size={16} /> Waktu</label>
-                <input 
-                  type="time" 
-                  value={waktu}
-                  onChange={(e) => setWaktu(e.target.value)}
-                  required
-                />
+                <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                  <select 
+                    value={waktu.split(':')[0] || '08'} 
+                    onChange={(e) => {
+                      const currentMin = waktu.split(':')[1] || '00';
+                      setWaktu(`${e.target.value}:${currentMin}`);
+                    }}
+                    className="modal-select"
+                    style={{ flex: 1, padding: '10px 4px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#fff', outline: 'none', textAlign: 'center' }}
+                  >
+                    {Array.from({ length: 24 }, (_, i) => {
+                      const h = i.toString().padStart(2, '0');
+                      return <option key={h} value={h} style={{ color: '#000' }}>{h}</option>;
+                    })}
+                  </select>
+                  <span style={{ color: '#fff' }}>:</span>
+                  <select 
+                    value={waktu.split(':')[1] || '00'} 
+                    onChange={(e) => {
+                      const currentHr = waktu.split(':')[0] || '08';
+                      setWaktu(`${currentHr}:${e.target.value}`);
+                    }}
+                    className="modal-select"
+                    style={{ flex: 1, padding: '10px 4px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#fff', outline: 'none', textAlign: 'center' }}
+                  >
+                    {Array.from({ length: 60 }, (_, i) => {
+                      const m = i.toString().padStart(2, '0');
+                      return <option key={m} value={m} style={{ color: '#000' }}>{m}</option>;
+                    })}
+                  </select>
+                </div>
               </div>
             </div>
 

@@ -23,17 +23,27 @@ export default function IzinModal({ isOpen, onClose, userProfile, defaultType = 
     defaultType === 'Izin 1/2 Hari' ? t.leaveEarly : t.notPresent
   );
 
-  useEffect(() => {
-    if (isOpen) {
-      setJenisIzin(defaultType === 'Izin 1/2 Hari' ? t.leaveEarly : t.notPresent);
-    }
-  }, [isOpen, defaultType, t]);
-  const [tanggalMulai, setTanggalMulai] = useState(new Date().toISOString().split('T')[0]);
-  const [tanggalSelesai, setTanggalSelesai] = useState(new Date().toISOString().split('T')[0]);
-  const [waktu, setWaktu] = useState('');
+  const [tanggalMulai, setTanggalMulai] = useState('');
+  const [tanggalSelesai, setTanggalSelesai] = useState('');
+  const [waktu, setWaktu] = useState(() => {
+    const now = new Date();
+    return now.toTimeString().slice(0, 5);
+  });
   const [alasan, setAlasan] = useState('');
   const [lampiranFile, setLampiranFile] = useState<File | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  useEffect(() => {
+    if (isOpen) {
+      setJenisIzin(defaultType === 'Izin 1/2 Hari' ? t.leaveEarly : t.notPresent);
+      setTanggalMulai(new Date().toISOString().split('T')[0]);
+      setTanggalSelesai(new Date().toISOString().split('T')[0]);
+      const now = new Date();
+      setWaktu(now.toTimeString().slice(0, 5));
+      setAlasan('');
+      setLampiranFile(null);
+    }
+  }, [isOpen, defaultType, t]);
 
   if (!isOpen) return null;
 
@@ -151,7 +161,37 @@ export default function IzinModal({ isOpen, onClose, userProfile, defaultType = 
           {defaultType === 'Izin 1/2 Hari' && (
             <div className="form-group">
               <label><Clock size={14} /> {t.time}</label>
-              <input type="time" value={waktu} onChange={(e) => setWaktu(e.target.value)} />
+              <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+                <select 
+                  value={waktu.split(':')[0] || '08'} 
+                  onChange={(e) => {
+                    const currentMin = waktu.split(':')[1] || '00';
+                    setWaktu(`${e.target.value}:${currentMin}`);
+                  }}
+                  className="modal-select"
+                  style={{ flex: 1, padding: '10px 4px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#fff', outline: 'none', textAlign: 'center' }}
+                >
+                  {Array.from({ length: 24 }, (_, i) => {
+                    const h = i.toString().padStart(2, '0');
+                    return <option key={h} value={h} style={{ color: '#000' }}>{h}</option>;
+                  })}
+                </select>
+                <span style={{ color: '#fff' }}>:</span>
+                <select 
+                  value={waktu.split(':')[1] || '00'} 
+                  onChange={(e) => {
+                    const currentHr = waktu.split(':')[0] || '08';
+                    setWaktu(`${currentHr}:${e.target.value}`);
+                  }}
+                  className="modal-select"
+                  style={{ flex: 1, padding: '10px 4px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#fff', outline: 'none', textAlign: 'center' }}
+                >
+                  {Array.from({ length: 60 }, (_, i) => {
+                    const m = i.toString().padStart(2, '0');
+                    return <option key={m} value={m} style={{ color: '#000' }}>{m}</option>;
+                  })}
+                </select>
+              </div>
             </div>
           )}
 

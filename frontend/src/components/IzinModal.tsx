@@ -161,34 +161,32 @@ export default function IzinModal({ isOpen, onClose, userProfile, defaultType = 
           {defaultType === 'Izin 1/2 Hari' && (
             <div className="form-group">
               <label><Clock size={14} /> {t.time}</label>
-              <div style={{ display: 'flex', gap: '4px', alignItems: 'center' }}>
+              <div className="time-select-container">
                 <select 
                   value={waktu.split(':')[0] || '08'} 
                   onChange={(e) => {
                     const currentMin = waktu.split(':')[1] || '00';
                     setWaktu(`${e.target.value}:${currentMin}`);
                   }}
-                  className="modal-select"
-                  style={{ flex: 1, padding: '10px 4px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#fff', outline: 'none', textAlign: 'center' }}
+                  className="time-select"
                 >
                   {Array.from({ length: 24 }, (_, i) => {
                     const h = i.toString().padStart(2, '0');
-                    return <option key={h} value={h} style={{ color: '#000' }}>{h}</option>;
+                    return <option key={h} value={h}>{h}</option>;
                   })}
                 </select>
-                <span style={{ color: '#fff' }}>:</span>
+                <span style={{ color: 'var(--text-secondary)', fontWeight: 'bold' }}>:</span>
                 <select 
                   value={waktu.split(':')[1] || '00'} 
                   onChange={(e) => {
                     const currentHr = waktu.split(':')[0] || '08';
                     setWaktu(`${currentHr}:${e.target.value}`);
                   }}
-                  className="modal-select"
-                  style={{ flex: 1, padding: '10px 4px', borderRadius: '12px', border: '1px solid rgba(255,255,255,0.1)', background: 'rgba(255,255,255,0.05)', color: '#fff', outline: 'none', textAlign: 'center' }}
+                  className="time-select"
                 >
                   {Array.from({ length: 60 }, (_, i) => {
                     const m = i.toString().padStart(2, '0');
-                    return <option key={m} value={m} style={{ color: '#000' }}>{m}</option>;
+                    return <option key={m} value={m}>{m}</option>;
                   })}
                 </select>
               </div>

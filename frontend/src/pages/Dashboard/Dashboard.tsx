@@ -449,6 +449,13 @@ export default function Dashboard() {
             </button>
             <button 
               className="btn-leave" 
+              onClick={openFaceRegistration}
+            >
+              <ScanFace size={24} strokeWidth={1.25} />
+              <span>Verifikasi Wajah</span>
+            </button>
+            <button 
+              className="btn-leave" 
               onClick={() => setIsLupaAbsenModalOpen(true)}
             >
               <Clock size={24} strokeWidth={1.25} />

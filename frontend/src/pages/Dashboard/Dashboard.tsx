@@ -449,7 +449,18 @@ export default function Dashboard() {
             </button>
             <button 
               className="btn-leave" 
-              onClick={openFaceRegistration}
+              onClick={() => {
+                if (userProfile?.is_face_verified) {
+                  setAlertState({
+                    show: true,
+                    type: 'info',
+                    title: 'Sudah Terverifikasi',
+                    message: 'Data wajah Anda sudah terdaftar di sistem.'
+                  });
+                } else {
+                  openFaceRegistration();
+                }
+              }}
             >
               <ScanFace size={24} strokeWidth={1.25} />
               <span>Verifikasi Wajah</span>

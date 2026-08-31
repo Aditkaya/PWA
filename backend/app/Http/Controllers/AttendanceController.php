@@ -149,15 +149,7 @@ class AttendanceController {
             }
             $karyawan_id = $userData['karyawan_id'];
 
-            $initialStatus = 'Pending HRD';
-            if ($karyawan_id) {
-                $stmtSpv = $pdo->prepare("SELECT nik_supervisor, supervisor FROM karyawans WHERE id = ?");
-                $stmtSpv->execute([$karyawan_id]);
-                $kData = $stmtSpv->fetch();
-                if ($kData && (!empty(trim($kData['nik_supervisor'])) || !empty(trim($kData['supervisor'])))) {
-                    $initialStatus = 'Pending SPV';
-                }
-            }
+            $initialStatus = 'pending';
 
             $stmt = $pdo->prepare("INSERT INTO persetujuan_absensi_lupas (karyawan_id, tanggal, tipe_absen, waktu, alasan, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, NOW(), NOW())");
             $stmt->execute([$karyawan_id, $tanggal, $tipe_absen, $waktu, $alasan, $initialStatus]);
@@ -221,15 +213,7 @@ class AttendanceController {
                 }
             }
 
-            $initialStatus = 'Pending HRD';
-            if ($karyawan_id) {
-                $stmtSpv = $pdo->prepare("SELECT nik_supervisor, supervisor FROM karyawans WHERE id = ?");
-                $stmtSpv->execute([$karyawan_id]);
-                $kData = $stmtSpv->fetch();
-                if ($kData && (!empty(trim($kData['nik_supervisor'])) || !empty(trim($kData['supervisor'])))) {
-                    $initialStatus = 'Pending SPV';
-                }
-            }
+            $initialStatus = 'pending';
 
             $stmt = $pdo->prepare("INSERT INTO persetujuan_absensi_lemburs (karyawan_id, tanggal, jam_mulai, jam_selesai, keterangan, foto, detail_lokasi, latitude, longitude, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())");
             $stmt->execute([$karyawan_id, $tanggal, $jam_mulai, $jam_selesai, $keterangan, $db_photo_path, $detail_lokasi, $latitude, $longitude, $initialStatus]);

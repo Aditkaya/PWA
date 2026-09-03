@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { Eye, EyeOff } from 'lucide-react'
+import { Eye, EyeOff, Ship, Truck } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import api from '../../services/axios'
 import './Login.css'
@@ -49,8 +49,12 @@ export default function Login() {
     <div className="login-page">
       <div className="login-card">
         <div className="login-header">
-          <h1>AbsensiApp</h1>
-          <p>Silakan masuk ke akun Anda</p>
+          <div className="logo-container">
+            <Ship className="logo-icon ship" size={32} />
+            <Truck className="logo-icon truck" size={32} />
+          </div>
+          <h1>Alexindo Yakinprima</h1>
+          <p>Portal Absensi & HRIS</p>
           
           <div className={`db-status ${dbStatus.connected === true ? 'status-success' : dbStatus.connected === false ? 'status-error' : 'status-loading'}`}>
             <span className="status-indicator"></span>

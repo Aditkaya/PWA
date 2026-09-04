@@ -5,6 +5,8 @@ import History from './pages/History/History'
 import Profile from './pages/Profile/Profile'
 import Login from './pages/Login/Login'
 import HrdApproval from './pages/HrdApproval/HrdApproval'
+import Amprahan from './pages/Amprahan/Amprahan'
+import AmprahanRequest from './pages/Amprahan/AmprahanRequest'
 import PrivateRoute from './routes/PrivateRoute'
 import { ToastProvider } from './contexts/ToastContext'
 import UpdateNotification from './components/UpdateNotification'
@@ -23,6 +25,8 @@ function App() {
             <Route path="history" element={<History />} />
             <Route path="profile" element={<Profile />} />
             <Route path="hrd/approval" element={<HrdApproval />} />
+            <Route path="amprahan" element={<Amprahan />} />
+            <Route path="amprahan/request" element={<AmprahanRequest />} />
           </Route>
 
         </Route>

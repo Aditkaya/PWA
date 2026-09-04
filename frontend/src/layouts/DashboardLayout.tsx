@@ -1,7 +1,7 @@
 
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth.store'
-import { Home, History, User, LogOut as LogOutIcon, Download, Sun, Moon, Globe, MoreVertical } from 'lucide-react'
+import { Home, History, User, LogOut as LogOutIcon, Download, Sun, Moon, Globe, MoreVertical, ClipboardList } from 'lucide-react'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { useState, useEffect, useRef } from 'react'
 import { useLangStore } from '../store/lang.store'
@@ -25,6 +25,7 @@ export default function DashboardLayout() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const [userGroup, setUserGroup] = useState('')
+  const [userDivisi, setUserDivisi] = useState('')
   const [, setUserPekerjaan] = useState('')
   const [, setIsSupervisor] = useState(false)
   const [showFaceRegistration, setShowFaceRegistration] = useState(false)
@@ -38,6 +39,7 @@ export default function DashboardLayout() {
         .then(data => {
           if (data.data) {
             setUserGroup(data.data.grup || '')
+            setUserDivisi(data.data.divisi || '')
             setUserPekerjaan(data.data.pekerjaan || '')
             setIsSupervisor(data.data.is_supervisor || false)
             
@@ -164,6 +166,18 @@ export default function DashboardLayout() {
                   <History size={18} />
                   <span>{isOvertimeMode ? t.overtimeMode : t.normalMode}</span>
                 </button>
+
+                {userDivisi.toUpperCase().includes('ABK') && (
+                  <button 
+                    onClick={() => { navigate('/amprahan'); setIsMenuOpen(false); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', borderRadius: '8px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 500 }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--glass-bg)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <ClipboardList size={18} />
+                    <span>Permintaan Amprahan</span>
+                  </button>
+                )}
 
                 <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '4px 0' }} />
                 <button 

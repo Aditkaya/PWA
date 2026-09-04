@@ -271,6 +271,27 @@ if ($uri === '/api/attendance/lembur' && $method === 'POST') {
     exit();
 }
 
+if ($uri === '/api/kapal' && $method === 'GET') {
+    require_once __DIR__ . '/../app/Http/Controllers/KapalController.php';
+    $controller = new \App\Http\Controllers\KapalController();
+    $controller->getKapal();
+    exit();
+}
+
+if ($uri === '/api/kapal/voyages' && $method === 'GET') {
+    require_once __DIR__ . '/../app/Http/Controllers/KapalController.php';
+    $controller = new \App\Http\Controllers\KapalController();
+    $controller->getVoyages($_GET);
+    exit();
+}
+
+if ($uri === '/api/amprahan/request' && $method === 'POST') {
+    require_once __DIR__ . '/../app/Http/Controllers/AmprahanController.php';
+    $controller = new \App\Http\Controllers\AmprahanController();
+    $controller->submitRequest($requestData);
+    exit();
+}
+
 if ($uri === '/api/health' && $method === 'GET') {
     try {
         $pdo = Database::getConnection();

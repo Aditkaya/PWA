@@ -89,7 +89,7 @@ class AmprahanController {
             // Get all approved requests for this kapal and voyage
             $stmt = $pdo->prepare("
                 SELECT p.id, p.user_id, p.status, p.keterangan_umum, p.created_at, 
-                       u.nama as user_nama
+                       u.username as user_nama
                 FROM permohonan_amprahans p
                 LEFT JOIN users u ON p.user_id = u.id
                 WHERE p.kapal_id = ? AND p.nomor_voyage = ? AND p.status = 'approved'

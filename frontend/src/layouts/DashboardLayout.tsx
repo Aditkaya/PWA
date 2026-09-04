@@ -168,15 +168,26 @@ export default function DashboardLayout() {
                 </button>
 
                 {userDivisi.toUpperCase().includes('ABK') && (
-                  <button 
-                    onClick={() => { navigate('/amprahan'); setIsMenuOpen(false); }}
-                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', borderRadius: '8px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 500 }}
-                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--glass-bg)'}
-                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
-                  >
-                    <ClipboardList size={18} />
-                    <span>Permintaan Amprahan</span>
-                  </button>
+                  <>
+                    <button 
+                      onClick={() => { navigate('/amprahan'); setIsMenuOpen(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', borderRadius: '8px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 500 }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--glass-bg)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <ClipboardList size={18} />
+                      <span>Permintaan Amprahan</span>
+                    </button>
+                    <button 
+                      onClick={() => { navigate('/amprahan/tanda-terima'); setIsMenuOpen(false); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', borderRadius: '8px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 500 }}
+                      onMouseEnter={(e) => e.currentTarget.style.background = 'var(--glass-bg)'}
+                      onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                    >
+                      <ClipboardList size={18} />
+                      <span>Tanda Terima Amprahan</span>
+                    </button>
+                  </>
                 )}
 
                 <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '4px 0' }} />

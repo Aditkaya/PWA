@@ -292,6 +292,20 @@ if ($uri === '/api/amprahan/request' && $method === 'POST') {
     exit();
 }
 
+if ($uri === '/api/amprahan/approved' && $method === 'GET') {
+    require_once __DIR__ . '/../app/Http/Controllers/AmprahanController.php';
+    $controller = new \App\Http\Controllers\AmprahanController();
+    $controller->getApprovedRequests($_GET);
+    exit();
+}
+
+if ($uri === '/api/amprahan/receive' && $method === 'POST') {
+    require_once __DIR__ . '/../app/Http/Controllers/AmprahanController.php';
+    $controller = new \App\Http\Controllers\AmprahanController();
+    $controller->submitTandaTerima($requestData);
+    exit();
+}
+
 if ($uri === '/api/health' && $method === 'GET') {
     try {
         $pdo = Database::getConnection();

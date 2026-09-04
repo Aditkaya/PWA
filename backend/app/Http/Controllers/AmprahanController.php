@@ -72,4 +72,110 @@ class AmprahanController {
             echo json_encode(['message' => $e->getMessage()]);
         }
     }
+
+    public function getApprovedRequests($requestData) {
+        $kapal_id = $requestData['kapal_id'] ?? null;
+        $nomor_voyage = $requestData['nomor_voyage'] ?? null;
+
+        if (!$kapal_id || !$nomor_voyage) {
+            http_response_code(400);
+            echo json_encode(['message' => 'Kapal ID dan Nomor Voyage diperlukan']);
+            return;
+        }
+
+        try {
+            $pdo = Database::getConnection();
+            
+            // Get all approved requests for this kapal and voyage
+            $stmt = $pdo->prepare("
+                SELECT p.id, p.user_id, p.status, p.keterangan_umum, p.created_at, 
+                       u.nama as user_nama
+                FROM permohonan_amprahans p
+                LEFT JOIN users u ON p.user_id = u.id
+                WHERE p.kapal_id = ? AND p.nomor_voyage = ? AND p.status = 'approved'
+                ORDER BY p.created_at DESC
+            ");
+            $stmt->execute([$kapal_id, $nomor_voyage]);
+            $permohonans = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // For each request, get its items
+            $permohonanIds = array_column($permohonans, 'id');
+            if (!empty($permohonanIds)) {
+                $inQuery = implode(',', array_fill(0, count($permohonanIds), '?'));
+                $stmtItems = $pdo->prepare("
+                    SELECT id, permohonan_id, nama_barang, jumlah, satuan, keterangan
+                    FROM permohonan_amprahan_items
+                    WHERE permohonan_id IN ($inQuery)
+                ");
+                $stmtItems->execute($permohonanIds);
+                $items = $stmtItems->fetchAll(PDO::FETCH_ASSOC);
+
+                // Group items by permohonan_id
+                $itemsGrouped = [];
+                foreach ($items as $item) {
+                    $itemsGrouped[$item['permohonan_id']][] = $item;
+                }
+
+                // Attach items to permohonans
+                foreach ($permohonans as &$permohonan) {
+                    $permohonan['items'] = $itemsGrouped[$permohonan['id']] ?? [];
+                }
+            }
+
+            http_response_code(200);
+            echo json_encode(['data' => $permohonans]);
+
+        } catch (\PDOException $e) {
+            http_response_code(500);
+            error_log('Database error: ' . $e->getMessage());
+            echo json_encode(['message' => 'Terjadi kesalahan pada server database']);
+        }
+    }
+
+    public function submitTandaTerima($postData) {
+        $permohonan_id = $postData['permohonan_id'] ?? null;
+        $user_id = $postData['user_id'] ?? null;
+
+        if (!$permohonan_id || !$user_id) {
+            http_response_code(400);
+            echo json_encode(['message' => 'Data tidak lengkap (permohonan_id, user_id)']);
+            return;
+        }
+
+        try {
+            $pdo = Database::getConnection();
+            
+            // Check if it exists and is approved
+            $stmt = $pdo->prepare("SELECT id, status FROM permohonan_amprahans WHERE id = ?");
+            $stmt->execute([$permohonan_id]);
+            $permohonan = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$permohonan) {
+                http_response_code(404);
+                echo json_encode(['message' => 'Permohonan tidak ditemukan']);
+                return;
+            }
+
+            if ($permohonan['status'] !== 'approved') {
+                http_response_code(400);
+                echo json_encode(['message' => 'Status permohonan bukan approved (status saat ini: ' . $permohonan['status'] . ')']);
+                return;
+            }
+
+            $stmtUpdate = $pdo->prepare("
+                UPDATE permohonan_amprahans 
+                SET status = 'received', tanggal_diterima = CURRENT_TIMESTAMP
+                WHERE id = ?
+            ");
+            $stmtUpdate->execute([$permohonan_id]);
+
+            http_response_code(200);
+            echo json_encode(['message' => 'Tanda terima berhasil dikonfirmasi']);
+
+        } catch (\PDOException $e) {
+            http_response_code(500);
+            error_log('Database error: ' . $e->getMessage());
+            echo json_encode(['message' => 'Terjadi kesalahan pada server database']);
+        }
+    }
 }

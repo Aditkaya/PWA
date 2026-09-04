@@ -1,13 +1,10 @@
 <?php
 $_SERVER['SERVER_NAME'] = 'localhost';
 require_once __DIR__ . '/config/database.php';
-
 $pdo = Database::getConnection();
-$stmt = $pdo->query("DESCRIBE master_nama_barang_amprahans");
-print_r($stmt->fetchAll(PDO::FETCH_ASSOC));
-
-$stmt = $pdo->query("DESCRIBE stock_amprahan_usages");
-print_r($stmt->fetchAll(PDO::FETCH_ASSOC));
-
-$stmt = $pdo->query("DESCRIBE belanja_amprahans");
-print_r($stmt->fetchAll(PDO::FETCH_ASSOC));
+try {
+    $pdo->exec("ALTER TABLE permohonan_amprahans ADD COLUMN tanggal_diterima TIMESTAMP NULL DEFAULT NULL AFTER status;");
+    echo "Column added.";
+} catch (Exception $e) {
+    echo $e->getMessage();
+}

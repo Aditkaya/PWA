@@ -3,7 +3,8 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  /* Using a placeholder logistics/port image from Unsplash until the exact asset is provided */
+  padding: 20px; /* Add padding to prevent touching edges on small screens */
+  box-sizing: border-box;
   background-image: url('https://images.unsplash.com/photo-1551525212-a1dc18871d4a?q=80&w=2069&auto=format&fit=crop'); 
   background-size: cover;
   background-position: center;
@@ -26,8 +27,9 @@
   z-index: 1;
   display: flex;
   width: 900px;
-  max-width: 95%;
+  max-width: 100%;
   min-height: 520px;
+  margin: auto; /* Fallback for flex centering if it overflows */
   border-radius: 16px;
   overflow: hidden;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
@@ -146,7 +148,7 @@
   flex-direction: column;
   justify-content: center;
   overflow-y: auto;
-  max-height: 100vh;
+  max-height: calc(100vh - 40px);
 }
 
 .login-header h2 {
@@ -697,23 +699,69 @@
   .login-container.register-mode {
     flex-direction: column;
     width: 100%;
-    max-width: 480px;
+    max-width: 500px;
+    height: auto;
+    min-height: auto;
   }
 
   .login-branding {
-    padding: 30px 20px;
+    padding: 30px 25px;
     text-align: center;
   }
 
-  .branding-icons { justify-content: center; }
+  .branding-icons { justify-content: center; margin-bottom: 20px; }
   .branding-badges { align-items: center; }
 
+  .branding-text h1 {
+    font-size: 2.5rem;
+  }
+
   .login-form-section {
-    padding: 30px 20px;
+    padding: 30px 25px;
     max-height: none;
+    overflow-y: visible;
   }
 
   .form-row-2 { grid-template-columns: 1fr; }
   .karyawan-card-row { flex-direction: column; gap: 12px; }
   .register-link { flex-direction: column; align-items: flex-start; }
+}
+
+@media (max-width: 480px) {
+  .login-page {
+    padding: 10px;
+  }
+
+  .login-branding {
+    padding: 25px 20px 20px;
+  }
+
+  .branding-text h1 {
+    font-size: 2rem;
+  }
+  
+  .branding-text p {
+    font-size: 0.95rem;
+    margin-bottom: 25px;
+  }
+
+  .login-form-section {
+    padding: 25px 20px;
+  }
+
+  .form-header h2 {
+    font-size: 1.5rem;
+  }
+
+  .search-result-item {
+    padding: 10px 12px;
+  }
+
+  .result-name {
+    font-size: 0.9rem;
+  }
+
+  .karyawan-field-value {
+    font-size: 0.9rem;
+  }
 }

@@ -43,7 +43,7 @@ class LoginController {
             return;
         }
 
-        $stmt = $this->db->prepare("SELECT id, username, password FROM users WHERE username = ?");
+        $stmt = $this->db->prepare("SELECT id, username, password, is_approved, status FROM users WHERE username = ?");
         $stmt->execute([$username]);
         $user = $stmt->fetch();
 
@@ -59,6 +59,31 @@ class LoginController {
             }
 
             if ($isValid) {
+                // --- Cek status persetujuan admin ---
+                // Sistem approval menggunakan kolom 'status':
+                //   'approved'  = disetujui → boleh login
+                //   'pending'   = belum disetujui → tolak
+                //   'rejected'  = ditolak → tolak
+                $status = $user['status'] ?? 'pending';
+
+                if ($status === 'rejected') {
+                    http_response_code(403);
+                    echo json_encode([
+                        'message' => 'Akun Anda telah ditolak oleh admin. Silakan hubungi HRD untuk informasi lebih lanjut.',
+                        'status'  => 'rejected',
+                    ]);
+                    return;
+                }
+
+                if ($status !== 'approved') {
+                    http_response_code(403);
+                    echo json_encode([
+                        'message' => 'Akun Anda belum disetujui oleh admin. Silakan hubungi HRD untuk konfirmasi persetujuan akun.',
+                        'status'  => 'pending',
+                    ]);
+                    return;
+                }
+
                 $token = bin2hex(random_bytes(32)); 
                 
                 http_response_code(200);

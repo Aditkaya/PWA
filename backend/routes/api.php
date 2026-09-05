@@ -91,6 +91,20 @@ if ($uri === '/api/login' && $method === 'POST') {
     exit();
 }
 
+if ($uri === '/api/register' && $method === 'POST') {
+    require_once __DIR__ . '/../app/Http/Controllers/Auth/RegisterController.php';
+    $controller = new \App\Http\Controllers\Auth\RegisterController();
+    $controller->register($requestData);
+    exit();
+}
+
+if ($uri === '/api/karyawans/search' && $method === 'GET') {
+    require_once __DIR__ . '/../app/Http/Controllers/KaryawanController.php';
+    $controller = new \App\Http\Controllers\KaryawanController();
+    $controller->search($_GET);
+    exit();
+}
+
 if ($uri === '/api/profile' && $method === 'GET') {
     require_once __DIR__ . '/../app/Http/Controllers/ProfileController.php';
     $controller = new \App\Http\Controllers\ProfileController();

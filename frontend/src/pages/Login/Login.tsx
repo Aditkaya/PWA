@@ -234,19 +234,19 @@ export default function Login() {
                 </div>
               </div>
 
-              <form onSubmit={handleLogin} className="login-form">
+              <form onSubmit={handleLogin} className="login-form" autoComplete="off">
                 <div className="form-group">
                   <label htmlFor="username">Username</label>
                   <input type="text" id="username" className="form-input"
                     placeholder="Masukkan username" value={username}
-                    onChange={(e) => setUsername(e.target.value)} required />
+                    onChange={(e) => setUsername(e.target.value)} autoComplete="new-username" required />
                 </div>
                 <div className="form-group">
                   <label htmlFor="password">Password</label>
                   <div className="password-input-wrapper">
                     <input type={showPassword ? 'text' : 'password'} id="password" className="form-input"
                       placeholder="Masukkan password" value={password}
-                      onChange={(e) => setPassword(e.target.value)} required />
+                      onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" required />
                     <button type="button" className="btn-show-password"
                       onClick={() => setShowPassword(!showPassword)} tabIndex={-1}>
                       {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}

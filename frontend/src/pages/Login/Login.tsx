@@ -424,7 +424,7 @@ export default function Login() {
                           </div>
                         </div>
                       ) : (
-                        <form onSubmit={handleRegister} className="login-form" style={{ marginTop: 16 }}>
+                        <form onSubmit={handleRegister} className="login-form" style={{ marginTop: 16 }} autoComplete="off">
                           <div className="form-group">
                             <label htmlFor="reg-username">Username *</label>
                             <input
@@ -432,6 +432,7 @@ export default function Login() {
                               placeholder="Buat username unik"
                               value={regUsername}
                               onChange={(e) => setRegUsername(e.target.value)}
+                              autoComplete="new-username"
                               required
                             />
                           </div>
@@ -445,6 +446,7 @@ export default function Login() {
                                   placeholder="Min. 6 karakter"
                                   value={regPassword}
                                   onChange={(e) => setRegPassword(e.target.value)}
+                                  autoComplete="new-password"
                                   required
                                 />
                                 <button type="button" className="btn-show-password"
@@ -462,6 +464,7 @@ export default function Login() {
                                   placeholder="Ulangi password"
                                   value={regConfirmPassword}
                                   onChange={(e) => setRegConfirmPassword(e.target.value)}
+                                  autoComplete="new-password"
                                   required
                                 />
                                 <button type="button" className="btn-show-password"

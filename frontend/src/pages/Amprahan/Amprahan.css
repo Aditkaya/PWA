@@ -1,4 +1,5 @@
 .amprahan-page {
+  width: 100%;
   padding: 24px;
   min-height: 100%;
   display: flex;
@@ -6,6 +7,7 @@
   align-items: center;
   justify-content: flex-start;
   padding-top: 40px;
+  box-sizing: border-box;
 }
 
 .amprahan-container {
@@ -71,7 +73,8 @@
 
 .input-wrapper .form-input {
   width: 100%;
-  padding: 14px 16px 14px 48px;
+  min-height: 52px;
+  padding: 14px 44px 14px 48px;
   border-radius: 12px;
   border: 1px solid var(--border);
   background: var(--code-bg, rgba(255, 255, 255, 0.05));
@@ -99,6 +102,10 @@ select.form-input:disabled {
 select.form-input option {
   background-color: #1e1e2d; /* Solid dark color for options dropdown */
   color: #f3f4f6; /* Light text for dark background */
+}
+
+select.form-input option:first-child {
+  color: var(--text);
 }
 
 .input-wrapper .form-input:focus {
@@ -153,5 +160,59 @@ select.form-input option {
   to {
     opacity: 1;
     transform: translateY(0);
+  }
+}
+
+@media (max-width: 600px) {
+  .amprahan-page {
+    padding: 16px 12px calc(24px + env(safe-area-inset-bottom));
+    padding-top: 20px;
+  }
+
+  .amprahan-container {
+    max-width: none;
+    padding: 24px 18px;
+    border-radius: 16px;
+  }
+
+  .amprahan-header {
+    margin-bottom: 24px;
+  }
+
+  .amprahan-header h2 {
+    font-size: 1.3rem;
+  }
+
+  .amprahan-header p {
+    font-size: 0.875rem;
+    line-height: 1.5;
+  }
+
+  .amprahan-form {
+    gap: 18px;
+  }
+
+  .form-group {
+    gap: 7px;
+  }
+
+  .form-group label {
+    font-size: 0.875rem;
+  }
+
+  .input-icon {
+    left: 14px;
+  }
+
+  .input-wrapper .form-input {
+    min-height: 54px;
+    padding-left: 44px;
+    padding-right: 42px;
+    font-size: 16px;
+  }
+
+  .btn-submit {
+    min-height: 54px;
+    margin-top: 4px;
   }
 }

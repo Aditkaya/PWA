@@ -1,20 +1,18 @@
 import { useRef, useEffect, useState, useMemo } from 'react';
 import { createPortal } from 'react-dom';
-import * as faceapi from 'face-api.js';
 import { Camera, X, Loader2, AlertCircle, Zap, RefreshCw, MapPin } from 'lucide-react';
 import { useLangStore } from '../store/lang.store';
 import { useAuthStore } from '../store/auth.store';
 import { translations } from '../utils/translations';
 import { useToast } from '../contexts/ToastContext';
-import { faceDetectorOptions, loadFaceRecognition, loadFaceProfile } from '../utils/faceRecognition';
 import '../styles/cameramodal.css';
 
-const activeAiModel = 'Tiny Face Detector';
+const activeAiModel = 'Server';
 
 interface CameraModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onCapture: (imageSrc: string, locationData?: {address: string, lat: number, lng: number, outOfRangeMessage?: string}) => void;
+  onCapture: (imageSrc: string, locationData?: {address: string, lat: number, lng: number, outOfRangeMessage?: string}) => void | Promise<void>;
   attendanceType: string;
 }
 
@@ -37,8 +35,6 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   const capturingRef = useRef(false);
   const sessionRef = useRef(0);
   const mapTileRef = useRef<HTMLImageElement | null>(null);
-  const locationReadyRef = useRef(false);
-  const [isModelsLoaded, setIsModelsLoaded] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
@@ -46,13 +42,9 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   const [logoImage, setLogoImage] = useState<HTMLImageElement | null>(null);
   
   // Identity matching state
-  const [isFaceMatched, setIsFaceMatched] = useState(false);
-  const [faceMatchMsg, setFaceMatchMsg] = useState('');
   
   const { lang } = useLangStore();
   const { user } = useAuthStore();
-  const [profileDescriptor, setProfileDescriptor] = useState<Float32Array | null>(null);
-  const [isProfileLoaded, setIsProfileLoaded] = useState(false);
 
   const t = translations[lang];
   const { showToast } = useToast();
@@ -73,14 +65,11 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   // Reset states when opened
   useEffect(() => {
     if (isOpen) {
-      setIsFaceMatched(false);
-      setFaceMatchMsg("Mencocokkan Wajah dengan Profil...");
       setErrorMsg('');
       setStatusMsg('');
       setIsProcessing(false);
       capturingRef.current = false;
       verifiedFrameRef.current = null;
-      locationReadyRef.current = false;
       setIsCameraReady(false); // Add this reset
       setLocationCoords(null);
       setAddress(t.findingLocation);
@@ -196,124 +185,6 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     return '';
   }, [locationCoords, allowedLocations, t.outOfRange]);
 
-  // Set initial matching message when camera is ready
-  useEffect(() => {
-    if (isCameraReady && isModelsLoaded && isProfileLoaded && !isFaceMatched && !errorMsg) {
-      setFaceMatchMsg("Mencocokkan Wajah dengan Profil...");
-    } else if (isCameraReady && !isModelsLoaded && !errorMsg) {
-      setFaceMatchMsg("Mengunduh Mesin AI (Tunggu sebentar)...");
-    } else if (isCameraReady && isModelsLoaded && !isProfileLoaded && !errorMsg) {
-      setFaceMatchMsg("Menganalisis Foto Profil (Tunggu sebentar)...");
-    }
-  }, [isCameraReady, isModelsLoaded, isProfileLoaded, isFaceMatched, errorMsg]);
-
-  // Face Recognition Loop
-  useEffect(() => {
-    if (!isOpen || !isCameraReady || !isModelsLoaded || !isProfileLoaded || !profileDescriptor || !videoRef.current || isFaceMatched || isProcessing || errorMsg) return;
-
-    let timeoutId: number | NodeJS.Timeout;
-    let isCancelled = false;
-    
-    const detectFace = async () => {
-      if (isCancelled) return;
-      
-      const video = videoRef.current;
-      if (!video || video.paused || video.ended) {
-        if (!isCancelled) timeoutId = setTimeout(detectFace, 300);
-        return;
-      }
-
-      try {
-        // Preview verification enables the shutter; attendance requires a click.
-        const frame = document.createElement('canvas');
-        frame.width = video.videoWidth;
-        frame.height = video.videoHeight;
-        if (!frame.width || !frame.height) {
-          timeoutId = setTimeout(detectFace, 150);
-          return;
-        }
-        const context = frame.getContext('2d');
-        if (!context) throw new Error('Canvas tidak tersedia');
-        context.drawImage(video, 0, 0);
-        const detection = await faceapi.detectSingleFace(frame, faceDetectorOptions).withFaceLandmarks().withFaceDescriptor();
-        if (isCancelled) return;
-        if (detection) {
-          const distance = faceapi.euclideanDistance(detection.descriptor, profileDescriptor);
-          
-          if (distance < 0.58 && !locationReadyRef.current) {
-            setFaceMatchMsg('Wajah cocok. Menunggu koordinat GPS...');
-          } else if (distance < 0.58) {
-            setIsFaceMatched(true);
-            setFaceMatchMsg('Wajah cocok. Klik tombol foto untuk absen.');
-            
-            return; // stop looping
-          } else {
-            setFaceMatchMsg("Wajah tidak cocok dengan profil.");
-          }
-        } else {
-          setFaceMatchMsg('Posisikan wajah di area oval dengan pencahayaan yang cukup.');
-        }
-      } catch (err) {
-        if (isCancelled) return;
-        console.error('Face recognition failed', err);
-        setErrorMsg('Validasi wajah gagal. Tutup kamera lalu coba lagi.');
-        return;
-      }
-      
-      if (!isCancelled) {
-        timeoutId = setTimeout(detectFace, 150);
-      }
-    };
-
-    timeoutId = setTimeout(detectFace, 0);
-
-    return () => {
-      isCancelled = true;
-      clearTimeout(timeoutId);
-    };
-  }, [isOpen, isCameraReady, isModelsLoaded, isProfileLoaded, profileDescriptor, isFaceMatched, isProcessing, errorMsg]);
-
-  // Download models and profile photo concurrently; ignore obsolete sessions.
-  useEffect(() => {
-    if (!isOpen) return;
-    const controller = new AbortController();
-    let cancelled = false;
-    setIsModelsLoaded(false);
-    setIsProfileLoaded(false);
-    setProfileDescriptor(null);
-    const timeout = setTimeout(() => {
-      controller.abort();
-      if (!cancelled) setErrorMsg('Koneksi terlalu lama. Tutup kamera lalu coba lagi.');
-    }, 30000);
-
-    const prepare = async () => {
-      try {
-        if (!user?.id) throw new Error('Silakan masuk kembali sebelum absen.');
-        const [, descriptor] = await Promise.all([
-          loadFaceRecognition().then(() => {
-            if (!cancelled && !controller.signal.aborted) setIsModelsLoaded(true);
-          }),
-          loadFaceProfile(user.id, controller.signal),
-        ]);
-        if (cancelled || controller.signal.aborted) return;
-        setProfileDescriptor(descriptor);
-        setIsProfileLoaded(true);
-      } catch (error) {
-        if (!cancelled && !controller.signal.aborted) {
-          setErrorMsg(error instanceof Error ? error.message : 'Gagal memuat AI atau profil.');
-        }
-      } finally {
-        clearTimeout(timeout);
-      }
-    };
-    void prepare();
-    return () => {
-      cancelled = true;
-      clearTimeout(timeout);
-      controller.abort();
-    };
-  }, [isOpen, user?.id]);
-
   // Stop even a late camera permission response after closing the modal.
   useEffect(() => {
     if (!isOpen || errorMsg) return;
@@ -377,40 +248,31 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
 
   const handleTakePhoto = async () => {
     const video = videoRef.current;
-    if (!isOpen || !isFaceMatched || !locationCoords || !profileDescriptor || !video || capturingRef.current || errorMsg) return;
+    if (!isOpen || !isCameraReady || !locationCoords || !user?.id || !video || capturingRef.current || errorMsg) return;
     capturingRef.current = true;
     setIsProcessing(true);
-    setStatusMsg(t.detectingFace);
+    setStatusMsg('Mengirim foto dan memvalidasi wajah di server...');
     const session = sessionRef.current;
-
     try {
-      // Validate the photo taken at the click, so an earlier matching face cannot
-      // authorize a different person or an empty frame later.
       const frame = document.createElement('canvas');
       frame.width = video.videoWidth;
       frame.height = video.videoHeight;
       const context = frame.getContext('2d');
       if (!context || !frame.width || !frame.height) throw new Error('Kamera belum siap. Silakan coba lagi.');
       context.drawImage(video, 0, 0);
-      const detection = await faceapi.detectSingleFace(frame, faceDetectorOptions).withFaceLandmarks().withFaceDescriptor();
-      if (session !== sessionRef.current) return;
-      if (!detection || faceapi.euclideanDistance(detection.descriptor, profileDescriptor) >= 0.58) {
-        throw new Error('Wajah pada foto belum cocok. Posisikan wajah lalu coba lagi.');
-      }
       verifiedFrameRef.current = frame;
-      captureAndValidate();
+      await captureAndValidate();
     } catch (error) {
       if (session !== sessionRef.current) return;
       capturingRef.current = false;
       setIsProcessing(false);
-      setIsFaceMatched(false);
       verifiedFrameRef.current = null;
       setStatusMsg('');
       showToast(error instanceof Error ? error.message : 'Gagal mengambil foto.', 'error');
     }
   };
 
-  const captureAndValidate = () => {
+  const captureAndValidate = async () => {
     if (!isOpen || !verifiedFrameRef.current || !canvasRef.current) return;
 
     const video = verifiedFrameRef.current;
@@ -426,12 +288,8 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       return;
     }
     
-    // Flip horizontally for mirroring before drawing
-    ctx.save();
-    ctx.translate(canvas.width, 0);
-    ctx.scale(-1, 1);
+    // Keep the same orientation as the registered photo for server matching.
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-    ctx.restore();
 
 
     // Draw Watermark Background
@@ -535,26 +393,15 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       }
     }
 
-    try {
-      const imageSrc = canvas.toDataURL('image/jpeg', 0.8);
-      setStatusMsg(t.faceDetected);
-      stopCamera();
-      onCapture(imageSrc, locationCoords ? { address, lat: locationCoords.lat, lng: locationCoords.lng, outOfRangeMessage } : undefined);
-    } catch (error) {
-      console.error('Capture failed', error);
-      capturingRef.current = false;
-      setIsProcessing(false);
-      setIsFaceMatched(false);
-      verifiedFrameRef.current = null;
-      setStatusMsg('');
-      showToast('Gagal mengambil foto. Silakan coba lagi.', 'error');
-    }
+    const imageSrc = canvas.toDataURL('image/jpeg', 0.8);
+    await onCapture(imageSrc, locationCoords ? { address, lat: locationCoords.lat, lng: locationCoords.lng, outOfRangeMessage } : undefined);
+    stopCamera();
   };
 
-  // GPS updates do not restart preview inference.
-  useEffect(() => {
-    locationReadyRef.current = !!locationCoords;
-  });
+  const canTakePhoto = isCameraReady && !!locationCoords && !errorMsg && !isProcessing;
+  const faceMatchMsg = !isCameraReady ? 'Menyiapkan kamera...' : !locationCoords
+    ? 'Menunggu koordinat GPS...'
+    : 'Posisikan wajah, lalu klik foto. Wajah diperiksa di server.';
 
   if (!isOpen) return null;
 
@@ -645,7 +492,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
         {/* Bottom Controls */}
         <div className="camera-bottom-controls">
           <div style={{ width: '100%', display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
-            {isFaceMatched ? (
+            {canTakePhoto ? (
               <div style={{ padding: '8px 16px', background: 'rgba(34, 197, 94, 0.9)', color: 'white', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
                 <AlertCircle size={16} /> {faceMatchMsg}
               </div>
@@ -662,11 +509,11 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
             </button>
 
             <button 
-              className={`btn-capture-circle ${isFaceMatched ? 'ready' : 'waiting'}`}
+              className={`btn-capture-circle ${canTakePhoto ? 'ready' : 'waiting'}`}
               onClick={handleTakePhoto}
               aria-label="Ambil foto untuk absen"
-              disabled={isProcessing || !isFaceMatched || !locationCoords || !!errorMsg}
-              style={{ opacity: isFaceMatched ? 1 : 0.5, cursor: isFaceMatched ? 'pointer' : 'not-allowed', background: 'none', border: 'none', padding: 0 }}
+              disabled={!canTakePhoto}
+              style={{ opacity: canTakePhoto ? 1 : 0.5, cursor: canTakePhoto ? 'pointer' : 'not-allowed', background: 'none', border: 'none', padding: 0 }}
             >
               <div className="btn-capture-inner">
                 <Camera size={24} fill="white" />

@@ -231,8 +231,9 @@ export default function Dashboard() {
   }
 
   const handleCapture = async (imageSrc: string, locationData?: {address: string, lat: number, lng: number, outOfRangeMessage?: string}) => {
-    if (!user?.id) return
-    
+    if (!user?.id) throw new Error('Silakan masuk kembali sebelum absen.')
+    const controller = new AbortController()
+    const timeout = setTimeout(() => controller.abort(), 45000)
     try {
       // Create form data with base64 image and location
       const formData = new FormData()
@@ -258,17 +259,23 @@ export default function Dashboard() {
       const response = await fetch('/api/attendance/break', {
         method: 'POST',
         body: formData,
+        signal: controller.signal,
       })
 
       if (response.ok) {
         showToast(t.attendanceRecorded.replace('{type}', attendanceType), 'success')
         fetchHistoryAndProfile() // Refresh data
       } else {
-        showToast(t.attendanceFailed, 'error')
+        const data = await response.json().catch(() => ({}))
+        throw new Error(data.message || t.attendanceFailed)
       }
     } catch (error) {
-      console.error("Attendance Error:", error)
-      showToast(t.systemError, 'error')
+      if (error instanceof Error && error.name === 'AbortError') {
+        throw new Error('Respons server terlalu lama. Periksa riwayat absen sebelum mencoba lagi.')
+      }
+      throw error
+    } finally {
+      clearTimeout(timeout)
     }
     setIsCameraOpen(false)
     setPermitReason('')

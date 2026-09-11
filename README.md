@@ -2,6 +2,10 @@
 
 Proyek ini terbagi menjadi dua bagian: **Frontend** (React, TypeScript, Vite) dan **Backend** (PHP Native/PDO). Untuk menjalankan aplikasi secara penuh, Anda harus memastikan bahwa *Database*, *Backend*, dan *Frontend* berjalan secara bersamaan.
 
+Validasi wajah sekarang berjalan di server. Jalankan juga layanan AI sesuai
+[panduan backend/face-ai](backend/face-ai/README.md) sebelum melakukan registrasi wajah atau absensi.
+Model tidak lagi diunduh oleh HP; foto tetap diambil secara manual lewat tombol kamera.
+
 Berikut adalah langkah-langkahnya:
 
 ---

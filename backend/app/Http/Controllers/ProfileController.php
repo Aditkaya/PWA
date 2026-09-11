@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 require_once __DIR__ . '/../../../config/database.php';
+require_once __DIR__ . '/../../Services/FaceVerificationService.php';
 
 use Database;
 use PDO;
@@ -342,6 +343,8 @@ class ProfileController {
             //     return;
             // }
 
+            $verifiedImage = (new \App\Services\FaceVerificationService())->validateRegistration($image);
+
             $nik = $user['nik'] ?? $user['nik_tt'] ?? 'UNKNOWN';
             $nama = $user['nama_karyawan'] ?? $user['nama_tt'] ?? 'UNKNOWN';
             
@@ -363,9 +366,8 @@ class ProfileController {
                 return;
             }
             
-            $image_type_aux = explode("image/", $image_parts[0]);
-            $image_type = $image_type_aux[1] ?? 'jpeg';
-            $image_base64 = base64_decode($image_parts[1]);
+            $image_type = 'jpeg';
+            $image_base64 = $verifiedImage;
             
             $filename = $nik . '_' . $nama . '_' . $dateStr . '.' . $image_type;
             $target_path = $upload_dir . $filename;
@@ -388,6 +390,9 @@ class ProfileController {
             http_response_code(500);
             error_log('Database error: ' . $e->getMessage());
             echo json_encode(['message' => 'Terjadi kesalahan pada server']);
+        } catch (\App\Services\FaceVerificationException $e) {
+            http_response_code($e->getCode());
+            echo json_encode(['message' => $e->getMessage()]);
         } catch (\Exception $e) {
             http_response_code(500);
             echo json_encode(['message' => 'Terjadi kesalahan sistem']);

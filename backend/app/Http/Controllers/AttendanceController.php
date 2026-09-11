@@ -3,6 +3,7 @@
 namespace App\Http\Controllers;
 
 require_once __DIR__ . '/../../../config/database.php';
+require_once __DIR__ . '/../../Services/FaceVerificationService.php';
 
 use Database;
 use PDO;
@@ -75,6 +76,9 @@ class AttendanceController {
                 }
             }
 
+            // Verification is mandatory before any photo or attendance is saved.
+            (new \App\Services\FaceVerificationService())->verifyAttendance($pdo, $user_id, $foto_base64);
+
             // Save image
             $tipe_folder = strtolower(str_replace([' ', '/'], '_', $tipe));
             $upload_dir = UPLOAD_BASE_DIR . '/uploads/attendance/' . $tipe_folder . '/';
@@ -113,6 +117,9 @@ class AttendanceController {
 
             http_response_code(200);
             echo json_encode(['message' => 'Absensi berhasil']);
+        } catch (\App\Services\FaceVerificationException $e) {
+            http_response_code($e->getCode());
+            echo json_encode(['message' => $e->getMessage()]);
         } catch (\PDOException $e) {
             http_response_code(500);
             error_log('Database error: ' . $e->getMessage());

@@ -1,7 +1,5 @@
 import { useRef, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
-import * as faceapi from 'face-api.js';
-import { faceDetectorOptions, loadFaceDetector, clearFaceProfileCache } from '../utils/faceRecognition';
 import { Camera, Loader2, AlertCircle, ScanFace } from 'lucide-react';
 import { useAuthStore } from '../store/auth.store';
 import { useToast } from '../contexts/ToastContext';
@@ -17,12 +15,12 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
-  const [isModelsLoaded, setIsModelsLoaded] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [statusMsg, setStatusMsg] = useState('');
-  const [hasFace, setHasFace] = useState(false);
+  const processingRef = useRef(false);
+  const sessionRef = useRef(0);
   
   const { user } = useAuthStore();
   const { showToast } = useToast();
@@ -33,117 +31,37 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
       setStatusMsg('');
       setIsProcessing(false);
       setIsCameraReady(false);
-      setHasFace(false);
+      processingRef.current = false;
     }
   }, [isOpen]);
 
-  // Face Detection Loop for visual feedback
   useEffect(() => {
-    if (!isOpen || !isCameraReady || !isModelsLoaded || !videoRef.current || isProcessing || errorMsg) return;
-
-    let timeoutId: ReturnType<typeof setTimeout>;
-    let isCancelled = false;
-    
-    const detectFace = async () => {
-      if (isCancelled) return;
-      
-      const video = videoRef.current;
-      if (!video || video.paused || video.ended) {
-        if (!isCancelled) timeoutId = setTimeout(detectFace, 200);
-        return;
-      }
-
-      try {
-        const detection = await faceapi.detectSingleFace(video, faceDetectorOptions);
-        if (isCancelled) return;
-        if (detection) {
-          setHasFace(true);
-          if (overlayCanvasRef.current) {
-            const canvas = overlayCanvasRef.current;
-            const ctx = canvas.getContext('2d');
-            if (ctx) {
-              ctx.clearRect(0, 0, canvas.width, canvas.height);
-            }
-          }
-        } else {
-          setHasFace(false);
-          if (overlayCanvasRef.current) {
-            const ctx = overlayCanvasRef.current.getContext('2d');
-            if (ctx) ctx.clearRect(0, 0, overlayCanvasRef.current.width, overlayCanvasRef.current.height);
-          }
-        }
-      } catch (err) {
-        if (isCancelled) return;
-        console.error('Face detection failed', err);
-        setErrorMsg('Deteksi wajah gagal. Tutup kamera lalu coba lagi.');
-        return;
-      }
-      
-      if (!isCancelled) {
-        timeoutId = setTimeout(detectFace, 200);
-      }
-    };
-
-    timeoutId = setTimeout(detectFace, 200);
-
-    return () => {
-      isCancelled = true;
-      clearTimeout(timeoutId);
-    };
-  }, [isOpen, isCameraReady, isModelsLoaded, isProcessing, errorMsg]);
-
-  // Load Models
-  useEffect(() => {
+    sessionRef.current += 1;
     if (!isOpen) return;
-
     let cancelled = false;
-    const loadModels = async () => {
+    let stream: MediaStream | undefined;
+    const video = videoRef.current;
+    const start = async () => {
       try {
-        await loadFaceDetector();
-        if (cancelled) return;
-        setIsModelsLoaded(true);
-      } catch (err) {
-        if (cancelled) return;
-        console.error("Error loading models", err);
-        setErrorMsg('Gagal memuat AI.');
+        const result = await navigator.mediaDevices.getUserMedia({
+          video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+        });
+        stream = result;
+        if (cancelled || !video) { result.getTracks().forEach(track => track.stop()); return; }
+        video.onloadeddata = () => { if (!cancelled) setIsCameraReady(true); };
+        video.srcObject = result;
+      } catch {
+        if (!cancelled) setErrorMsg('Akses kamera ditolak.');
       }
     };
-
-    loadModels();
-    return () => { cancelled = true; };
-  }, [isOpen]);
-
-  // Start Camera
-  useEffect(() => {
-    if (isOpen && !errorMsg) {
-      startCamera();
-    }
-
+    void start();
     return () => {
-      stopCamera();
+      cancelled = true;
+      sessionRef.current += 1;
+      stream?.getTracks().forEach(track => track.stop());
+      if (video) { video.onloadeddata = null; video.srcObject = null; }
     };
-  }, [isOpen, errorMsg]);
-
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: 'user',
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        } 
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => {
-          setIsCameraReady(true);
-        };
-      }
-    } catch (err) {
-      console.error("Camera access denied", err);
-      setErrorMsg('Akses Kamera Ditolak');
-    }
-  };
+  }, [isOpen]);
 
   const stopCamera = () => {
     if (videoRef.current && videoRef.current.srcObject) {
@@ -153,68 +71,43 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
   };
 
   const captureAndRegister = async () => {
-    if (!videoRef.current || !canvasRef.current || !user?.id) return;
-
+    if (!isOpen || !isCameraReady || !videoRef.current || !canvasRef.current || !user?.id || processingRef.current) return;
+    processingRef.current = true;
     setIsProcessing(true);
-    setStatusMsg('Memproses foto...');
-
-    const video = videoRef.current;
-    const canvas = canvasRef.current;
-    
-    // Draw current frame to canvas
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) {
-      setIsProcessing(false);
-      return;
-    }
-    
-    // Original face registration doesn't need to be mirrored, but let's keep consistency
-    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-
-    const imageSrc = canvas.toDataURL('image/jpeg', 0.9);
-
-    // Basic face detection
-    setStatusMsg('Menganalisis wajah...');
-    const detection = await faceapi.detectSingleFace(canvas, faceDetectorOptions);
-
-    if (detection) {
-      setStatusMsg('Mengunggah data wajah...');
-      try {
-        const response = await fetch('/api/face-registration', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            user_id: user.id,
-            image: imageSrc
-          })
-        });
-
-        const data = await response.json();
-        
-        if (response.ok) {
-          clearFaceProfileCache();
-          showToast('Wajah berhasil didaftarkan!', 'success');
-          stopCamera();
-          onSuccess();
-        } else {
-          showToast(data.message || 'Gagal mendaftarkan wajah', 'error');
-          setIsProcessing(false);
-          setStatusMsg('');
-        }
-      } catch (err) {
-        console.error(err);
-        showToast('Koneksi terputus saat menyimpan', 'error');
+    setStatusMsg('Mengirim foto dan memeriksa wajah di server...');
+    const session = sessionRef.current;
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 45000);
+    try {
+      const video = videoRef.current;
+      const canvas = canvasRef.current;
+      canvas.width = video.videoWidth;
+      canvas.height = video.videoHeight;
+      const ctx = canvas.getContext('2d');
+      if (!ctx || !canvas.width || !canvas.height) throw new Error('Kamera belum siap.');
+      ctx.drawImage(video, 0, 0);
+      const response = await fetch('/api/face-registration', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ user_id: user.id, image: canvas.toDataURL('image/jpeg', 0.9) }),
+        signal: controller.signal,
+      });
+      const data = await response.json();
+      if (session !== sessionRef.current) return;
+      if (!response.ok) throw new Error(data.message || 'Gagal mendaftarkan wajah.');
+      showToast('Wajah berhasil didaftarkan!', 'success');
+      stopCamera();
+      onSuccess();
+    } catch (error) {
+      if (session !== sessionRef.current) return;
+      showToast(error instanceof Error && error.name !== 'AbortError' ? error.message : 'Server belum merespons. Silakan coba lagi.', 'error');
+    } finally {
+      clearTimeout(timeout);
+      if (session === sessionRef.current) {
+        processingRef.current = false;
         setIsProcessing(false);
         setStatusMsg('');
       }
-    } else {
-      setStatusMsg('');
-      showToast('Wajah tidak terdeteksi dengan jelas', 'error');
-      setIsProcessing(false);
     }
   };
 
@@ -263,7 +156,8 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
               <p style={{ color: '#94a3b8', fontSize: '0.85rem', margin: 0 }}>Posisikan wajah Anda dalam area oval</p>
             </div>
             
-            <button 
+            <button
+              disabled={isProcessing}
               onClick={() => {
                 stopCamera();
                 onClose();
@@ -280,13 +174,13 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
         {/* Center Guide HUD */}
         {isCameraReady && (
           <div className="camera-overlay-frame" style={{ zIndex: 10 }}>
-            <div className={`hud-scanner ${hasFace ? 'active' : ''}`}>
+            <div className={`hud-scanner ${isCameraReady ? 'active' : ''}`}>
               <div style={{ 
                 width: '320px', 
                 height: '420px', 
                 borderRadius: '50%', 
-                border: hasFace ? '3px dashed rgba(74, 222, 128, 0.9)' : '3px dashed rgba(255,255,255,0.4)', 
-                boxShadow: hasFace ? '0 0 30px rgba(74, 222, 128, 0.2), inset 0 0 20px rgba(74, 222, 128, 0.1)' : 'none',
+                border: isCameraReady ? '3px dashed rgba(74, 222, 128, 0.9)' : '3px dashed rgba(255,255,255,0.4)',
+                boxShadow: isCameraReady ? '0 0 30px rgba(74, 222, 128, 0.2), inset 0 0 20px rgba(74, 222, 128, 0.1)' : 'none',
                 transition: 'all 0.4s ease',
                 position: 'relative'
               }}>
@@ -301,14 +195,14 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
         )}
 
         {/* Status Overlay */}
-        {(statusMsg || errorMsg || (!isModelsLoaded && !errorMsg)) && (
+        {(statusMsg || errorMsg) && (
           <div className="camera-status">
             {errorMsg ? (
               <AlertCircle size={32} color="#ef4444" />
             ) : (
               <Loader2 size={32} className="animate-spin" />
             )}
-            <span>{errorMsg || statusMsg || 'Memuat AI Mesin...'}</span>
+            <span>{errorMsg || statusMsg || 'Memeriksa wajah di server...'}</span>
           </div>
         )}
 
@@ -318,9 +212,9 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
           <div style={{ width: '100%', display: 'flex', justifyContent: 'center', marginBottom: '24px' }}>
             <div style={{ 
               padding: '12px 28px', 
-              background: hasFace ? 'rgba(15, 23, 42, 0.7)' : 'rgba(15, 23, 42, 0.7)', 
+              background: 'rgba(15, 23, 42, 0.7)',
               backdropFilter: 'blur(16px)',
-              border: hasFace ? '1px solid rgba(74, 222, 128, 0.3)' : '1px solid rgba(255,255,255,0.1)',
+              border: isCameraReady ? '1px solid rgba(74, 222, 128, 0.3)' : '1px solid rgba(255,255,255,0.1)',
               color: 'white', 
               borderRadius: '30px', 
               fontSize: '1rem', 
@@ -341,15 +235,15 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
                   <span style={{ letterSpacing: '0.5px' }}>Menganalisis Biometrik...</span>
                   <div style={{ position: 'absolute', bottom: 0, left: 0, height: '3px', background: '#4ade80', width: '50%', animation: 'progress 1s infinite linear', boxShadow: '0 0 10px #4ade80' }} />
                 </>
-              ) : hasFace ? (
+              ) : isCameraReady ? (
                 <>
                   <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 10px #4ade80', animation: 'pulse 2s infinite' }}></div>
-                  <span style={{ letterSpacing: '0.5px', color: '#4ade80' }}>Wajah Terdeteksi</span>
+                  <span style={{ letterSpacing: '0.5px', color: '#4ade80' }}>Kamera siap. Klik tombol foto.</span>
                 </>
               ) : (
                 <>
                   <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#eab308' }}></div>
-                  <span style={{ letterSpacing: '0.5px' }}>Mencari wajah...</span>
+                  <span style={{ letterSpacing: '0.5px' }}>Menyiapkan kamera...</span>
                 </>
               )}
             </div>
@@ -358,11 +252,11 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
           <div className="action-bar" style={{ justifyContent: 'center' }}>
             <button 
               onClick={captureAndRegister} 
-              disabled={isProcessing || !hasFace || !isModelsLoaded}
-              className={`premium-capture-btn ${hasFace && !isProcessing ? 'ready' : ''}`}
+              disabled={isProcessing || !isCameraReady}
+              className={`premium-capture-btn ${isCameraReady && !isProcessing ? 'ready' : ''}`}
             >
               <div className="inner-circle">
-                <Camera size={26} fill={hasFace ? "#1e293b" : "white"} stroke={hasFace ? "#1e293b" : "white"} />
+                <Camera size={26} fill={isCameraReady ? "#1e293b" : "white"} stroke={isCameraReady ? "#1e293b" : "white"} />
               </div>
             </button>
           </div>

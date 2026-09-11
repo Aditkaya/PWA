@@ -1,0 +1,30 @@
+<?php
+// Isolated SQLite controller test. Never connects to the configured MySQL DB.
+$_SERVER['SERVER_NAME'] = 'localhost';
+define('UPLOAD_BASE_DIR', $argv[1]);
+define('AYPSIS_PUBLIC_DIR', $argv[1]);
+require_once __DIR__ . '/../app/Http/Controllers/AttendanceController.php';
+$pdo = new PDO('sqlite::memory:');
+$pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+$pdo->setAttribute(PDO::ATTR_DEFAULT_FETCH_MODE, PDO::FETCH_ASSOC);
+$pdo->sqliteCreateFunction('NOW', function () { return date('Y-m-d H:i:s'); });
+$pdo->exec('CREATE TABLE users (id INTEGER, karyawan_id INTEGER, face_photo_path TEXT, face_verified_at TEXT)');
+$pdo->exec('CREATE TABLE karyawans (id INTEGER, nik TEXT)');
+$pdo->exec('CREATE TABLE permohonan_izins (id INTEGER, karyawan_id INTEGER, jenis_izin TEXT, status TEXT, tanggal_mulai TEXT, tanggal_selesai TEXT)');
+$pdo->exec('CREATE TABLE cutis (id INTEGER, karyawan_id INTEGER, status TEXT, tanggal_mulai TEXT, tanggal_selesai TEXT)');
+$pdo->exec('CREATE TABLE absensis (karyawan_id INTEGER, nik TEXT, waktu TEXT, tipe TEXT, status TEXT, foto TEXT, latitude TEXT, longitude TEXT, detail_lokasi TEXT, keterangan TEXT)');
+$pdo->exec("INSERT INTO users VALUES (1,1,'uploads/face_verifications/reference.jpg','2026-09-11')");
+$pdo->exec("INSERT INTO karyawans VALUES (1,'TEST')");
+$property = new ReflectionProperty(Database::class, 'pdo');
+$property->setAccessible(true);
+$property->setValue(null, $pdo);
+mkdir(UPLOAD_BASE_DIR . '/uploads/face_verifications', 0700, true);
+$image = imagecreatetruecolor(64, 64);
+imagejpeg($image, UPLOAD_BASE_DIR . '/uploads/face_verifications/reference.jpg');
+imagedestroy($image);
+$photo = 'data:image/jpeg;base64,' . base64_encode(file_get_contents(UPLOAD_BASE_DIR . '/uploads/face_verifications/reference.jpg'));
+if (($argv[2] ?? '') === 'missing') $photo = null;
+ob_start();
+(new \App\Http\Controllers\AttendanceController())->submitBreak(['user_id' => 1, 'tipe' => 'Masuk', 'foto_base64' => $photo]);
+$response = ob_get_clean();
+echo json_encode(['status' => http_response_code(), 'count' => (int) $pdo->query('SELECT COUNT(*) FROM absensis')->fetchColumn(), 'body' => json_decode($response, true)]);

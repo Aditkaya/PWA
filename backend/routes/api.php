@@ -16,23 +16,28 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $isLocalServer = ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NAME'] === '127.0.0.1');
 if ($isLocalServer) {
-    define('UPLOAD_BASE_DIR', 'D:/kerjaan/aypsis/aypsis/aypsis/public');
-    define('AYPSIS_PUBLIC_DIR', 'D:/kerjaan/aypsis/aypsis/aypsis/public');
+    define('UPLOAD_BASE_DIR', getenv('UPLOAD_BASE_DIR') ?: 'D:/kerjaan/aypsis/aypsis/aypsis/public');
+    define('AYPSIS_PUBLIC_DIR', getenv('AYPSIS_PUBLIC_DIR') ?: UPLOAD_BASE_DIR);
 } else {
-    define('UPLOAD_BASE_DIR', '/var/www/pwa/backend');
-    define('AYPSIS_PUBLIC_DIR', '/var/www/aypsis/public');
+    define('UPLOAD_BASE_DIR', getenv('UPLOAD_BASE_DIR') ?: '/var/www/pwa/backend');
+    define('AYPSIS_PUBLIC_DIR', getenv('AYPSIS_PUBLIC_DIR') ?: '/var/www/aypsis/public');
 }
 
-// Serve static files (like uploaded images) with CORS headers
-$file_path = UPLOAD_BASE_DIR . $uri;
-if (!file_exists($file_path) && defined('AYPSIS_PUBLIC_DIR')) {
-    $fallback_path = AYPSIS_PUBLIC_DIR . $uri;
-    if (file_exists($fallback_path) && is_file($fallback_path)) {
-        $file_path = $fallback_path;
+// Only uploaded files are public. Configuration, service tokens and AI models
+// must never be exposed through this PHP router's static-file handler.
+$file_path = null;
+if (strpos($uri, '/uploads/') === 0) {
+    foreach ([UPLOAD_BASE_DIR, AYPSIS_PUBLIC_DIR] as $base) {
+        $root = realpath($base . '/uploads');
+        $candidate = realpath($base . $uri);
+        if ($root && $candidate && is_file($candidate) && strpos($candidate, $root . DIRECTORY_SEPARATOR) === 0) {
+            $file_path = $candidate;
+            break;
+        }
     }
 }
 
-if (file_exists($file_path) && is_file($file_path)) {
+if ($file_path !== null) {
     $ext = strtolower(pathinfo($file_path, PATHINFO_EXTENSION));
     $mimes = [
         'css' => 'text/css',

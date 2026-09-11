@@ -2,13 +2,15 @@ const https = require('https');
 const fs = require('fs');
 const path = require('path');
 
-const modelsDir = path.join(__dirname, 'public', 'models');
+const modelsDir = path.join(__dirname, '..', 'backend', 'face-ai', 'models');
 if (!fs.existsSync(modelsDir)) {
   fs.mkdirSync(modelsDir, { recursive: true });
 }
 
 const baseUrl = 'https://raw.githubusercontent.com/justadudewhohacks/face-api.js/master/weights/';
 const files = [
+  'tiny_face_detector_model-weights_manifest.json',
+  'tiny_face_detector_model-shard1',
   'ssd_mobilenetv1_model-weights_manifest.json',
   'ssd_mobilenetv1_model-shard1',
   'ssd_mobilenetv1_model-shard2',

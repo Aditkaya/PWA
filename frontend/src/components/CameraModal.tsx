@@ -35,7 +35,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const verifiedFrameRef = useRef<HTMLCanvasElement | null>(null);
   const capturingRef = useRef(false);
-  const captureRef = useRef<() => void>(() => {});
+  const sessionRef = useRef(0);
   const mapTileRef = useRef<HTMLImageElement | null>(null);
   const locationReadyRef = useRef(false);
   const [isModelsLoaded, setIsModelsLoaded] = useState(false);
@@ -64,6 +64,11 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   const [address, setAddress] = useState(t.findingLocation);
 
   const [allowedLocations, setAllowedLocations] = useState<any[]>([]);
+
+  useEffect(() => {
+    sessionRef.current += 1;
+    return () => { sessionRef.current += 1; };
+  }, [isOpen, user?.id]);
 
   // Reset states when opened
   useEffect(() => {
@@ -219,8 +224,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       }
 
       try {
-        // Match and capture the very same frame, even if the person moves while
-        // inference is running. Never run a second inference just for capture.
+        // Preview verification enables the shutter; attendance requires a click.
         const frame = document.createElement('canvas');
         frame.width = video.videoWidth;
         frame.height = video.videoHeight;
@@ -239,11 +243,9 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
           if (distance < 0.58 && !locationReadyRef.current) {
             setFaceMatchMsg('Wajah cocok. Menunggu koordinat GPS...');
           } else if (distance < 0.58) {
-            verifiedFrameRef.current = frame;
             setIsFaceMatched(true);
-            setFaceMatchMsg("Wajah Cocok! Verifikasi Berhasil.");
+            setFaceMatchMsg('Wajah cocok. Klik tombol foto untuk absen.');
             
-            captureRef.current();
             return; // stop looping
           } else {
             setFaceMatchMsg("Wajah tidak cocok dengan profil.");
@@ -373,11 +375,43 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     onClose();
   };
 
-  const captureAndValidate = () => {
-    if (!isOpen || !verifiedFrameRef.current || !canvasRef.current || capturingRef.current) return;
+  const handleTakePhoto = async () => {
+    const video = videoRef.current;
+    if (!isOpen || !isFaceMatched || !locationCoords || !profileDescriptor || !video || capturingRef.current || errorMsg) return;
     capturingRef.current = true;
     setIsProcessing(true);
     setStatusMsg(t.detectingFace);
+    const session = sessionRef.current;
+
+    try {
+      // Validate the photo taken at the click, so an earlier matching face cannot
+      // authorize a different person or an empty frame later.
+      const frame = document.createElement('canvas');
+      frame.width = video.videoWidth;
+      frame.height = video.videoHeight;
+      const context = frame.getContext('2d');
+      if (!context || !frame.width || !frame.height) throw new Error('Kamera belum siap. Silakan coba lagi.');
+      context.drawImage(video, 0, 0);
+      const detection = await faceapi.detectSingleFace(frame, faceDetectorOptions).withFaceLandmarks().withFaceDescriptor();
+      if (session !== sessionRef.current) return;
+      if (!detection || faceapi.euclideanDistance(detection.descriptor, profileDescriptor) >= 0.58) {
+        throw new Error('Wajah pada foto belum cocok. Posisikan wajah lalu coba lagi.');
+      }
+      verifiedFrameRef.current = frame;
+      captureAndValidate();
+    } catch (error) {
+      if (session !== sessionRef.current) return;
+      capturingRef.current = false;
+      setIsProcessing(false);
+      setIsFaceMatched(false);
+      verifiedFrameRef.current = null;
+      setStatusMsg('');
+      showToast(error instanceof Error ? error.message : 'Gagal mengambil foto.', 'error');
+    }
+  };
+
+  const captureAndValidate = () => {
+    if (!isOpen || !verifiedFrameRef.current || !canvasRef.current) return;
 
     const video = verifiedFrameRef.current;
     
@@ -517,10 +551,8 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     }
   };
 
-  // Recognition uses the latest location, address and callback without restarting
-  // inference whenever the GPS or clock updates.
+  // GPS updates do not restart preview inference.
   useEffect(() => {
-    captureRef.current = captureAndValidate;
     locationReadyRef.current = !!locationCoords;
   });
 
@@ -631,8 +663,9 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
 
             <button 
               className={`btn-capture-circle ${isFaceMatched ? 'ready' : 'waiting'}`}
-              onClick={captureAndValidate} 
-              disabled={isProcessing || !isFaceMatched}
+              onClick={handleTakePhoto}
+              aria-label="Ambil foto untuk absen"
+              disabled={isProcessing || !isFaceMatched || !locationCoords || !!errorMsg}
               style={{ opacity: isFaceMatched ? 1 : 0.5, cursor: isFaceMatched ? 'pointer' : 'not-allowed', background: 'none', border: 'none', padding: 0 }}
             >
               <div className="btn-capture-inner">

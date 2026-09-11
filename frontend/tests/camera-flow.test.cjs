@@ -16,6 +16,8 @@ function setup() {
   let resolveInference;
   let inferenceCount = 0;
   let gpsSuccess;
+  let shutter;
+  let distance = 0.3;
   const context = new Proxy({}, { get: () => () => {} });
   const canvas = () => ({ width: 640, height: 480, getContext: () => context, toDataURL: () => 'verified-photo' });
   const video = {
@@ -46,6 +48,7 @@ function setup() {
     },
   };
   const jsx = (type, props) => {
+    if (type === 'button' && props['aria-label'] === 'Ambil foto untuk absen') shutter = props;
     if (props?.ref && type === 'video') props.ref.current = video;
     if (props?.ref && type === 'canvas') props.ref.current ??= canvas();
     return { type, props };
@@ -62,7 +65,7 @@ function setup() {
       if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx };
       if (name === 'react-dom') return { createPortal: value => value };
       if (name === 'face-api.js') return {
-        euclideanDistance: () => 0.3,
+        euclideanDistance: () => distance,
         detectSingleFace: () => ({ withFaceLandmarks: () => ({ withFaceDescriptor: () => {
           inferenceCount++;
           return new Promise(resolve => { resolveInference = resolve; });
@@ -100,6 +103,9 @@ function setup() {
   }
   return {
     captures, settle, get inferenceCount() { return inferenceCount; },
+    get shutterDisabled() { return shutter.disabled; },
+    click: () => { if (!shutter.disabled) void shutter.onClick(); },
+    mismatch: () => { distance = 0.8; },
     gps: () => gpsSuccess({ coords: { latitude: -6.2, longitude: 106.8 } }),
     resolve: () => resolveInference({ descriptor: new Float32Array(128) }),
     close: () => { props.isOpen = false; dirty = true; },
@@ -111,17 +117,21 @@ function setup() {
   };
 }
 
-test('matching frame auto-captures once without a second inference or capture timer', async () => {
+test('matching enables the shutter and only a click submits one verified photo', async () => {
   const camera = setup();
   await camera.settle();
   camera.gps();
   await camera.settle();
   camera.runDetection(); camera.resolve();
   await camera.settle();
+  assert.equal(camera.captures.length, 0);
+  assert.equal(camera.shutterDisabled, false);
+  camera.click(); camera.click();
+  camera.resolve(); await camera.settle();
   assert.equal(camera.captures.length, 1);
   assert.equal(camera.captures[0][0], 'verified-photo');
   assert.equal(camera.captures[0][1].lat, -6.2);
-  assert.equal(camera.inferenceCount, 1);
+  assert.equal(camera.inferenceCount, 2);
 });
 
 test('closing during inference prevents a late attendance capture', async () => {
@@ -132,12 +142,33 @@ test('closing during inference prevents a late attendance capture', async () => 
   assert.equal(camera.captures.length, 0);
 });
 
-test('a match waits for GPS and verifies a fresh frame before capture', async () => {
+test('a match waits for GPS before enabling manual capture', async () => {
   const camera = setup();
   await camera.settle(); camera.runDetection(); camera.resolve(); await camera.settle();
   assert.equal(camera.captures.length, 0);
+  assert.equal(camera.shutterDisabled, true);
   camera.gps(); await camera.settle();
   camera.runDetection(); camera.resolve(); await camera.settle();
+  assert.equal(camera.captures.length, 0);
+  camera.click(); camera.resolve(); await camera.settle();
   assert.equal(camera.captures.length, 1);
-  assert.equal(camera.inferenceCount, 2);
+  assert.equal(camera.inferenceCount, 3);
+});
+
+test('a different face at click time cannot use the earlier preview match', async () => {
+  const camera = setup();
+  await camera.settle(); camera.gps(); await camera.settle();
+  camera.runDetection(); camera.resolve(); await camera.settle();
+  camera.mismatch(); camera.click(); camera.resolve(); await camera.settle();
+  assert.equal(camera.captures.length, 0);
+  assert.equal(camera.shutterDisabled, true);
+});
+
+test('closing after a click cancels the pending photo verification', async () => {
+  const camera = setup();
+  await camera.settle(); camera.gps(); await camera.settle();
+  camera.runDetection(); camera.resolve(); await camera.settle();
+  camera.click(); camera.close(); await camera.settle();
+  camera.resolve(); await camera.settle();
+  assert.equal(camera.captures.length, 0);
 });

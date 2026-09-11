@@ -6,6 +6,7 @@ const { Worker } = require('node:worker_threads');
 
 function createServer({ token, worker }) {
   let ready = false;
+  let backend = null;
   let active = null;
   let activeTimeout;
   const queue = [];
@@ -28,7 +29,7 @@ function createServer({ token, worker }) {
     }
   };
   worker.on('message', message => {
-    if (message.ready) ready = true;
+    if (message.ready) { ready = true; backend = message.backend || 'cpu'; }
     else if (active) {
       clearTimeout(activeTimeout);
       reply(active.res, message.error ? 422 : 200, message.error ? { message: message.error } : message.result);
@@ -52,7 +53,7 @@ function createServer({ token, worker }) {
     if (supplied.length !== expected.length || !crypto.timingSafeEqual(supplied, expected)) {
       return reply(res, 401, { message: 'Unauthorized' });
     }
-    if (req.method === 'GET' && req.url === '/health') return reply(res, ready ? 200 : 503, { ready });
+    if (req.method === 'GET' && req.url === '/health') return reply(res, ready ? 200 : 503, { ready, backend });
     if (req.method !== 'POST' || !['/verify', '/validate'].includes(req.url)) return reply(res, 404, { message: 'Not found' });
     if (!ready) return reply(res, 503, { message: 'AI sedang disiapkan. Silakan coba lagi.' });
     if (queue.length >= 8) return reply(res, 503, { message: 'Server AI sedang sibuk. Silakan coba lagi.' });

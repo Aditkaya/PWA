@@ -30,7 +30,7 @@ cd backend/face-ai
 npm run health
 ```
 
-Hasil siap: `{"ready":true}`. Saat startup model dimuat sekali ke memori worker Node.
+Hasil siap dengan akselerasi: `{"ready":true,"backend":"tensorflow"}`. Saat startup model dimuat sekali ke memori worker Node.
 Biarkan proses berjalan selama aplikasi dipakai. Di Windows gunakan terminal terpisah;
 di Linux gunakan pengelola layanan seperti contoh systemd berikut.
 
@@ -81,6 +81,7 @@ Konfigurasi opsional (environment proses):
 | `FACE_AI_TOKEN` | PHP, Node, health | token file konfigurasi |
 | `FACE_AI_PORT` | Node | `8001` |
 | `FACE_AI_MODEL_DIR` | Node | folder `models` di layanan ini |
+| `FACE_AI_BACKEND` | Node | otomatis mencoba native; `tensorflow` mewajibkan native, `cpu` untuk fallback |
 
 Jika PHP dan Node berjalan di container berbeda, alamat loopback tidak saling menjangkau;
 contoh ini untuk dua proses pada host yang sama. Jangan membuka layanan ke jaringan umum.
@@ -97,8 +98,13 @@ contoh ini untuk dua proses pada host yang sama. Jangan membuka layanan ke jarin
   25 detik. Jika server sibuk, pengguna menerima pesan untuk mencoba lagi.
   Pekerjaan yang melewati 20 detik menghentikan worker; systemd dapat memulai ulang layanan.
 - Input JPEG/PNG maksimal 2 MB/2 megapiksel dinormalisasi PHP menjadi JPEG maksimal sisi
-  640 piksel. Implementasi Node memakai CPU; kapasitas untuk absen serentak perlu diukur
-  pada mesin tujuan. Tidak perlu GPU atau layanan AI berbayar.
+  640 piksel. TensorFlow native memakai CPU server melalui C++ tanpa GPU atau layanan berbayar.
+  Dependensi opsional `@tensorflow/tfjs-node` dikunci ke 1.7.0 agar cocok dengan core face-api.js.
+  Jangan menaikkan versi paket TensorFlow secara terpisah. Instalasi pertama mengunduh library
+  native; model wajah tetap berasal dari folder lokal. Jika instalasi native tidak didukung,
+  mode otomatis kembali ke CPU JavaScript yang lebih lambat. Periksa nilai `backend` pada health.
+  Untuk produksi gunakan `Environment=FACE_AI_BACKEND=tensorflow` dalam unit systemd agar
+  kegagalan akselerasi terlihat sebagai kegagalan startup. Kapasitas absen serentak tetap perlu diukur.
 - Ini pencocokan identitas dari foto, belum deteksi keaslian wajah hidup (anti foto/replay).
 - Sistem login/user_id aplikasi mengikuti backend yang sudah ada; perubahan ini bukan
   penggantian mekanisme autentikasi aplikasi.

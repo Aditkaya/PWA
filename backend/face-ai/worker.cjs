@@ -1,8 +1,8 @@
 const { parentPort, workerData } = require('node:worker_threads');
-const { initialize, evaluate } = require('./engine.cjs');
+const { initialize, evaluate, getBackend } = require('./engine.cjs');
 
 initialize(workerData.modelDir).then(() => {
-  parentPort.postMessage({ ready: true });
+  parentPort.postMessage({ ready: true, backend: getBackend() });
   parentPort.on('message', async ({ operation, payload }) => {
     try {
       parentPort.postMessage({ result: await evaluate(operation, payload) });

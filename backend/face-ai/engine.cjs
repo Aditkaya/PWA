@@ -1,3 +1,13 @@
+// The native backend uses the same TFJS core/models but executes inference in
+// TensorFlow C++. Keep CPU mode available for unsupported development machines.
+if (process.env.FACE_AI_BACKEND !== 'cpu') {
+  try {
+    require('@tensorflow/tfjs-node');
+  } catch (error) {
+    if (process.env.FACE_AI_BACKEND === 'tensorflow') throw error;
+    console.warn('TensorFlow native tidak tersedia; memakai CPU JavaScript.');
+  }
+}
 const faceapi = require('face-api.js');
 const jpeg = require('jpeg-js');
 const crypto = require('node:crypto');
@@ -7,6 +17,7 @@ const references = new Map();
 const MAX_REFERENCES = 500;
 
 async function initialize(modelDir) {
+  if (process.env.FACE_AI_BACKEND === 'cpu') await faceapi.tf.setBackend('cpu');
   await Promise.all([
     faceapi.nets.tinyFaceDetector.loadFromDisk(modelDir),
     faceapi.nets.faceLandmark68Net.loadFromDisk(modelDir),
@@ -58,4 +69,6 @@ async function evaluate(operation, payload) {
   return { matched: Number.isFinite(distance) && distance < 0.58 };
 }
 
-module.exports = { initialize, evaluate, decodeImage };
+function getBackend() { return faceapi.tf.getBackend(); }
+
+module.exports = { initialize, evaluate, decodeImage, getBackend };

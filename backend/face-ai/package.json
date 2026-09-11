@@ -8,9 +8,14 @@
     "health": "node health.cjs",
     "test": "node --test tests/*.test.cjs"
   },
-  "engines": { "node": ">=20" },
+  "engines": {
+    "node": ">=20"
+  },
   "dependencies": {
     "face-api.js": "0.22.2",
     "jpeg-js": "0.4.4"
+  },
+  "optionalDependencies": {
+    "@tensorflow/tfjs-node": "1.7.0"
   }
 }

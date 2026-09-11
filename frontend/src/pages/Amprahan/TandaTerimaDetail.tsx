@@ -7,6 +7,7 @@ import './TandaTerimaDetail.css';
 interface AmprahanItem {
   id: number;
   nama_barang: string;
+  link_barang: string | null;
   jumlah: string;
   satuan: string;
   keterangan: string;
@@ -155,6 +156,7 @@ export default function TandaTerimaDetail() {
                       <tr>
                         <th>No</th>
                         <th>Nama Barang</th>
+                        <th>Link Barang</th>
                         <th>Jumlah</th>
                         <th>Satuan</th>
                         <th>Keterangan</th>
@@ -165,6 +167,13 @@ export default function TandaTerimaDetail() {
                         <tr key={item.id}>
                           <td>{index + 1}</td>
                           <td>{item.nama_barang}</td>
+                          <td>
+                            {item.link_barang ? (
+                              <a href={item.link_barang} target="_blank" rel="noreferrer" className="item-link">
+                                Buka link
+                              </a>
+                            ) : '-'}
+                          </td>
                           <td>{parseFloat(item.jumlah)}</td>
                           <td>{item.satuan}</td>
                           <td>{item.keterangan || '-'}</td>

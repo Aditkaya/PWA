@@ -22,6 +22,7 @@ CREATE TABLE IF NOT EXISTS permohonan_amprahan_items (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     permohonan_id BIGINT UNSIGNED NOT NULL,
     nama_barang VARCHAR(255) NOT NULL,
+    link_barang VARCHAR(2048) NULL,
     jumlah DECIMAL(10,2) NOT NULL,
     satuan VARCHAR(50) NOT NULL,
     keterangan TEXT NULL,

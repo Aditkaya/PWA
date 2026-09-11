@@ -148,6 +148,17 @@
   border-bottom: 1px solid rgba(255, 255, 255, 0.05);
 }
 
+.item-link {
+  color: #0284c7;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.item-link:hover {
+  text-decoration: underline;
+}
+
 .card-footer {
   padding: 20px;
   background: rgba(0, 0, 0, 0.1);

@@ -1,4 +1,5 @@
 .amprahan-request-page {
+  width: 100%;
   padding: 24px;
   min-height: 100%;
   display: flex;
@@ -7,6 +8,7 @@
   justify-content: flex-start;
   padding-top: 40px;
   padding-bottom: 80px;
+  box-sizing: border-box;
 }
 
 .amprahan-request-container {
@@ -30,7 +32,8 @@
   font-size: 0.95rem;
   font-weight: 500;
   cursor: pointer;
-  padding: 0;
+  min-height: 40px;
+  padding: 6px 0;
   margin-bottom: 24px;
   transition: color 0.2s;
 }
@@ -67,6 +70,11 @@
   font-size: 0.85rem;
   font-weight: 600;
   color: var(--text-h);
+  min-width: 0;
+}
+
+.chip span {
+  overflow-wrap: anywhere;
 }
 
 .request-form {
@@ -88,8 +96,15 @@
   margin-left: 4px;
 }
 
+.field-hint {
+  color: var(--text);
+  font-size: 0.75rem;
+  margin: -2px 4px 0;
+}
+
 .form-input {
   width: 100%;
+  min-height: 52px;
   padding: 14px 16px;
   border-radius: 12px;
   border: 1px solid var(--border);
@@ -153,8 +168,8 @@ textarea.form-input {
   background: rgba(239, 68, 68, 0.1);
   color: #ef4444;
   border: none;
-  width: 32px;
-  height: 32px;
+  width: 40px;
+  height: 40px;
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -211,6 +226,7 @@ textarea.form-input {
 
 .btn-submit-request {
   width: 100%;
+  min-height: 54px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -240,7 +256,92 @@ textarea.form-input {
 }
 
 @media (max-width: 600px) {
+  .amprahan-request-page {
+    padding: 16px 12px calc(24px + env(safe-area-inset-bottom));
+    padding-top: 20px;
+  }
+
+  .amprahan-request-container {
+    max-width: none;
+    padding: 20px 16px 24px;
+    border-radius: 16px;
+  }
+
+  .btn-back {
+    margin-bottom: 18px;
+  }
+
+  .request-header {
+    margin-bottom: 24px;
+  }
+
+  .request-header h2 {
+    font-size: 1.3rem;
+    line-height: 1.3;
+  }
+
+  .info-chips {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .chip {
+    width: 100%;
+    padding: 10px 12px;
+    border-radius: 12px;
+    line-height: 1.35;
+  }
+
+  .request-form {
+    gap: 20px;
+  }
+
+  .form-group {
+    gap: 7px;
+  }
+
+  .form-group label {
+    font-size: 0.875rem;
+  }
+
+  .form-input {
+    min-height: 54px;
+    padding: 14px;
+    font-size: 16px;
+  }
+
+  textarea.form-input {
+    min-height: 100px;
+  }
+
+  .items-container {
+    gap: 12px;
+  }
+
+  .items-header h3 {
+    font-size: 1rem;
+  }
+
+  .item-card {
+    padding: 16px;
+    border-radius: 14px;
+    gap: 14px;
+  }
+
+  .item-fields {
+    gap: 14px;
+  }
+
   .half-width {
     flex: 0 0 100%;
+  }
+
+  .btn-add-item,
+  .btn-submit-request {
+    min-height: 54px;
+  }
+
+  .form-actions {
+    margin-top: 4px;
   }
 }

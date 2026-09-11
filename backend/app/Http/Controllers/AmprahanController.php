@@ -36,18 +36,24 @@ class AmprahanController {
             $permohonan_id = $pdo->lastInsertId();
 
             $stmtItem = $pdo->prepare("
-                INSERT INTO permohonan_amprahan_items (permohonan_id, nama_barang, jumlah, satuan, keterangan)
-                VALUES (?, ?, ?, ?, ?)
+                INSERT INTO permohonan_amprahan_items (permohonan_id, nama_barang, link_barang, jumlah, satuan, keterangan)
+                VALUES (?, ?, ?, ?, ?, ?)
             ");
 
             foreach ($items as $item) {
                 if (empty($item['nama_barang']) || empty($item['jumlah']) || empty($item['satuan'])) {
                     throw new Exception('Data item tidak valid');
                 }
+
+                $linkBarang = trim((string) ($item['link_barang'] ?? ''));
+                if ($linkBarang !== '' && (!filter_var($linkBarang, FILTER_VALIDATE_URL) || !preg_match('/^https?:\\/\\//i', $linkBarang))) {
+                    throw new Exception('Link barang harus berupa URL http atau https yang valid');
+                }
                 
                 $stmtItem->execute([
                     $permohonan_id,
                     $item['nama_barang'],
+                    $linkBarang !== '' ? $linkBarang : null,
                     $item['jumlah'],
                     $item['satuan'],
                     $item['keterangan'] ?? null
@@ -103,7 +109,7 @@ class AmprahanController {
             if (!empty($permohonanIds)) {
                 $inQuery = implode(',', array_fill(0, count($permohonanIds), '?'));
                 $stmtItems = $pdo->prepare("
-                    SELECT id, permohonan_id, nama_barang, jumlah, satuan, keterangan
+                    SELECT id, permohonan_id, nama_barang, link_barang, jumlah, satuan, keterangan
                     FROM permohonan_amprahan_items
                     WHERE permohonan_id IN ($inQuery)
                 ");

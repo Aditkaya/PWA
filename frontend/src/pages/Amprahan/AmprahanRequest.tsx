@@ -7,6 +7,7 @@ import './AmprahanRequest.css';
 interface AmprahanItem {
   id: string;
   nama_barang: string;
+  link_barang: string;
   jumlah: string;
   satuan: string;
   keterangan: string;
@@ -31,14 +32,14 @@ export default function AmprahanRequest() {
 
   const [keteranganUmum, setKeteranganUmum] = useState('');
   const [items, setItems] = useState<AmprahanItem[]>([
-    { id: Date.now().toString(), nama_barang: '', jumlah: '', satuan: '', keterangan: '' }
+    { id: Date.now().toString(), nama_barang: '', link_barang: '', jumlah: '', satuan: '', keterangan: '' }
   ]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const handleAddItem = () => {
     setItems([
       ...items,
-      { id: Date.now().toString(), nama_barang: '', jumlah: '', satuan: '', keterangan: '' }
+      { id: Date.now().toString(), nama_barang: '', link_barang: '', jumlah: '', satuan: '', keterangan: '' }
     ]);
   };
 
@@ -79,6 +80,7 @@ export default function AmprahanRequest() {
           keterangan_umum: keteranganUmum,
           items: items.map(i => ({
             nama_barang: i.nama_barang,
+            link_barang: i.link_barang || null,
             jumlah: parseFloat(i.jumlah),
             satuan: i.satuan,
             keterangan: i.keterangan
@@ -167,6 +169,20 @@ export default function AmprahanRequest() {
                       onChange={e => handleItemChange(item.id, 'nama_barang', e.target.value)}
                       required
                     />
+                  </div>
+
+                  <div className="form-group full-width">
+                    <label htmlFor={`link-barang-${item.id}`}>Link Barang (Opsional)</label>
+                    <input
+                      id={`link-barang-${item.id}`}
+                      type="url"
+                      className="form-input"
+                      placeholder="https://tokopedia.com/..."
+                      value={item.link_barang}
+                      onChange={e => handleItemChange(item.id, 'link_barang', e.target.value)}
+                      inputMode="url"
+                    />
+                    <small className="field-hint">Tambahkan link olshop sebagai referensi barang.</small>
                   </div>
                   
                   <div className="form-group half-width">

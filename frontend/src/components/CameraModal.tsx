@@ -6,17 +6,10 @@ import { useLangStore } from '../store/lang.store';
 import { useAuthStore } from '../store/auth.store';
 import { translations } from '../utils/translations';
 import { useToast } from '../contexts/ToastContext';
+import { faceDetectorOptions, loadFaceRecognition, loadFaceProfile } from '../utils/faceRecognition';
 import '../styles/cameramodal.css';
 
-// Global cache variables to prevent reloading AI models and profile photo for every modal open
-let globalModelsPromise: Promise<any> | null = null;
-let globalProfileDescriptor: Float32Array | null = null;
-let globalUserId: number | string | null = null;
-
-const faceDetectorOptions = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 });
-const activeAiModel = ((faceDetectorOptions as any) instanceof faceapi.SsdMobilenetv1Options) ? 'SSD MobileNet V1' : 
-                      ((faceDetectorOptions as any) instanceof faceapi.TinyFaceDetectorOptions) ? 'Tiny Face Detector' : 
-                      'AI Engine';
+const activeAiModel = 'Tiny Face Detector';
 
 interface CameraModalProps {
   isOpen: boolean;
@@ -40,6 +33,11 @@ function getDistanceFromLatLonInM(lat1: number, lon1: number, lat2: number, lon2
 export default function CameraModal({ isOpen, onClose, onCapture, attendanceType: _attendanceType }: CameraModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const verifiedFrameRef = useRef<HTMLCanvasElement | null>(null);
+  const capturingRef = useRef(false);
+  const captureRef = useRef<() => void>(() => {});
+  const mapTileRef = useRef<HTMLImageElement | null>(null);
+  const locationReadyRef = useRef(false);
   const [isModelsLoaded, setIsModelsLoaded] = useState(false);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -47,9 +45,9 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   const [statusMsg, setStatusMsg] = useState('');
   const [logoImage, setLogoImage] = useState<HTMLImageElement | null>(null);
   
-  // Liveness States
-  const [isLivenessPassed, setIsLivenessPassed] = useState(false);
-  const [livenessMsg, setLivenessMsg] = useState('');
+  // Identity matching state
+  const [isFaceMatched, setIsFaceMatched] = useState(false);
+  const [faceMatchMsg, setFaceMatchMsg] = useState('');
   
   const { lang } = useLangStore();
   const { user } = useAuthStore();
@@ -70,11 +68,14 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   // Reset states when opened
   useEffect(() => {
     if (isOpen) {
-      setIsLivenessPassed(false);
-      setLivenessMsg("Mencocokkan Wajah dengan Profil...");
+      setIsFaceMatched(false);
+      setFaceMatchMsg("Mencocokkan Wajah dengan Profil...");
       setErrorMsg('');
       setStatusMsg('');
       setIsProcessing(false);
+      capturingRef.current = false;
+      verifiedFrameRef.current = null;
+      locationReadyRef.current = false;
       setIsCameraReady(false); // Add this reset
       setLocationCoords(null);
       setAddress(t.findingLocation);
@@ -108,9 +109,11 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     if (!isOpen) return;
 
     let watchId: number;
+    let cancelled = false;
 
     if (navigator.geolocation) {
       const handleSuccess = (position: GeolocationPosition) => {
+        if (cancelled) return;
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
         setLocationCoords({ lat, lng });
@@ -121,7 +124,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
             fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
               .then(res => res.json())
               .then(data => {
-                if (data && data.display_name) {
+                if (!cancelled && data && data.display_name) {
                   setAddress(data.display_name);
                 }
               })
@@ -135,6 +138,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       watchId = navigator.geolocation.watchPosition(
         handleSuccess,
         (error) => {
+          if (cancelled) return;
           console.warn("High accuracy geolocation failed. Retrying with low accuracy...", error);
           if (error.code === 2 || error.code === 3) {
             // POSITION_UNAVAILABLE (2) or TIMEOUT (3)
@@ -142,25 +146,30 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
             watchId = navigator.geolocation.watchPosition(
               handleSuccess,
               (fallbackError) => {
+                if (cancelled) return;
+                setErrorMsg(t.gpsFailed);
                 console.error("Fallback geolocation error", fallbackError);
                 setAddress(t.gpsFailed);
               },
               { enableHighAccuracy: false, timeout: 30000, maximumAge: 10000 }
             );
           } else {
+            setErrorMsg(t.gpsFailed);
             setAddress(t.gpsFailed);
           }
         },
         { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
       );
     } else {
+      setErrorMsg(t.gpsNotSupported);
       setAddress(t.gpsNotSupported);
     }
 
     return () => {
+      cancelled = true;
       if (watchId !== undefined) navigator.geolocation.clearWatch(watchId);
     };
-  }, [isOpen]);
+  }, [isOpen, t.findingLocation, t.translatingAddress, t.gpsFailed, t.gpsNotSupported]);
 
   // Calculate radius synchronously during render — guaranteed no race condition
   const outOfRangeMessage = useMemo(() => {
@@ -182,20 +191,20 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     return '';
   }, [locationCoords, allowedLocations, t.outOfRange]);
 
-  // Set initial liveness message when camera is ready
+  // Set initial matching message when camera is ready
   useEffect(() => {
-    if (isCameraReady && isModelsLoaded && isProfileLoaded && !isLivenessPassed && !errorMsg) {
-      setLivenessMsg("Mencocokkan Wajah dengan Profil...");
+    if (isCameraReady && isModelsLoaded && isProfileLoaded && !isFaceMatched && !errorMsg) {
+      setFaceMatchMsg("Mencocokkan Wajah dengan Profil...");
     } else if (isCameraReady && !isModelsLoaded && !errorMsg) {
-      setLivenessMsg("Mengunduh Mesin AI (Tunggu sebentar)...");
+      setFaceMatchMsg("Mengunduh Mesin AI (Tunggu sebentar)...");
     } else if (isCameraReady && isModelsLoaded && !isProfileLoaded && !errorMsg) {
-      setLivenessMsg("Menganalisis Foto Profil (Tunggu sebentar)...");
+      setFaceMatchMsg("Menganalisis Foto Profil (Tunggu sebentar)...");
     }
-  }, [isCameraReady, isModelsLoaded, isProfileLoaded, isLivenessPassed, errorMsg]);
+  }, [isCameraReady, isModelsLoaded, isProfileLoaded, isFaceMatched, errorMsg]);
 
   // Face Recognition Loop
   useEffect(() => {
-    if (!isCameraReady || !isModelsLoaded || !isProfileLoaded || !profileDescriptor || !videoRef.current || isLivenessPassed || isProcessing || errorMsg) return;
+    if (!isOpen || !isCameraReady || !isModelsLoaded || !isProfileLoaded || !profileDescriptor || !videoRef.current || isFaceMatched || isProcessing || errorMsg) return;
 
     let timeoutId: number | NodeJS.Timeout;
     let isCancelled = false;
@@ -210,27 +219,43 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       }
 
       try {
-        const detection = await faceapi.detectSingleFace(video, faceDetectorOptions).withFaceLandmarks().withFaceDescriptor();
+        // Match and capture the very same frame, even if the person moves while
+        // inference is running. Never run a second inference just for capture.
+        const frame = document.createElement('canvas');
+        frame.width = video.videoWidth;
+        frame.height = video.videoHeight;
+        if (!frame.width || !frame.height) {
+          timeoutId = setTimeout(detectFace, 150);
+          return;
+        }
+        const context = frame.getContext('2d');
+        if (!context) throw new Error('Canvas tidak tersedia');
+        context.drawImage(video, 0, 0);
+        const detection = await faceapi.detectSingleFace(frame, faceDetectorOptions).withFaceLandmarks().withFaceDescriptor();
+        if (isCancelled) return;
         if (detection) {
           const distance = faceapi.euclideanDistance(detection.descriptor, profileDescriptor);
           
-          if (distance < 0.58) {
-            setIsLivenessPassed(true);
-            setLivenessMsg("Wajah Cocok! Verifikasi Berhasil.");
+          if (distance < 0.58 && !locationReadyRef.current) {
+            setFaceMatchMsg('Wajah cocok. Menunggu koordinat GPS...');
+          } else if (distance < 0.58) {
+            verifiedFrameRef.current = frame;
+            setIsFaceMatched(true);
+            setFaceMatchMsg("Wajah Cocok! Verifikasi Berhasil.");
             
-            // Auto capture
-            setTimeout(() => {
-              if (!isCancelled) captureAndValidate();
-            }, 500);
+            captureRef.current();
             return; // stop looping
           } else {
-            setLivenessMsg("Wajah tidak cocok dengan profil.");
+            setFaceMatchMsg("Wajah tidak cocok dengan profil.");
           }
         } else {
-          setLivenessMsg("Mencocokkan Wajah dengan Profil...");
+          setFaceMatchMsg('Posisikan wajah di area oval dengan pencahayaan yang cukup.');
         }
       } catch (err) {
-        // ignore errors during loop to keep it running silently
+        if (isCancelled) return;
+        console.error('Face recognition failed', err);
+        setErrorMsg('Validasi wajah gagal. Tutup kamera lalu coba lagi.');
+        return;
       }
       
       if (!isCancelled) {
@@ -238,139 +263,131 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       }
     };
 
-    timeoutId = setTimeout(detectFace, 500);
+    timeoutId = setTimeout(detectFace, 0);
 
     return () => {
       isCancelled = true;
       clearTimeout(timeoutId);
     };
-  }, [isCameraReady, isModelsLoaded, isProfileLoaded, profileDescriptor, isLivenessPassed, isProcessing, errorMsg]);
+  }, [isOpen, isCameraReady, isModelsLoaded, isProfileLoaded, profileDescriptor, isFaceMatched, isProcessing, errorMsg]);
 
-  // Load Models and Profile
+  // Download models and profile photo concurrently; ignore obsolete sessions.
   useEffect(() => {
     if (!isOpen) return;
+    const controller = new AbortController();
+    let cancelled = false;
+    setIsModelsLoaded(false);
+    setIsProfileLoaded(false);
+    setProfileDescriptor(null);
+    const timeout = setTimeout(() => {
+      controller.abort();
+      if (!cancelled) setErrorMsg('Koneksi terlalu lama. Tutup kamera lalu coba lagi.');
+    }, 30000);
 
-    const loadModelsAndProfile = async () => {
+    const prepare = async () => {
       try {
-        if (!globalModelsPromise) {
-          globalModelsPromise = Promise.all([
-            faceapi.nets.ssdMobilenetv1.loadFromUri('/models'),
-            faceapi.nets.faceLandmark68Net.loadFromUri('/models'),
-            faceapi.nets.faceRecognitionNet.loadFromUri('/models')
-          ]);
-        }
-        await globalModelsPromise;
-        setIsModelsLoaded(true);
-
-        // Fetch profile
-        if (user?.id) {
-          if (globalUserId === user.id && globalProfileDescriptor) {
-            setProfileDescriptor(globalProfileDescriptor);
-            setIsProfileLoaded(true);
-            return;
-          }
-          const res = await fetch(`/api/profile?user_id=${user.id}`);
-          const data = await res.json();
-          if (data.data && data.data.face_verification_url) {
-            try {
-              // Gunakan fetch & blob untuk menghindari bug CORS gambar di Safari/iOS
-              const imgRes = await fetch(data.data.face_verification_url);
-              const imgBlob = await imgRes.blob();
-              const objUrl = URL.createObjectURL(imgBlob);
-              
-              const img = new Image();
-              img.src = objUrl;
-              await new Promise((resolve, reject) => {
-                img.onload = resolve;
-                img.onerror = () => reject(new Error('Gagal memuat gambar profil'));
-              });
-              
-              const detection = await faceapi.detectSingleFace(img, faceDetectorOptions).withFaceLandmarks().withFaceDescriptor();
-              URL.revokeObjectURL(objUrl);
-
-              if (detection) {
-                globalProfileDescriptor = detection.descriptor;
-                globalUserId = user.id;
-                setProfileDescriptor(detection.descriptor);
-              } else {
-                setErrorMsg('Wajah pada foto verifikasi tidak terdeteksi.');
-              }
-            } catch (fetchErr) {
-              console.error("Error fetching face verification image", fetchErr);
-              setErrorMsg('Koneksi terputus saat memuat foto verifikasi.');
-            }
-          } else {
-            setErrorMsg('Anda belum melakukan verifikasi wajah.');
-          }
-        }
+        if (!user?.id) throw new Error('Silakan masuk kembali sebelum absen.');
+        const [, descriptor] = await Promise.all([
+          loadFaceRecognition().then(() => {
+            if (!cancelled && !controller.signal.aborted) setIsModelsLoaded(true);
+          }),
+          loadFaceProfile(user.id, controller.signal),
+        ]);
+        if (cancelled || controller.signal.aborted) return;
+        setProfileDescriptor(descriptor);
         setIsProfileLoaded(true);
-      } catch (err) {
-        console.error("Error loading models or profile", err);
-        setErrorMsg('Gagal memuat AI atau data profil.');
+      } catch (error) {
+        if (!cancelled && !controller.signal.aborted) {
+          setErrorMsg(error instanceof Error ? error.message : 'Gagal memuat AI atau profil.');
+        }
+      } finally {
+        clearTimeout(timeout);
       }
     };
-
-    loadModelsAndProfile();
+    void prepare();
+    return () => {
+      cancelled = true;
+      clearTimeout(timeout);
+      controller.abort();
+    };
   }, [isOpen, user?.id]);
 
-  // Start Camera
+  // Stop even a late camera permission response after closing the modal.
   useEffect(() => {
-    if (isOpen && !errorMsg) {
-      startCamera();
-    }
-
-    return () => {
-      stopCamera();
-    };
-  }, [isOpen, errorMsg]);
-
-  const startCamera = async () => {
-    try {
-      const stream = await navigator.mediaDevices.getUserMedia({ 
-        video: { 
-          facingMode: 'user',
-          width: { ideal: 640 },
-          height: { ideal: 480 }
-        } 
-      });
-      if (videoRef.current) {
-        videoRef.current.srcObject = stream;
-        videoRef.current.onloadedmetadata = () => {
-          setIsCameraReady(true);
-        };
-      }
-    } catch (err) {
-      console.error("Camera access denied", err);
+    if (!isOpen || errorMsg) return;
+    let cancelled = false;
+    let stream: MediaStream | undefined;
+    const video = videoRef.current;
+    if (!navigator.mediaDevices?.getUserMedia) {
       setErrorMsg(t.cameraDenied);
+      return;
     }
-  };
+    navigator.mediaDevices.getUserMedia({
+      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
+    }).then(result => {
+      stream = result;
+      if (cancelled || !video) {
+        result.getTracks().forEach(track => track.stop());
+        return;
+      }
+      video.onloadeddata = () => {
+        if (!cancelled) setIsCameraReady(true);
+      };
+      video.srcObject = result;
+    }).catch(() => {
+      if (!cancelled) setErrorMsg(t.cameraDenied);
+    });
+    return () => {
+      cancelled = true;
+      stream?.getTracks().forEach(track => track.stop());
+      if (video) {
+        video.onloadeddata = null;
+        video.srcObject = null;
+      }
+    };
+  }, [isOpen, errorMsg, t.cameraDenied]);
 
   const stopCamera = () => {
-    if (videoRef.current && videoRef.current.srcObject) {
-      const stream = videoRef.current.srcObject as MediaStream;
-      stream.getTracks().forEach(track => track.stop());
-    }
+    const stream = videoRef.current?.srcObject as MediaStream | null;
+    stream?.getTracks().forEach(track => track.stop());
   };
+
+  // Fetch the optional map while recognition runs, never on the capture path.
+  useEffect(() => {
+    mapTileRef.current = null;
+    if (!isOpen || !locationCoords) return;
+    const zoom = 16;
+    const n = 2 ** zoom;
+    const x = Math.floor((locationCoords.lng + 180) / 360 * n);
+    const latRad = locationCoords.lat * Math.PI / 180;
+    const y = Math.floor((1 - Math.asinh(Math.tan(latRad)) / Math.PI) / 2 * n);
+    const img = new Image();
+    img.crossOrigin = 'Anonymous';
+    img.onload = () => { mapTileRef.current = img; };
+    img.src = `https://tile.openstreetmap.org/${zoom}/${x}/${y}.png`;
+    return () => { img.onload = null; mapTileRef.current = null; };
+  }, [isOpen, locationCoords]);
 
   const handleClose = () => {
     stopCamera();
     onClose();
   };
 
-  const captureAndValidate = async () => {
-    if (!videoRef.current || !canvasRef.current) return;
-
+  const captureAndValidate = () => {
+    if (!isOpen || !verifiedFrameRef.current || !canvasRef.current || capturingRef.current) return;
+    capturingRef.current = true;
     setIsProcessing(true);
     setStatusMsg(t.detectingFace);
 
-    const video = videoRef.current;
+    const video = verifiedFrameRef.current;
     
-    // Draw current frame to canvas
+    // Draw verified frame to canvas
     const canvas = canvasRef.current;
-    canvas.width = video.videoWidth;
-    canvas.height = video.videoHeight;
+    canvas.width = video.width;
+    canvas.height = video.height;
     const ctx = canvas.getContext('2d');
     if (!ctx) {
+      capturingRef.current = false;
       setIsProcessing(false);
       return;
     }
@@ -454,21 +471,10 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
         const n = Math.pow(2, zoom);
         const xExact = (locationCoords.lng + 180) / 360 * n;
         const yExact = (1.0 - Math.asinh(Math.tan(latRad)) / Math.PI) / 2.0 * n;
-        const xtile = Math.floor(xExact);
-        const ytile = Math.floor(yExact);
-        const pixelX = (xExact - xtile) * 256;
-        const pixelY = (yExact - ytile) * 256;
-        
-        const mapImg = new Image();
-        mapImg.crossOrigin = 'Anonymous';
-        await new Promise((resolve) => {
-          mapImg.onload = resolve;
-          mapImg.onerror = resolve; // Resolve anyway to avoid blocking
-          mapImg.src = `https://tile.openstreetmap.org/${zoom}/${xtile}/${ytile}.png`;
-          setTimeout(resolve, 3000); // 3 sec timeout
-        });
-        
-        if (mapImg.complete && mapImg.naturalWidth > 0) {
+        const pixelX = (xExact - Math.floor(xExact)) * 256;
+        const pixelY = (yExact - Math.floor(yExact)) * 256;
+        const mapImg = mapTileRef.current;
+        if (mapImg && mapImg.complete && mapImg.naturalWidth > 0) {
           const destW = 120 * s;
           const destH = 120 * s;
           const mapBoxX = padding;
@@ -495,27 +501,28 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       }
     }
 
-    const imageSrc = canvas.toDataURL('image/jpeg', 0.8);
-
-    // Validasi Wajah
-    const detection = await faceapi.detectSingleFace(video, faceDetectorOptions).withFaceLandmarks();
-
-    if (detection) {
+    try {
+      const imageSrc = canvas.toDataURL('image/jpeg', 0.8);
       setStatusMsg(t.faceDetected);
-      setTimeout(() => {
-        stopCamera();
-        onCapture(imageSrc, locationCoords ? { address, lat: locationCoords.lat, lng: locationCoords.lng, outOfRangeMessage } : undefined);
-        setIsProcessing(false);
-        setStatusMsg('');
-      }, 1000);
-    } else {
-      setStatusMsg('');
-      showToast(t.noFace, 'error');
+      stopCamera();
+      onCapture(imageSrc, locationCoords ? { address, lat: locationCoords.lat, lng: locationCoords.lng, outOfRangeMessage } : undefined);
+    } catch (error) {
+      console.error('Capture failed', error);
+      capturingRef.current = false;
       setIsProcessing(false);
-      setIsLivenessPassed(false);
-      setLivenessMsg(t.pleaseSmile || "Silakan Tersenyum");
+      setIsFaceMatched(false);
+      verifiedFrameRef.current = null;
+      setStatusMsg('');
+      showToast('Gagal mengambil foto. Silakan coba lagi.', 'error');
     }
   };
+
+  // Recognition uses the latest location, address and callback without restarting
+  // inference whenever the GPS or clock updates.
+  useEffect(() => {
+    captureRef.current = captureAndValidate;
+    locationReadyRef.current = !!locationCoords;
+  });
 
   if (!isOpen) return null;
 
@@ -606,13 +613,13 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
         {/* Bottom Controls */}
         <div className="camera-bottom-controls">
           <div style={{ width: '100%', display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
-            {isLivenessPassed ? (
+            {isFaceMatched ? (
               <div style={{ padding: '8px 16px', background: 'rgba(34, 197, 94, 0.9)', color: 'white', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-                <AlertCircle size={16} /> {livenessMsg}
+                <AlertCircle size={16} /> {faceMatchMsg}
               </div>
             ) : (
               <div style={{ padding: '8px 16px', background: 'rgba(234, 179, 8, 0.9)', color: 'white', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
-                <AlertCircle size={16} /> {livenessMsg}
+                <AlertCircle size={16} /> {faceMatchMsg}
               </div>
             )}
           </div>
@@ -623,10 +630,10 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
             </button>
 
             <button 
-              className={`btn-capture-circle ${isLivenessPassed ? 'ready' : 'waiting'}`}
+              className={`btn-capture-circle ${isFaceMatched ? 'ready' : 'waiting'}`}
               onClick={captureAndValidate} 
-              disabled={isProcessing || !isLivenessPassed}
-              style={{ opacity: isLivenessPassed ? 1 : 0.5, cursor: isLivenessPassed ? 'pointer' : 'not-allowed', background: 'none', border: 'none', padding: 0 }}
+              disabled={isProcessing || !isFaceMatched}
+              style={{ opacity: isFaceMatched ? 1 : 0.5, cursor: isFaceMatched ? 'pointer' : 'not-allowed', background: 'none', border: 'none', padding: 0 }}
             >
               <div className="btn-capture-inner">
                 <Camera size={24} fill="white" />

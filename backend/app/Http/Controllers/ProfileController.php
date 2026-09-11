@@ -43,9 +43,9 @@ class ProfileController {
                 if ($profile['face_photo_path']) {
                     $ltrimPath = ltrim($profile['face_photo_path'], '/');
                     if (file_exists(UPLOAD_BASE_DIR . '/' . $ltrimPath)) {
-                        $profile['face_verification_url'] = '/' . $ltrimPath . '?v=' . time();
+                        $profile['face_verification_url'] = '/' . $ltrimPath . '?v=' . rawurlencode((string) $profile['face_verified_at']);
                     } elseif (defined('AYPSIS_PUBLIC_DIR') && file_exists(AYPSIS_PUBLIC_DIR . '/' . $ltrimPath)) {
-                        $profile['face_verification_url'] = '/' . $ltrimPath . '?v=' . time();
+                        $profile['face_verification_url'] = '/' . $ltrimPath . '?v=' . rawurlencode((string) $profile['face_verified_at']);
                     } else {
                         $profile['face_verification_url'] = null;
                         $profile['is_face_verified'] = false; // Force re-registration if file is missing

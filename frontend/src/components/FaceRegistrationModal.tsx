@@ -1,6 +1,7 @@
 import { useRef, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import * as faceapi from 'face-api.js';
+import { faceDetectorOptions, loadFaceDetector, clearFaceProfileCache } from '../utils/faceRecognition';
 import { Camera, Loader2, AlertCircle, ScanFace } from 'lucide-react';
 import { useAuthStore } from '../store/auth.store';
 import { useToast } from '../contexts/ToastContext';
@@ -11,10 +12,6 @@ interface FaceRegistrationModalProps {
   onSuccess: () => void;
   onClose: () => void;
 }
-
-let globalModelsPromise: Promise<any> | null = null;
-
-const faceDetectorOptions = new faceapi.SsdMobilenetv1Options({ minConfidence: 0.5 });
 
 export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: FaceRegistrationModalProps) {
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -42,9 +39,9 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
 
   // Face Detection Loop for visual feedback
   useEffect(() => {
-    if (!isCameraReady || !isModelsLoaded || !videoRef.current || isProcessing || errorMsg) return;
+    if (!isOpen || !isCameraReady || !isModelsLoaded || !videoRef.current || isProcessing || errorMsg) return;
 
-    let animationFrameId: number;
+    let timeoutId: ReturnType<typeof setTimeout>;
     let isCancelled = false;
     
     const detectFace = async () => {
@@ -52,12 +49,13 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
       
       const video = videoRef.current;
       if (!video || video.paused || video.ended) {
-        if (!isCancelled) animationFrameId = requestAnimationFrame(detectFace);
+        if (!isCancelled) timeoutId = setTimeout(detectFace, 200);
         return;
       }
 
       try {
-        const detection = await faceapi.detectSingleFace(video, faceDetectorOptions).withFaceLandmarks();
+        const detection = await faceapi.detectSingleFace(video, faceDetectorOptions);
+        if (isCancelled) return;
         if (detection) {
           setHasFace(true);
           if (overlayCanvasRef.current) {
@@ -75,43 +73,44 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
           }
         }
       } catch (err) {
-        // ignore errors during loop
+        if (isCancelled) return;
+        console.error('Face detection failed', err);
+        setErrorMsg('Deteksi wajah gagal. Tutup kamera lalu coba lagi.');
+        return;
       }
       
       if (!isCancelled) {
-        animationFrameId = requestAnimationFrame(detectFace);
+        timeoutId = setTimeout(detectFace, 200);
       }
     };
 
-    animationFrameId = requestAnimationFrame(detectFace);
+    timeoutId = setTimeout(detectFace, 200);
 
     return () => {
       isCancelled = true;
-      cancelAnimationFrame(animationFrameId);
+      clearTimeout(timeoutId);
     };
-  }, [isCameraReady, isModelsLoaded, isProcessing, errorMsg]);
+  }, [isOpen, isCameraReady, isModelsLoaded, isProcessing, errorMsg]);
 
   // Load Models
   useEffect(() => {
     if (!isOpen) return;
 
+    let cancelled = false;
     const loadModels = async () => {
       try {
-        if (!globalModelsPromise) {
-          globalModelsPromise = Promise.all([
-            faceapi.nets.ssdMobilenetv1.loadFromUri('/models'),
-            faceapi.nets.faceLandmark68Net.loadFromUri('/models')
-          ]);
-        }
-        await globalModelsPromise;
+        await loadFaceDetector();
+        if (cancelled) return;
         setIsModelsLoaded(true);
       } catch (err) {
+        if (cancelled) return;
         console.error("Error loading models", err);
         setErrorMsg('Gagal memuat AI.');
       }
     };
 
     loadModels();
+    return () => { cancelled = true; };
   }, [isOpen]);
 
   // Start Camera
@@ -178,7 +177,7 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
 
     // Basic face detection
     setStatusMsg('Menganalisis wajah...');
-    const detection = await faceapi.detectSingleFace(video, faceDetectorOptions).withFaceLandmarks();
+    const detection = await faceapi.detectSingleFace(canvas, faceDetectorOptions);
 
     if (detection) {
       setStatusMsg('Mengunggah data wajah...');
@@ -197,6 +196,7 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
         const data = await response.json();
         
         if (response.ok) {
+          clearFaceProfileCache();
           showToast('Wajah berhasil didaftarkan!', 'success');
           stopCamera();
           onSuccess();

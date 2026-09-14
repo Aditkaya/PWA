@@ -2,6 +2,7 @@ import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Ship } from 'lucide-react'
 import './StowagePlan.css'
+import FitLayout from './FitLayout'
 
 const Ship3D = lazy(() => import('./Ship3D').catch(() => ({
   default: () => <p role="alert">View 3D gagal dimuat. Muat ulang aplikasi atau gunakan Kapal 2D.</p>,
@@ -198,7 +199,7 @@ export default function StowagePlan() {
           <p className="sp-legend"><span>🟧 20 ft / lainnya</span><span>🟦 40 ft (2 bay)</span><span>Abu-abu: slot nonaktif</span></p>
           {mode === '3d' ? <Suspense fallback={<p role="status">Memuat kapal 3D...</p>}>
             <Ship3D layout={layout!} containers={containers} onSelect={c => { if (!saving) { selectContainer(c); showEditor() } }} />
-          </Suspense> : <div className={`sp-grid ${mode === 'deck' ? 'sp-ocean' : ''}`} tabIndex={0} role="region" aria-label="Layout kontainer, geser untuk melihat seluruh kapal">
+          </Suspense> : <FitLayout ocean={mode === 'deck'}>
             <div className={mode === 'deck' ? 'sp-ship-deck' : 'sp-cross-section'}>
             {mode === 'deck' && <>
               <svg className="sp-hull-outline" viewBox="0 0 600 1000" preserveAspectRatio="none" aria-hidden="true"><path d="M300 10 Q565 60 584 165 L584 945 Q584 983 546 983 L54 983 Q16 983 16 945 L16 165 Q35 60 300 10 Z" /></svg>
@@ -210,8 +211,18 @@ export default function StowagePlan() {
             </table>
             {mode === 'deck' && <div className="sp-stern"><div className="sp-bridge">▰ ▰ ▰ ▰ ▰<br /><strong>ANJUNGAN</strong></div><span>BURITAN</span></div>}
             </div>
+          </FitLayout>}
+          {mode !== '3d' && <div className="sp-layout-navigation">
+            <button type="button" disabled={saving || (mode === 'deck' ? layout!.tiers.indexOf(viewTier) : layout!.bays.indexOf(viewBay)) <= 0} onClick={() => {
+              if (mode === 'deck') setViewTier(layout!.tiers[layout!.tiers.indexOf(viewTier) - 1])
+              else setViewBay(layout!.bays[layout!.bays.indexOf(viewBay) - 1])
+            }}>← {mode === 'deck' ? 'Tier' : 'Bay'} sebelumnya</button>
+            <button type="button" disabled={saving || (mode === 'deck' ? layout!.tiers.indexOf(viewTier) >= layout!.tiers.length - 1 : layout!.bays.indexOf(viewBay) >= layout!.bays.length - 1)} onClick={() => {
+              if (mode === 'deck') setViewTier(layout!.tiers[layout!.tiers.indexOf(viewTier) + 1])
+              else setViewBay(layout!.bays[layout!.bays.indexOf(viewBay) + 1])
+            }}>{mode === 'deck' ? 'Tier' : 'Bay'} berikutnya →</button>
           </div>}
-          {mode !== '3d' && <p>Pilih kontainer terisi untuk melihat posisinya, atau pilih slot kosong untuk menentukan tujuan. Geser untuk melihat seluruh kapal.</p>}
+          {mode !== '3d' && <p>Seluruh layout pas di layar. Ketuk slot untuk memilih posisi. Untuk slot yang kecil, gunakan pilihan Bay, Row, dan Tier di tab Input kontainer.</p>}
         </div>}
         <form ref={editorRef} className={`sp-card sp-form sp-editor ${panel !== 'input' && ready ? 'sp-mobile-hidden' : ''}`} onSubmit={e => { e.preventDefault(); void save() }}>
           {notice && <p className="sp-notice" role="status">{notice} Pilih kontainer berikutnya.</p>}

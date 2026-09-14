@@ -77,10 +77,17 @@
   .sp-toolbar { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); }
   .sp-layout-panel .sp-toolbar { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
   .sp-toolbar label { min-width: 0; font-size: .85rem; }
-  .sp-grid { max-height: 50dvh; }
+  .sp-grid:not(.sp-fit-viewport) { max-height: 50dvh; }
   .sp-slot { width: 88px; min-height: 76px; }
   .sp-legend { font-size: .75rem !important; gap: 8px; }
   .sp-save-bar { position: sticky; bottom: calc(90px + env(safe-area-inset-bottom, 0px)); z-index: 4; box-shadow: 0 -4px 18px #0002; }
   .sp-container-list { max-height: 240px; }
   .sp-card { margin-top: 12px; }
 }
+
+.sp-grid.sp-fit-viewport { position: relative; width: 100%; height: clamp(240px, 55dvh, 560px); max-height: none; overflow: hidden; overflow: clip; padding: 0; contain: layout paint; }
+.sp-fit-drawing { position: absolute; left: 0; top: 0; width: max-content; transform-origin: top left; visibility: hidden; }
+.sp-fit-drawing .sp-cross-section { width: max-content; padding: 4px; }
+.sp-fit-drawing th { position: static !important; }
+.sp-layout-navigation { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.sp-layout-navigation button { min-width: 0; min-height: 48px; border: 1px solid var(--glass-border); border-radius: 10px; padding: 10px 8px; background: var(--sp-select-bg); color: var(--sp-select-text); font-size: .85rem; }

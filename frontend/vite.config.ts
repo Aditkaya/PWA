@@ -17,7 +17,13 @@ export default defineConfig({
         navigateFallback: 'index.html',
       },
       injectManifest: {
-        globPatterns: ['**/*.{js,css,html,ico,png,svg}']
+        globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        // Filesystem enumeration differs between Windows and Linux. Keep cache
+        // entries deterministic so rebuilding does not dirty dist/sw.js.
+        manifestTransforms: [entries => ({
+          manifest: [...entries].sort((a, b) => a.url < b.url ? -1 : a.url > b.url ? 1 : 0),
+          warnings: [],
+        })],
       },
       manifest: {
         name: 'Absensi Karyawan PWA',

@@ -1,7 +1,11 @@
-import { useEffect, useRef, useState } from 'react'
+import { lazy, Suspense, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Ship } from 'lucide-react'
 import './StowagePlan.css'
+
+const Ship3D = lazy(() => import('./Ship3D').catch(() => ({
+  default: () => <p role="alert">View 3D gagal dimuat. Muat ulang aplikasi atau gunakan Kapal 2D.</p>,
+})))
 
 type Layout = { bays: string[]; rows: string[]; tiers: string[]; disabled_slots: string[] }
 type Manifest = { id: number; nomor_kontainer: string | null; size_kontainer: string | null; plan_id: number | null; bay: string | null; row: string | null; tier: string | null }
@@ -38,7 +42,7 @@ export default function StowagePlan() {
   const [bay, setBay] = useState('')
   const [row, setRow] = useState('')
   const [selected, setSelected] = useState('')
-  const [mode, setMode] = useState<'deck' | 'bay'>('deck')
+  const [mode, setMode] = useState<'deck' | 'bay' | '3d'>('deck')
   const [saving, setSaving] = useState(false)
   const [panel, setPanel] = useState<'input' | 'layout'>('input')
   const [search, setSearch] = useState('')
@@ -89,11 +93,11 @@ export default function StowagePlan() {
     return () => controller.abort()
   }, [viewing, activeShip, activeVoyage, retry])
 
-  const containers = Object.values((plan?.manifests || []).reduce<Record<string, Manifest>>((groups, manifest) => {
+  const containers = useMemo(() => Object.values((plan?.manifests || []).reduce<Record<string, Manifest>>((groups, manifest) => {
     const key = manifest.nomor_kontainer || `manifest-${manifest.id}`
     if (!groups[key] || manifest.plan_id) groups[key] = manifest
     return groups
-  }, {}))
+  }, {})), [plan])
   const layout = plan?.layout
   const ready = !!(layout?.bays.length && layout.rows.length && layout.tiers.length)
   const rows = [...(layout?.rows || [])].sort((a, b) => {
@@ -187,18 +191,27 @@ export default function StowagePlan() {
           <h3>Pilih posisi di kapal</h3>
           {current && <p>Kontainer dipilih: <strong>{current.nomor_kontainer || `Manifest ${current.id}`}</strong>. Ketuk slot kosong untuk menentukan tujuan.</p>}
           <div className="sp-toolbar">
-            <label>Tampilan<select value={mode} onChange={e => setMode(e.target.value as 'deck' | 'bay')}><option value="deck">Deck plan (per tier)</option><option value="bay">Penampang (per bay)</option></select></label>
+            <label>Tampilan<select value={mode} onChange={e => setMode(e.target.value as 'deck' | 'bay' | '3d')}><option value="deck">Kapal 2D (per tier)</option><option value="bay">Penampang (per bay)</option><option value="3d">Kapal 3D</option></select></label>
             {mode === 'deck' ? <label>Tier<select value={viewTier} onChange={e => setViewTier(e.target.value)}>{layout!.tiers.map(t => <option key={t}>{t}</option>)}</select></label>
-              : <label>Bay<select value={viewBay} onChange={e => setViewBay(e.target.value)}>{layout!.bays.map(b => <option key={b}>{b}</option>)}</select></label>}
+              : mode === 'bay' ? <label>Bay<select value={viewBay} onChange={e => setViewBay(e.target.value)}>{layout!.bays.map(b => <option key={b}>{b}</option>)}</select></label> : null}
           </div>
           <p className="sp-legend"><span>🟧 20 ft / lainnya</span><span>🟦 40 ft (2 bay)</span><span>Abu-abu: slot nonaktif</span></p>
-          <div className="sp-grid" tabIndex={0} role="region" aria-label="Layout kontainer, geser untuk melihat seluruh kapal">
+          {mode === '3d' ? <Suspense fallback={<p role="status">Memuat kapal 3D...</p>}>
+            <Ship3D layout={layout!} containers={containers} onSelect={c => { if (!saving) { selectContainer(c); showEditor() } }} />
+          </Suspense> : <div className={`sp-grid ${mode === 'deck' ? 'sp-ocean' : ''}`} tabIndex={0} role="region" aria-label="Layout kontainer, geser untuk melihat seluruh kapal">
+            <div className={mode === 'deck' ? 'sp-ship-deck' : 'sp-cross-section'}>
+            {mode === 'deck' && <>
+              <svg className="sp-hull-outline" viewBox="0 0 600 1000" preserveAspectRatio="none" aria-hidden="true"><path d="M300 10 Q565 60 584 165 L584 945 Q584 983 546 983 L54 983 Q16 983 16 945 L16 165 Q35 60 300 10 Z" /></svg>
+              <div className="sp-bow-label">▲ HALUAN</div>
+            </>}
             <table><caption>{mode === 'deck' ? `Deck plan · Tier ${viewTier} · Haluan di atas` : `Penampang · Bay ${viewBay}`}</caption><thead><tr><th>{mode === 'deck' ? 'Bay / Row' : 'Tier / Row'}</th>{rows.map(r => <th key={r}>{r}</th>)}</tr></thead>
               <tbody>{mode === 'deck' ? layout!.bays.map(b => <tr key={b}><th>{b}</th>{rows.map(r => cell(b, r, viewTier))}</tr>)
                 : [...layout!.tiers].reverse().map(t => <tr key={t}><th>{t}</th>{rows.map(r => cell(viewBay, r, t))}</tr>)}</tbody>
             </table>
-          </div>
-          <p>Pilih kontainer terisi untuk melihat posisinya, atau pilih slot kosong untuk menentukan tujuan.</p>
+            {mode === 'deck' && <div className="sp-stern"><div className="sp-bridge">▰ ▰ ▰ ▰ ▰<br /><strong>ANJUNGAN</strong></div><span>BURITAN</span></div>}
+            </div>
+          </div>}
+          {mode !== '3d' && <p>Pilih kontainer terisi untuk melihat posisinya, atau pilih slot kosong untuk menentukan tujuan. Geser untuk melihat seluruh kapal.</p>}
         </div>}
         <form ref={editorRef} className={`sp-card sp-form sp-editor ${panel !== 'input' && ready ? 'sp-mobile-hidden' : ''}`} onSubmit={e => { e.preventDefault(); void save() }}>
           {notice && <p className="sp-notice" role="status">{notice} Pilih kontainer berikutnya.</p>}

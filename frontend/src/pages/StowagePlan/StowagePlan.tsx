@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Ship } from 'lucide-react'
 import './StowagePlan.css'
@@ -40,6 +40,12 @@ export default function StowagePlan() {
   const [selected, setSelected] = useState('')
   const [mode, setMode] = useState<'deck' | 'bay'>('deck')
   const [saving, setSaving] = useState(false)
+  const [panel, setPanel] = useState<'input' | 'layout'>('input')
+  const [search, setSearch] = useState('')
+  const [filter, setFilter] = useState<'pending' | 'all'>('pending')
+  const [viewBay, setViewBay] = useState('')
+  const [viewTier, setViewTier] = useState('')
+  const editorRef = useRef<HTMLFormElement>(null)
 
   useEffect(() => {
     if (viewing) return
@@ -70,8 +76,11 @@ export default function StowagePlan() {
     setError('')
     setPlan(null)
     setSelected('')
+    setSearch('')
     request<Plan>(`?${new URLSearchParams({ nama_kapal: activeShip, no_voyage: activeVoyage })}`, controller.signal).then(data => {
       setPlan(data)
+      setViewBay(previous => data.layout.bays.includes(previous) ? previous : data.layout.bays[0] || '')
+      setViewTier(previous => data.layout.tiers.includes(previous) ? previous : data.layout.tiers[0] || '')
       setTier(previous => data.layout.tiers.includes(previous) ? previous : data.layout.tiers[0] || '')
       setBay(previous => data.layout.bays.includes(previous) ? previous : data.layout.bays[0] || '')
       setRow(previous => data.layout.rows.includes(previous) ? previous : data.layout.rows[0] || '')
@@ -92,6 +101,18 @@ export default function StowagePlan() {
     return evenA !== evenB ? (evenA ? -1 : 1) : evenA ? +b - +a : +a - +b
   })
   const current = containers.find(c => String(c.id) === selected)
+  const matching = containers.filter(c => (filter === 'all' || !c.plan_id) &&
+    (c.nomor_kontainer || `Manifest ${c.id}`).toLowerCase().includes(search.trim().toLowerCase()))
+
+  function selectContainer(c: Manifest) {
+    setSelected(String(c.id))
+    if (c.plan_id) { setBay(c.bay || ''); setRow(c.row || ''); setTier(c.tier || '') }
+  }
+
+  function showEditor() {
+    setPanel('input')
+    requestAnimationFrame(() => editorRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+  }
 
   async function save(cancel = false) {
     if (!current || saving) return
@@ -104,6 +125,7 @@ export default function StowagePlan() {
         nama_kapal: activeShip, no_voyage: activeVoyage, manifest_id: current.id, bay, row, tier,
       })
       setNotice(result.message)
+      setPanel('input')
       setRetry(value => value + 1)
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Gagal menyimpan posisi kontainer.')
@@ -122,6 +144,7 @@ export default function StowagePlan() {
       onClick={() => {
         setBay(container?.bay || cellBay); setRow(cellRow); setTier(cellTier)
         if (container) setSelected(String(container.id))
+        showEditor()
       }}>
       <small>{slot}</small>
       <span>{container ? container.nomor_kontainer || `Manifest ${container.id}` : disabled ? 'Nonaktif' : 'Kosong'}</span>
@@ -156,34 +179,62 @@ export default function StowagePlan() {
       {plan && <>
         <p>{containers.length} kontainer · {containers.filter(c => c.plan_id).length} ditempatkan · {containers.filter(c => !c.plan_id).length} belum ditempatkan</p>
         {!ready && <div className="sp-card">Layout kapal belum lengkap. Isi Bay, Row, dan Tier melalui Master Kapal → Edit di AYPSIS.</div>}
-        {ready && <div className="sp-card">
+        <div className="sp-panel-switch" aria-label="Bagian stowage plan">
+          <button type="button" aria-pressed={panel === 'input'} onClick={() => setPanel('input')}>Input kontainer</button>
+          <button type="button" aria-pressed={panel === 'layout'} onClick={() => { setViewBay(bay); setViewTier(tier); setPanel('layout') }}>Layout kapal</button>
+        </div>
+        {ready && <div className={`sp-card sp-layout-panel ${panel !== 'layout' ? 'sp-mobile-hidden' : ''}`}>
+          <h3>Pilih posisi di kapal</h3>
+          {current && <p>Kontainer dipilih: <strong>{current.nomor_kontainer || `Manifest ${current.id}`}</strong>. Ketuk slot kosong untuk menentukan tujuan.</p>}
           <div className="sp-toolbar">
             <label>Tampilan<select value={mode} onChange={e => setMode(e.target.value as 'deck' | 'bay')}><option value="deck">Deck plan (per tier)</option><option value="bay">Penampang (per bay)</option></select></label>
-            {mode === 'deck' ? <label>Tier<select value={tier} onChange={e => setTier(e.target.value)}>{layout!.tiers.map(t => <option key={t}>{t}</option>)}</select></label>
-              : <label>Bay<select value={bay} onChange={e => setBay(e.target.value)}>{layout!.bays.map(b => <option key={b}>{b}</option>)}</select></label>}
+            {mode === 'deck' ? <label>Tier<select value={viewTier} onChange={e => setViewTier(e.target.value)}>{layout!.tiers.map(t => <option key={t}>{t}</option>)}</select></label>
+              : <label>Bay<select value={viewBay} onChange={e => setViewBay(e.target.value)}>{layout!.bays.map(b => <option key={b}>{b}</option>)}</select></label>}
           </div>
           <p className="sp-legend"><span>🟧 20 ft / lainnya</span><span>🟦 40 ft (2 bay)</span><span>Abu-abu: slot nonaktif</span></p>
           <div className="sp-grid" tabIndex={0} role="region" aria-label="Layout kontainer, geser untuk melihat seluruh kapal">
-            <table><caption>{mode === 'deck' ? `Deck plan · Tier ${tier} · Haluan di atas` : `Penampang · Bay ${bay}`}</caption><thead><tr><th>{mode === 'deck' ? 'Bay / Row' : 'Tier / Row'}</th>{rows.map(r => <th key={r}>{r}</th>)}</tr></thead>
-              <tbody>{mode === 'deck' ? layout!.bays.map(b => <tr key={b}><th>{b}</th>{rows.map(r => cell(b, r, tier))}</tr>)
-                : [...layout!.tiers].reverse().map(t => <tr key={t}><th>{t}</th>{rows.map(r => cell(bay, r, t))}</tr>)}</tbody>
+            <table><caption>{mode === 'deck' ? `Deck plan · Tier ${viewTier} · Haluan di atas` : `Penampang · Bay ${viewBay}`}</caption><thead><tr><th>{mode === 'deck' ? 'Bay / Row' : 'Tier / Row'}</th>{rows.map(r => <th key={r}>{r}</th>)}</tr></thead>
+              <tbody>{mode === 'deck' ? layout!.bays.map(b => <tr key={b}><th>{b}</th>{rows.map(r => cell(b, r, viewTier))}</tr>)
+                : [...layout!.tiers].reverse().map(t => <tr key={t}><th>{t}</th>{rows.map(r => cell(viewBay, r, t))}</tr>)}</tbody>
             </table>
           </div>
           <p>Pilih kontainer terisi untuk melihat posisinya, atau pilih slot kosong untuk menentukan tujuan.</p>
         </div>}
-        <form className="sp-card sp-form" onSubmit={e => { e.preventDefault(); void save() }}>
-          <h3>Penempatan kontainer</h3>
-          <label htmlFor="sp-container">Kontainer</label>
-          <select id="sp-container" required value={selected} disabled={saving} onChange={e => {
-            setSelected(e.target.value)
-            const c = containers.find(item => String(item.id) === e.target.value)
-            if (c?.plan_id) { setBay(c.bay || ''); setRow(c.row || ''); setTier(c.tier || '') }
-          }}><option value="">-- Pilih kontainer --</option>{containers.map(c => <option key={c.id} value={c.id}>{c.nomor_kontainer || `Manifest ${c.id}`} · {c.size_kontainer || '-'} ft · {c.plan_id ? `${c.bay}/${c.row}/${c.tier}` : 'Belum ditempatkan'}</option>)}</select>
+        <form ref={editorRef} className={`sp-card sp-form sp-editor ${panel !== 'input' && ready ? 'sp-mobile-hidden' : ''}`} onSubmit={e => { e.preventDefault(); void save() }}>
+          {notice && <p className="sp-notice" role="status">{notice} Pilih kontainer berikutnya.</p>}
+          {error && <div className="sp-error" role="alert">{error}</div>}
+          <h3>1. Pilih kontainer</h3>
+          {current ? <div className="sp-current">
+            <div><strong>{current.nomor_kontainer || `Manifest ${current.id}`}</strong><p>{current.size_kontainer || '-'} ft · {current.plan_id ? 'Sudah ditempatkan' : 'Belum ditempatkan'}</p></div>
+            <button type="button" disabled={saving} onClick={() => setSelected('')}>Ganti</button>
+          </div> : <>
+            <label htmlFor="sp-search">Cari nomor kontainer</label>
+            <input id="sp-search" type="search" placeholder="Ketik nomor atau 4 digit terakhir" autoComplete="off" value={search} disabled={saving} onChange={e => setSearch(e.target.value)} />
+            <div className="sp-filters">
+              <button type="button" aria-pressed={filter === 'pending'} onClick={() => setFilter('pending')}>Belum ditempatkan ({containers.filter(c => !c.plan_id).length})</button>
+              <button type="button" aria-pressed={filter === 'all'} onClick={() => setFilter('all')}>Semua</button>
+            </div>
+            <div className="sp-container-list" aria-label="Pilih kontainer">
+              {matching.map(c => <button type="button" key={c.id} disabled={saving} onClick={() => selectContainer(c)}>
+                <strong>{c.nomor_kontainer || `Manifest ${c.id}`}</strong>
+                <span>{c.size_kontainer || '-'} ft · {c.plan_id ? `Posisi ${c.bay}/${c.row}/${c.tier}` : 'Belum ditempatkan'}</span>
+              </button>)}
+              {!matching.length && <p>{search ? 'Kontainer tidak ditemukan.' : 'Tidak ada kontainer pada filter ini. Pilih Semua untuk melihat posisi yang sudah tersimpan.'}</p>}
+            </div>
+          </>}
+          <h3>2. Tentukan posisi</h3>
           {current?.plan_id && <p>Posisi tersimpan: Bay {current.bay}, Row {current.row}, Tier {current.tier}.</p>}
           <div className="sp-toolbar">{([
             ['Bay', bay, setBay, layout!.bays], ['Row', row, setRow, rows], ['Tier', tier, setTier, layout!.tiers],
           ] as const).map(([label, value, setter, values]) => <label key={label}>{label}<select required value={value} disabled={!ready || saving} onChange={e => setter(e.target.value)}><option value="">Pilih</option>{values.map(v => <option key={v}>{v}</option>)}</select></label>)}</div>
-          <button className="sp-primary" disabled={!ready || !current || !bay || !row || !tier || saving}>{saving ? 'Memproses...' : current?.plan_id ? 'Simpan perubahan posisi' : 'Tempatkan kontainer'}</button>
+          {ready && <button type="button" className="sp-map-button" disabled={saving} onClick={() => {
+            setViewBay(bay); setViewTier(tier); setPanel('layout')
+            requestAnimationFrame(() => document.querySelector('.sp-layout-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' }))
+          }}>Pilih slot dari layout kapal</button>}
+          <div className="sp-save-bar">
+            <p>{current ? `${current.nomor_kontainer || `Manifest ${current.id}`} → Bay ${bay || '-'} / Row ${row || '-'} / Tier ${tier || '-'}` : 'Pilih kontainer untuk mulai mengisi posisi.'}</p>
+            <button className="sp-primary" disabled={!ready || !current || !bay || !row || !tier || saving}>{saving ? 'Memproses...' : current?.plan_id ? 'Simpan perubahan posisi' : 'Simpan & lanjut kontainer berikutnya'}</button>
+          </div>
           {current?.plan_id && <button type="button" className="sp-danger" disabled={saving} onClick={() => void save(true)}>Batalkan penempatan</button>}
         </form>
       </>}

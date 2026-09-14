@@ -1,12 +1,13 @@
-.stowage-page { max-width: 1050px; margin: 0 auto; padding: 20px 16px 100px; color: var(--text-primary); }
+.stowage-page { --sp-select-bg: #1e293b; --sp-select-text: #f8fafc; --sp-select-scheme: dark; max-width: 1050px; margin: 0 auto; padding: 20px 16px 100px; color: var(--text-primary); }
+:root[data-theme="light"] .stowage-page { --sp-select-bg: #ffffff; --sp-select-text: #0f172a; --sp-select-scheme: light; }
 .sp-heading { display: flex; align-items: center; gap: 14px; margin-bottom: 24px; }
 .sp-heading h2 { margin: 0 0 8px; }
 .stowage-page p { color: var(--text-secondary); font-size: .9rem; line-height: 1.6; }
 .sp-card { background: var(--panel-bg); border: 1px solid var(--glass-border); padding: 22px; border-radius: 18px; margin: 18px 0; min-width: 0; }
 .sp-form { display: flex; flex-direction: column; gap: 12px; }
 .sp-form h3 { margin: 0 0 8px; }
-.stowage-page select { width: 100%; min-height: 46px; border: 1px solid var(--glass-border); border-radius: 10px; padding: 10px; background: var(--panel-bg); color: var(--text-primary); font: inherit; }
-.stowage-page option { background: var(--panel-bg); color: var(--text-primary); }
+.stowage-page select { color-scheme: var(--sp-select-scheme); width: 100%; min-height: 46px; border: 1px solid var(--glass-border); border-radius: 10px; padding: 10px; background: var(--sp-select-bg); color: var(--sp-select-text); font: inherit; }
+.stowage-page option { background: var(--sp-select-bg); color: var(--sp-select-text); }
 .stowage-page button { cursor: pointer; font: inherit; }
 .stowage-page button:disabled { opacity: .55; cursor: not-allowed; }
 .stowage-page button:focus-visible, .stowage-page select:focus-visible { outline: 3px solid #38bdf8; outline-offset: 3px; }

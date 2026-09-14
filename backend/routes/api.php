@@ -72,6 +72,22 @@ if ($file_path !== null) {
 $method = $_SERVER['REQUEST_METHOD'];
 $requestData = json_decode(file_get_contents('php://input'), true);
 
+$stowageRoutes = [
+    'GET /api/stowage-plan/ships' => 'ships',
+    'GET /api/stowage-plan/voyages' => 'voyages',
+    'GET /api/stowage-plan' => 'show',
+    'POST /api/stowage-plan' => 'save',
+    'POST /api/stowage-plan/cancel' => 'cancel',
+];
+if (isset($stowageRoutes[$method . ' ' . $uri])) {
+    require_once __DIR__ . '/../app/Http/Controllers/StowagePlanController.php';
+    (new \App\Http\Controllers\StowagePlanController())->handle(
+        $stowageRoutes[$method . ' ' . $uri],
+        $method === 'GET' ? $_GET : (is_array($requestData) ? $requestData : [])
+    );
+    exit();
+}
+
 if ($uri === '/api/debug_lembur' && $method === 'GET') {
     $pdo = Database::getConnection();
 

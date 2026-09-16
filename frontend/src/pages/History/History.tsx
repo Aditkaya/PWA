@@ -16,6 +16,7 @@ interface HistoryItem {
   lat?: number | null
   lng?: number | null
   keterangan?: string | null
+  is_overnight?: boolean
 }
 
 interface PermohonanItem {
@@ -342,7 +343,12 @@ export default function History() {
                           <span className={`badge ${item.type.replace(/\s+/g, '-').toLowerCase()}`}>
                             {item.type}
                           </span>
-                          <span className="time">{item.time}</span>
+                          <span className="time">
+                            {item.time}
+                            {item.is_overnight && (
+                              <span className="overnight-badge" title="Absensi ini terjadi di hari berikutnya namun dikaitkan ke hari kerja ini">+1 hari</span>
+                            )}
+                          </span>
                         </div>
                         <div className="history-card-header-status">
                           <span className={`status-text ${item.status === 'Tepat Waktu' || item.status === 'Disetujui' ? 'status-ok' : 'status-warn'}`}>

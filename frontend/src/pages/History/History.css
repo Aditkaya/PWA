@@ -71,6 +71,24 @@
   font-size: 1rem;
   letter-spacing: 0.5px;
   font-family: 'Outfit', sans-serif;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.overnight-badge {
+  display: inline-flex;
+  align-items: center;
+  background: rgba(251, 146, 60, 0.15);
+  color: #fb923c;
+  border: 1px solid rgba(251, 146, 60, 0.35);
+  border-radius: 6px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  padding: 1px 5px;
+  letter-spacing: 0.3px;
+  cursor: default;
+  user-select: none;
+  flex-shrink: 0;
 }
 .history-card-header-status {
   display: flex;

@@ -1,6 +1,8 @@
 <?php
 namespace App\Helpers;
 
+require_once __DIR__ . '/AttendanceWorkDate.php';
+
 use Database;
 use PDO;
 
@@ -28,20 +30,15 @@ class OvertimeValidator {
             $stmtStart->execute([$karyawan_id, $tanggal]);
             $actualStart = $stmtStart->fetch(PDO::FETCH_ASSOC);
 
-            // Cari absensi lembur aktual (Lembur Pulang)
-            // Batasi pencarian dari jam 12 siang hari-H sampai jam 12 siang besoknya 
-            $startCheck = $tanggal . ' 12:00:00';
-            $endCheck = date('Y-m-d H:i:s', strtotime($tanggal . ' +1 day 12:00:00'));
-
+            // Find the return belonging to this start date, even after noon or month-end.
+            $workDate = AttendanceWorkDate::sql('mysql', 'a', 0);
             $stmtActual = $pdo->prepare("
-                SELECT id, waktu, tipe 
-                FROM absensis 
-                WHERE karyawan_id = ? 
-                  AND waktu >= ? AND waktu <= ?
-                  AND LOWER(REPLACE(tipe, '_', ' ')) IN ('lembur pulang', 'selesai lembur', 'lembur keluar') 
-                ORDER BY waktu ASC LIMIT 1
+                SELECT a.id, a.waktu, a.tipe FROM absensis a
+                WHERE a.karyawan_id = ? AND ($workDate) = ?
+                  AND LOWER(REPLACE(a.tipe, '_', ' ')) IN ('lembur pulang', 'selesai lembur', 'lembur keluar')
+                ORDER BY a.waktu ASC LIMIT 1
             ");
-            $stmtActual->execute([$karyawan_id, $startCheck, $endCheck]);
+            $stmtActual->execute([$karyawan_id, $tanggal]);
             $actualEnd = $stmtActual->fetch(PDO::FETCH_ASSOC);
 
             if (!$actualEnd) return; // Karyawan belum melakukan absen pulang lembur

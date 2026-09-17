@@ -112,30 +112,14 @@ class AttendanceController {
             $normalizedTipe = strtolower(str_replace('_', ' ', $tipe));
             if (in_array($normalizedTipe, ['lembur pulang', 'selesai lembur', 'lembur keluar'])) {
                 require_once __DIR__ . '/../../Helpers/OvertimeValidator.php';
+                require_once __DIR__ . '/../../Helpers/AttendanceWorkDate.php';
 
-                // Cari sesi "Mulai Lembur" aktif dalam 24 jam terakhir yang belum ditutup.
-                // Ini menangani kasus lembur lintas hari (melewati tengah malam).
-                $tanggalSesiLembur = date('Y-m-d'); // default: tanggal hari ini
-                $stmtSesiAktif = $pdo->prepare("
-                    SELECT DATE(waktu) as tanggal_mulai
-                    FROM absensis
-                    WHERE karyawan_id = ?
-                      AND LOWER(REPLACE(tipe, '_', ' ')) IN ('mulai lembur', 'lembur masuk', 'lembur')
-                      AND waktu >= (NOW() - INTERVAL 24 HOUR)
-                      AND waktu NOT IN (
-                          SELECT a2.waktu FROM absensis a2
-                          WHERE a2.karyawan_id = ?
-                            AND LOWER(REPLACE(a2.tipe, '_', ' ')) IN ('selesai lembur', 'lembur pulang', 'lembur keluar')
-                            AND a2.waktu >= (NOW() - INTERVAL 24 HOUR)
-                      )
-                    ORDER BY waktu DESC
-                    LIMIT 1
-                ");
-                $stmtSesiAktif->execute([$karyawan_id, $karyawan_id]);
-                $sesiAktif = $stmtSesiAktif->fetch();
-                if ($sesiAktif && !empty($sesiAktif['tanggal_mulai'])) {
-                    $tanggalSesiLembur = $sesiAktif['tanggal_mulai'];
-                }
+                // Resolve the inserted end log using the same session as history/AYPSIS.
+                $endId = $pdo->lastInsertId();
+                $workDate = \App\Helpers\AttendanceWorkDate::sql('mysql', 'a', 0);
+                $stmtSession = $pdo->prepare("SELECT $workDate FROM absensis a WHERE a.id = ?");
+                $stmtSession->execute([$endId]);
+                $tanggalSesiLembur = $stmtSession->fetchColumn();
 
                 \App\Helpers\OvertimeValidator::checkAndCreateApproval($karyawan_id, $tanggalSesiLembur);
             }

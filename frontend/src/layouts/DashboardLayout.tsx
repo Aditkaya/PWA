@@ -1,7 +1,7 @@
 
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth.store'
-import { Home, History, User, LogOut as LogOutIcon, Download, Sun, Moon, Globe, MoreVertical, ClipboardList, Ship } from 'lucide-react'
+import { Home, History, User, LogOut as LogOutIcon, Download, Sun, Moon, Globe, MoreVertical, ClipboardList, Ship, Warehouse } from 'lucide-react'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { useState, useEffect, useRef } from 'react'
 import { useLangStore } from '../store/lang.store'
@@ -175,6 +175,16 @@ export default function DashboardLayout() {
                 >
                   <Ship size={18} />
                   <span>Stowage Plan</span>
+                </button>
+
+                <button
+                  onClick={() => { navigate('/denah-gudang'); setIsMenuOpen(false); }}
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', borderRadius: '8px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 500 }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'var(--glass-bg)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  <Warehouse size={18} />
+                  <span>Denah Gudang</span>
                 </button>
 
                 {userDivisi.toUpperCase().includes('ABK') && (

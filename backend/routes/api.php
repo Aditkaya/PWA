@@ -72,6 +72,12 @@ if ($file_path !== null) {
 $method = $_SERVER['REQUEST_METHOD'];
 $requestData = json_decode(file_get_contents('php://input'), true);
 
+if ($uri === '/api/denah-gudang' && $method === 'GET') {
+    require_once __DIR__ . '/../app/Http/Controllers/DenahGudangController.php';
+    (new \App\Http\Controllers\DenahGudangController())->handle($_GET);
+    exit();
+}
+
 $stowageRoutes = [
     'GET /api/stowage-plan/ships' => 'ships',
     'GET /api/stowage-plan/voyages' => 'voyages',

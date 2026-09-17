@@ -2,18 +2,19 @@ import { useEffect, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { ArrowLeft, RefreshCw, Warehouse } from 'lucide-react'
 import './DenahGudang.css'
+import LayoutEditor from './LayoutEditor'
 
 type Gudang = { id: number; nama_gudang: string; lokasi: string | null; status: string }
 type Block = { code: string; bays: number; rows: number; tiers: number; disabled: { bay: number; row: number }[] }
 type Position = { id: number; key: string; source: string; container_number: string; block: string; bay: number; row: number; tier: number; span: number; stale: boolean }
 type Container = { key: string; number: string; source: string; size: string | null }
-type Plan = { gudang: Gudang; layout: { blocks: Block[] } | null; positions: Position[]; containers: Container[] }
+type Plan = { gudang: Gudang; layout: { blocks: Block[] } | null; version: number; can_edit: boolean; positions: Position[]; containers: Container[] }
 const numbers = (count: number) => Array.from({ length: count }, (_, i) => i + 1)
 const pad = (value: number) => String(value).padStart(2, '0')
 const locationCode = (p: Position) => `${p.block}-S${pad(p.bay)}-B${pad(p.row)}-T${pad(p.tier)}`
 
 async function request<T>(query: string, signal: AbortSignal): Promise<T> {
-  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}/denah-gudang${query}`, { signal })
+  const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || '/api'}/denah-gudang${query}`, { signal, headers: { Authorization: `Bearer ${localStorage.getItem('token') || ''}` } })
   const result = await response.json()
   if (!response.ok) throw new Error(result.message || 'Denah gagal dimuat.')
   return result.data
@@ -32,12 +33,16 @@ export default function DenahGudang() {
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
   const [reload, setReload] = useState(0)
+  const [editing, setEditing] = useState(false)
+  const [notice, setNotice] = useState('')
 
   useEffect(() => {
     const controller = new AbortController()
     setLoading(true)
     setError('')
     setPlan(null)
+    setEditing(false)
+    setNotice('')
     setSelected(null)
     setSearch('')
     setFilter('all')
@@ -79,9 +84,13 @@ export default function DenahGudang() {
 
   return <section className="dg-page">
     <header className="dg-heading"><Warehouse size={28} /><div><h2>Denah Gudang</h2><p>{plan ? plan.gudang.nama_gudang : 'Pilih gudang untuk melihat posisi kontainer.'}</p></div>
-      <button type="button" onClick={() => setReload(n => n + 1)} disabled={loading} aria-label="Muat ulang denah"><RefreshCw size={18} /></button>
+      <button type="button" onClick={() => setReload(n => n + 1)} disabled={loading || editing} aria-label="Muat ulang denah"><RefreshCw size={18} /></button>
     </header>
-    {gudangId && <button className="dg-back" onClick={() => setParams({})}><ArrowLeft size={18} /> Ganti Gudang</button>}
+    {gudangId && <button className="dg-back" disabled={editing} onClick={() => setParams({})}><ArrowLeft size={18} /> Ganti Gudang</button>}
+    {notice && <p role="status">{notice}</p>}
+    {editing && plan && <LayoutEditor gudangId={plan.gudang.id} version={plan.version} layout={plan.layout} positions={plan.positions} onCancel={() => setEditing(false)} onSaved={data => {
+      setPlan({ ...plan, ...data }); setEditing(false); setArea(data.layout.blocks[0].code); setTier(1); setSelected(null); setNotice('Layout gudang berhasil disimpan dan tersinkron dengan AYPSIS.')
+    }} />}
     {loading && <p role="status">Memuat denah gudang...</p>}
     {error && <div className="dg-error" role="alert">{error} <button onClick={() => setReload(n => n + 1)}>Coba lagi</button></div>}
     {!loading && !error && !gudangId && <div className="dg-warehouses">
@@ -90,11 +99,12 @@ export default function DenahGudang() {
         <Warehouse size={24} /><strong>{g.nama_gudang}</strong><span>{g.lokasi || 'Lokasi belum diisi'}</span><small>{g.status === 'aktif' ? 'Aktif' : 'Nonaktif'}</small><span className="dg-link">Buka Denah →</span>
       </button>)}
     </div>}
-    {!loading && !error && plan && <>
+    {!loading && !error && plan && !editing && <>
       <p>{plan.gudang.lokasi} · {plan.gudang.status === 'aktif' ? 'Aktif' : 'Nonaktif'}</p>
       <p className="dg-notice">Layout dan posisi mengikuti AYPSIS. Perubahan posisi dilakukan melalui AYPSIS.</p>
+      {plan.can_edit ? <button className="dg-back" onClick={() => { setEditing(true); setNotice('') }}>Atur Layout</button> : <p className="dg-help">Untuk mengatur layout, login ulang setelah pembaruan dan gunakan akun dengan izin lihat serta edit Master Gudang di AYPSIS.</p>}
       <div className="dg-stats"><span><strong>{plan.containers.length}</strong> kontainer</span><span><strong>{positions.length}</strong> posisi tersimpan</span><span><strong>{plan.containers.filter(c => !positionByKey.has(c.key)).length}</strong> belum ditempatkan</span></div>
-      {!block ? <div className="dg-card">Layout gudang belum dikonfigurasi. Atur layout pada Master Gudang di AYPSIS.</div> : <div className="dg-card">
+      {!block ? <div className="dg-card">Layout gudang belum dikonfigurasi. {plan.can_edit ? 'Gunakan tombol Atur Layout untuk membuat area gudang.' : 'Hubungi pengguna dengan izin edit Master Gudang untuk mengatur layout.'}</div> : <div className="dg-card">
         <div className="dg-controls"><label>Area<select value={area} onChange={e => { setArea(e.target.value); setTier(1); setSelected(null) }}>{plan.layout?.blocks.map(b => <option key={b.code} value={b.code}>{b.code}</option>)}</select></label>
           <label>Tingkat<select value={tier} onChange={e => { setTier(Number(e.target.value)); setSelected(null) }}>{numbers(block.tiers).map(t => <option key={t} value={t}>{t}{t === 1 ? ' (Dasar)' : ''}</option>)}</select></label></div>
         <div className="dg-legend"><span>□ Kosong</span><span className="dg-stock-label">■ Milik sendiri</span><span className="dg-sewa-label">■ Sewa</span><span>▧ Jalan / nonaktif</span><span className="dg-stale-label">■ Perlu diperiksa</span></div>

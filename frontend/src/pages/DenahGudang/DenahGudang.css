@@ -40,4 +40,13 @@
 .dg-list button { display: flex; flex-direction: column; gap: 8px; text-align: left; padding: 14px; border: 1px solid var(--glass-border); border-radius: 10px; background: var(--glass-bg); overflow-wrap: anywhere; }
 .dg-list button span { font-size: .8rem; color: var(--text-secondary); }
 .dg-error { padding: 16px; border: 1px solid #ef4444; border-radius: 12px; margin: 16px 0; }
+.dg-layout-editor fieldset { border: 0; padding: 0; margin: 0; min-width: 0; }
+.dg-editor-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 12px; }
+.dg-editor-actions button { min-height: 44px; padding: 10px 16px; border: 1px solid var(--glass-border); background: var(--panel-bg); border-radius: 10px; }
+.dg-editor-actions .dg-primary, .dg-editor-actions button[aria-pressed="true"] { background: #2563eb; color: #fff; }
+.dg-editor-actions .dg-danger { color: #ef4444; }
+.dg-layout-editor button:disabled, .dg-back:disabled { opacity: .55; }
+.dg-layout-editor .dg-slot { min-height: 65px; }
+.dg-editor-save { position: sticky; bottom: 85px; z-index: 3; background: var(--panel-bg); padding: 12px; border: 1px solid var(--glass-border); border-radius: 12px; }
+.dg-editor-save p { margin: 0; }
 @media (max-width: 600px) { .dg-page { padding: 16px 8px 100px; }.dg-card { padding: 12px; }.dg-controls { flex-direction: column; }.dg-stats { gap: 6px; font-size: .8rem; }.dg-legend { gap: 10px; } }

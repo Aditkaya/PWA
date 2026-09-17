@@ -84,7 +84,15 @@ class LoginController {
                     return;
                 }
 
-                $token = bin2hex(random_bytes(32)); 
+                require_once __DIR__ . '/../../../Services/PwaSession.php';
+                try {
+                    $token = \App\Services\PwaSession::issue($user['id']);
+                } catch (\Throwable $e) {
+                    error_log('PWA login session: ' . $e->getMessage());
+                    http_response_code(503);
+                    echo json_encode(['message' => 'Sesi login gagal disimpan. Silakan coba kembali.']);
+                    return;
+                }
                 
                 http_response_code(200);
                 echo json_encode([

@@ -62,11 +62,15 @@
   padding: 0;
 }
 
+html, body {
+  height: 100%;
+}
+
 body {
   font-family: 'Inter', sans-serif;
   background-color: var(--bg-color);
   color: var(--text-primary);
-  min-height: 100vh;
+  min-height: 100dvh;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -74,8 +78,9 @@ body {
 .layout-container {
   display: flex;
   flex-direction: column;
-  min-height: 100vh;
+  min-height: 100dvh; /* Dynamic viewport height — akurat di mobile browser */
   max-width: 480px; /* Constrain to mobile width */
+  width: 100%;
   margin: 0 auto; /* Center on screen */
   background: radial-gradient(circle at 50% 0%, var(--radial-start) 0%, var(--bg-color) 60%);
   background-attachment: fixed;
@@ -124,7 +129,11 @@ body {
 
 .main-content {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   padding: 10px 24px 100px;
+  /* Padding bottom memperhitungkan bottom nav + safe area (notch/home indicator) */
+  padding-bottom: calc(100px + env(safe-area-inset-bottom, 0px));
 }
 
 .bottom-nav {
@@ -135,7 +144,8 @@ body {
   max-width: 100%;
   display: flex;
   justify-content: space-around;
-  padding: 16px 10px 24px;
+  /* Tambahkan safe-area-inset-bottom untuk notch & home indicator di iPhone/Android baru */
+  padding: 16px 10px calc(24px + env(safe-area-inset-bottom, 0px));
   background: var(--nav-bg);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
@@ -193,7 +203,8 @@ body {
 .dashboard {
   display: flex;
   flex-direction: column;
-  gap: 28px;
+  gap: 20px;
+  flex: 1; /* Isi sisa ruang di main-content */
 }
 
 .glass-panel {

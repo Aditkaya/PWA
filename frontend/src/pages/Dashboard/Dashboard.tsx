@@ -21,6 +21,8 @@ interface HistoryItem {
   time: string
   status: string
   is_overnight?: boolean
+  actual_date?: string
+  occurred_at?: string
 }
 
 export default function Dashboard() {
@@ -192,7 +194,7 @@ export default function Dashboard() {
   yesterdayDate.setDate(yesterdayDate.getDate() - 1)
   const yesterdayString = `${yesterdayDate.getFullYear()}-${String(yesterdayDate.getMonth() + 1).padStart(2, '0')}-${String(yesterdayDate.getDate()).padStart(2, '0')}`
 
-  const todayCheckIn = historyData.find(h => h.date === todayString && (h.type.toLowerCase() === 'masuk' || h.type.toLowerCase() === 'check in' || (h.type.toLowerCase().includes('masuk') && !h.type.toLowerCase().includes('istirahat') && !h.type.toLowerCase().includes('izin'))))
+  const todayCheckIn = historyData.find(h => h.date === todayString && (h.type.toLowerCase() === 'masuk' || h.type.toLowerCase() === 'check in' || (h.type.toLowerCase().includes('masuk') && !h.type.toLowerCase().includes('istirahat') && !h.type.toLowerCase().includes('izin') && !h.type.toLowerCase().includes('lembur'))))
   
   const isTodayRecord = (h: HistoryItem) => {
     if (h.date !== todayString) return false;
@@ -217,27 +219,23 @@ export default function Dashboard() {
   // Deteksi sesi "Mulai Lembur" yang dimulai H-1 dan belum selesai.
   // Ini memastikan tombol "Selesai Lembur" tetap aktif di dini hari.
   // =====================================================================
-  const overtimeStartTypes = (t: string) => ['mulai lembur', 'lembur masuk', 'lembur'].some(k => t.toLowerCase().replace(/_/g, ' ').includes(k))
-  const overtimeEndTypes   = (t: string) => ['selesai lembur', 'lembur pulang', 'lembur keluar'].some(k => t.toLowerCase().replace(/_/g, ' ').includes(k))
+  const overtimeStartTypes = (t: string) => ['mulai lembur', 'lembur masuk', 'lembur'].includes(t.toLowerCase().replace(/_/g, ' ').trim())
+  const overtimeEndTypes   = (t: string) => ['selesai lembur', 'lembur pulang', 'lembur keluar'].includes(t.toLowerCase().replace(/_/g, ' ').trim())
 
-  // Mulai Lembur hari ini
-  const todayOvertimeInHistory = historyData.find(h => h.date === todayString && overtimeStartTypes(h.type))
-  // Mulai Lembur H-1 (sesi aktif semalam yang belum ditutup)
-  const yesterdayOvertimeIn = historyData.find(h => h.date === yesterdayString && overtimeStartTypes(h.type))
-  // Selesai Lembur H-1 (apakah sudah ada penutupan di H-1)
-  const yesterdayOvertimeOut = historyData.find(h => h.date === yesterdayString && overtimeEndTypes(h.type))
-  // Selesai Lembur hari ini (sudah closed di hari ini)
-  const todayOvertimeOutHistory = historyData.find(h => h.date === todayString && overtimeEndTypes(h.type))
-
-  // Sesi lembur lintas malam aktif: ada Mulai Lembur kemarin, belum ada Selesai Lembur kemarin
-  const hasActiveOvernightSession = !!yesterdayOvertimeIn && !yesterdayOvertimeOut && !todayOvertimeOutHistory
-
-  // todayOvertimeIn mencakup sesi hari ini ATAU sesi lintas malam dari kemarin
-  const todayOvertimeIn = todayOvertimeInHistory ?? (hasActiveOvernightSession ? yesterdayOvertimeIn : undefined)
+  // History is ordered by the actual timestamp; only the latest session can be active.
+  const latestOvertime = historyData.find(h => overtimeStartTypes(h.type) || overtimeEndTypes(h.type))
+  const latestStartDate = latestOvertime?.occurred_at
+    ? new Date(latestOvertime.occurred_at.replace(' ', 'T') + '+07:00').getTime()
+    : NaN
+  const isRecentStart = Number.isFinite(latestStartDate)
+    ? now.getTime() - latestStartDate >= 0 && now.getTime() - latestStartDate <= 24 * 60 * 60 * 1000
+    : latestOvertime?.date === todayString || latestOvertime?.date === yesterdayString
+  const todayOvertimeIn = latestOvertime && overtimeStartTypes(latestOvertime.type) && isRecentStart
+    ? latestOvertime : undefined
+  const hasActiveOvernightSession = !!todayOvertimeIn && todayOvertimeIn.date === yesterdayString
   const isOvertimeStarted = !!todayOvertimeIn
-
-  // todayOvertimeOut: sudah selesai hari ini (termasuk yang terjadi dini hari via is_overnight)
-  const todayOvertimeOut = todayOvertimeOutHistory ?? historyData.find(h => h.is_overnight && overtimeEndTypes(h.type))
+  const todayOvertimeOut = latestOvertime && overtimeEndTypes(latestOvertime.type)
+    && (latestOvertime.actual_date ?? latestOvertime.date) === todayString ? latestOvertime : undefined
 
   const isCurrentlyOnPermit = permitOuts.length > permitIns.length
   const lastPermitOut = isCurrentlyOnPermit ? permitOuts[0] : null

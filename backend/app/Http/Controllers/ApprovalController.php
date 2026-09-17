@@ -266,25 +266,21 @@ class ApprovalController {
                     $kId = $lemburData['karyawan_id'];
                     $tgl = $lemburData['tanggal'];
                     
-                    // Update absensis untuk jam masuk lembur
-                    $stmtUpdateMasuk = $pdo->prepare("
-                        UPDATE absensis 
-                        SET waktu = CONCAT(?, ' ', ?) 
-                        WHERE karyawan_id = ? 
-                          AND DATE(waktu) = ? 
-                          AND LOWER(REPLACE(tipe, '_', ' ')) IN ('lembur masuk', 'mulai lembur', 'lembur')
-                    ");
-                    $stmtUpdateMasuk->execute([$tgl, $jam_mulai, $kId, $tgl]);
-                    
-                    // Update absensis untuk jam selesai lembur
-                    $stmtUpdateSelesai = $pdo->prepare("
-                        UPDATE absensis 
-                        SET waktu = CONCAT(?, ' ', ?) 
-                        WHERE karyawan_id = ? 
-                          AND DATE(waktu) = ? 
-                          AND LOWER(REPLACE(tipe, '_', ' ')) IN ('lembur pulang', 'selesai lembur', 'lembur keluar')
-                    ");
-                    $stmtUpdateSelesai->execute([$tgl, $jam_selesai, $kId, $tgl]);
+                    require_once __DIR__ . '/../../Helpers/AttendanceWorkDate.php';
+                    $workDate = \App\Helpers\AttendanceWorkDate::sql('mysql', 'a', 0);
+                    // Resolve IDs before changing start times so overnight pairing remains intact.
+                    $stmtLogs = $pdo->prepare("SELECT a.id, a.tipe FROM absensis a WHERE a.karyawan_id = ? AND ($workDate) = ?
+                        AND LOWER(REPLACE(a.tipe, '_', ' ')) IN ('lembur masuk', 'mulai lembur', 'lembur', 'lembur pulang', 'selesai lembur', 'lembur keluar')");
+                    $stmtLogs->execute([$kId, $tgl]);
+                    $logs = $stmtLogs->fetchAll(PDO::FETCH_ASSOC);
+                    $endDate = $jam_selesai < $jam_mulai ? date('Y-m-d', strtotime($tgl . ' +1 day')) : $tgl;
+                    $stmtUpdate = $pdo->prepare("UPDATE absensis SET waktu = ? WHERE id = ?");
+                    foreach ($logs as $log) {
+                        $isEnd = in_array(strtolower(str_replace('_', ' ', $log['tipe'])), ['lembur pulang', 'selesai lembur', 'lembur keluar']);
+                        $waktu = $isEnd ? $endDate . ' ' . $jam_selesai : $tgl . ' ' . $jam_mulai;
+                        $stmtUpdate->execute([$waktu, $log['id']]);
+                    }
+
                 }
             }
 

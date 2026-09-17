@@ -35,6 +35,7 @@ export default function DenahGudang() {
   const [reload, setReload] = useState(0)
   const [editing, setEditing] = useState(false)
   const [notice, setNotice] = useState('')
+  const [panel, setPanel] = useState<'map' | 'list'>('map')
 
   useEffect(() => {
     const controller = new AbortController()
@@ -43,6 +44,7 @@ export default function DenahGudang() {
     setPlan(null)
     setEditing(false)
     setNotice('')
+    setPanel('map')
     setSelected(null)
     setSearch('')
     setFilter('all')
@@ -80,7 +82,7 @@ export default function DenahGudang() {
     return (filter === 'all' || (filter === 'assigned' ? !!p : !p)) &&
       `${c.number} ${p ? locationCode(p) : ''}`.toLowerCase().includes(search.trim().toLowerCase())
   })
-  function choose(p: Position) { setSelected(p); setArea(p.block); setTier(p.tier) }
+  function choose(p: Position) { setSelected(p); setArea(p.block); setTier(p.tier); setPanel('map') }
 
   return <section className="dg-page">
     <header className="dg-heading"><Warehouse size={28} /><div><h2>Denah Gudang</h2><p>{plan ? plan.gudang.nama_gudang : 'Pilih gudang untuk melihat posisi kontainer.'}</p></div>
@@ -101,11 +103,12 @@ export default function DenahGudang() {
     </div>}
     {!loading && !error && plan && !editing && <>
       <p>{plan.gudang.lokasi} · {plan.gudang.status === 'aktif' ? 'Aktif' : 'Nonaktif'}</p>
-      <p className="dg-notice">Layout dan posisi mengikuti AYPSIS. Perubahan posisi dilakukan melalui AYPSIS.</p>
-      {plan.can_edit ? <button className="dg-back" onClick={() => { setEditing(true); setNotice('') }}>Atur Layout</button> : <p className="dg-help">Untuk mengatur layout, login ulang setelah pembaruan dan gunakan akun dengan izin lihat serta edit Master Gudang di AYPSIS.</p>}
+      {plan.can_edit ? <button className="dg-back dg-edit-button" onClick={() => { setEditing(true); setNotice('') }}>Atur Layout</button> : <details className="dg-help dg-guide"><summary>Akses pengaturan layout</summary><p>Login ulang setelah pembaruan dan gunakan akun dengan izin lihat serta edit Master Gudang di AYPSIS.</p></details>}
       <div className="dg-stats"><span><strong>{plan.containers.length}</strong> kontainer</span><span><strong>{positions.length}</strong> posisi tersimpan</span><span><strong>{plan.containers.filter(c => !positionByKey.has(c.key)).length}</strong> belum ditempatkan</span></div>
+      <div className="dg-segments" aria-label="Tampilan gudang"><button aria-pressed={panel === 'map'} onClick={() => setPanel('map')}>Denah</button><button aria-pressed={panel === 'list'} onClick={() => setPanel('list')}>Cari Kontainer</button></div>
+      <div className={panel !== 'map' ? 'dg-mobile-hidden' : ''}>
       {!block ? <div className="dg-card">Layout gudang belum dikonfigurasi. {plan.can_edit ? 'Gunakan tombol Atur Layout untuk membuat area gudang.' : 'Hubungi pengguna dengan izin edit Master Gudang untuk mengatur layout.'}</div> : <div className="dg-card">
-        <div className="dg-controls"><label>Area<select value={area} onChange={e => { setArea(e.target.value); setTier(1); setSelected(null) }}>{plan.layout?.blocks.map(b => <option key={b.code} value={b.code}>{b.code}</option>)}</select></label>
+        <div className="dg-controls dg-map-controls"><label>Area<select value={area} onChange={e => { setArea(e.target.value); setTier(1); setSelected(null) }}>{plan.layout?.blocks.map(b => <option key={b.code} value={b.code}>{b.code}</option>)}</select></label>
           <label>Tingkat<select value={tier} onChange={e => { setTier(Number(e.target.value)); setSelected(null) }}>{numbers(block.tiers).map(t => <option key={t} value={t}>{t}{t === 1 ? ' (Dasar)' : ''}</option>)}</select></label></div>
         <div className="dg-legend"><span>□ Kosong</span><span className="dg-stock-label">■ Milik sendiri</span><span className="dg-sewa-label">■ Sewa</span><span>▧ Jalan / nonaktif</span><span className="dg-stale-label">■ Perlu diperiksa</span></div>
         <div className="dg-map" tabIndex={0} role="region" aria-label={`Denah area ${area}, tingkat ${tier}; geser untuk melihat seluruh denah`}>
@@ -123,11 +126,12 @@ export default function DenahGudang() {
             })}</tr>)}
           </tbody></table>
         </div>
-        <p className="dg-help">Slot bertambah dari atas ke bawah; baris dari kiri ke kanan. Kontainer 40 kaki menempati dua slot. Geser denah untuk melihat seluruh area.</p>
+        <details className="dg-help dg-guide"><summary>Cara membaca denah</summary><p>Geser untuk melihat seluruh area. Ketuk kontainer untuk melihat detailnya. Slot bertambah ke bawah, baris ke kanan. Kontainer 40 kaki memakai dua slot. Perubahan posisi dilakukan melalui AYPSIS.</p></details>
         {selected && <div className="dg-detail" role="status"><strong>{selected.container_number}</strong><span>{locationCode(selected)} · {selected.span * 20} ft</span>{selected.stale && <span>Perlu diperiksa: data kontainer sudah berubah di AYPSIS.</span>}</div>}
       </div>}
-      <div className="dg-card"><h3>Daftar Kontainer</h3><div className="dg-controls"><label>Cari kontainer / kode lokasi<input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Nomor kontainer atau A-S03-B02-T01" /></label><label>Tampilkan<select value={filter} onChange={e => setFilter(e.target.value)}><option value="all">Semua kontainer</option><option value="assigned">Sudah ditempatkan</option><option value="unassigned">Belum ditempatkan</option></select></label></div>
-        <div className="dg-list">{found.map(c => { const p = positionByKey.get(c.key); return <button key={c.key} disabled={!p} onClick={() => { if (p) { choose(p); document.querySelector('.dg-map')?.scrollIntoView({ behavior: 'smooth', block: 'center' }) } }}><strong>{c.number || 'Nomor belum diisi'}</strong><span>{c.size || 'Ukuran belum diisi'} · {c.source === 'stock' ? 'Milik sendiri' : 'Sewa'}</span><span>{p ? locationCode(p) : 'Belum ditempatkan'}{p?.stale ? ' · Perlu diperiksa' : ''}</span></button> })}</div>
+      </div>
+      <div className={`dg-card ${panel !== 'list' ? 'dg-mobile-hidden' : ''}`}><h3>Daftar Kontainer</h3><div className="dg-controls"><label>Cari kontainer / kode lokasi<input type="search" value={search} onChange={e => setSearch(e.target.value)} placeholder="Nomor atau kode lokasi" /></label><label>Tampilkan<select value={filter} onChange={e => setFilter(e.target.value)}><option value="all">Semua kontainer</option><option value="assigned">Sudah ditempatkan</option><option value="unassigned">Belum ditempatkan</option></select></label></div>
+        <div className="dg-list">{found.map(c => { const p = positionByKey.get(c.key); return <button key={c.key} disabled={!p} onClick={() => { if (p) { choose(p); requestAnimationFrame(() => document.querySelector('.dg-map')?.scrollIntoView({ behavior: 'smooth', block: 'center' })) } }}><strong>{c.number || 'Nomor belum diisi'}</strong><span>{c.size || 'Ukuran belum diisi'} · {c.source === 'stock' ? 'Milik sendiri' : 'Sewa'}</span><span>{p ? locationCode(p) : 'Belum ditempatkan'}{p?.stale ? ' · Perlu diperiksa' : ''}</span></button> })}</div>
         {!found.length && <p>Tidak ada kontainer yang sesuai.</p>}
       </div>
     </>}

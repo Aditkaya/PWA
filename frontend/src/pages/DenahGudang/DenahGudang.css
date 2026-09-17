@@ -49,4 +49,61 @@
 .dg-layout-editor .dg-slot { min-height: 65px; }
 .dg-editor-save { position: sticky; bottom: 85px; z-index: 3; background: var(--panel-bg); padding: 12px; border: 1px solid var(--glass-border); border-radius: 12px; }
 .dg-editor-save p { margin: 0; }
-@media (max-width: 600px) { .dg-page { padding: 16px 8px 100px; }.dg-card { padding: 12px; }.dg-controls { flex-direction: column; }.dg-stats { gap: 6px; font-size: .8rem; }.dg-legend { gap: 10px; } }
+.dg-page { width: 100%; min-width: 0; }
+.dg-heading > svg { flex-shrink: 0; color: var(--accent-color); }
+.dg-heading p { margin: 6px 0 12px; overflow-wrap: anywhere; }
+.dg-edit-button { background: #2563eb; color: #fff !important; justify-content: center; font-weight: 600 !important; }
+.dg-guide summary { cursor: pointer; padding: 12px 0; min-height: 44px; }
+.dg-guide p { margin: 0 0 12px; }
+.dg-segments { display: none; }
+.dg-area-picker { display: flex; align-items: center; gap: 8px; margin: 16px 0; min-width: 0; }
+.dg-area-picker > button { flex-shrink: 0; min-height: 48px; }
+.dg-area-tabs { display: flex; flex: 1; min-width: 0; gap: 8px; overflow-x: auto; padding: 4px; }
+.dg-area-tabs button { flex-shrink: 0; min-width: 48px; min-height: 48px; padding: 10px 14px; border: 1px solid var(--glass-border); border-radius: 12px; background: var(--panel-bg); }
+.dg-area-tabs button[aria-pressed="true"] { color: #fff; border-color: #2563eb; background: #2563eb; }
+.dg-editor-workspace { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(0, 2fr); gap: 16px; align-items: start; }
+.dg-controls.dg-dimensions { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.dg-dimensions .dg-code-field { grid-column: 1 / -1; }
+.dg-controls label { min-width: 0; }
+.dg-controls input, .dg-controls select { min-width: 0; }
+.dg-dimensions label { font-size: .85rem; }
+.dg-editor-actions .dg-mobile-next { display: none; }
+.dg-editor-save { bottom: calc(85px + env(safe-area-inset-bottom, 0px)); box-shadow: 0 -4px 24px #0002; }
+.dg-editor-save p { font-size: .8rem; }
+.dg-editor-save .dg-editor-actions { display: grid; grid-template-columns: minmax(70px, 1fr) minmax(0, 3fr); }
+.dg-editor-save button { min-height: 48px; }
+.dg-map { max-width: 100%; overscroll-behavior-x: contain; }
+.dg-slot strong { overflow-wrap: anywhere; }
+@media (max-width: 640px) {
+  .dg-page { padding: 16px 12px calc(115px + env(safe-area-inset-bottom, 0px)); }
+  .dg-heading h2 { font-size: 1.2rem; }
+  .dg-heading p { font-size: .85rem; }
+  .dg-card { padding: 14px; margin: 12px 0; border-radius: 16px; }
+  .dg-warehouses { grid-template-columns: minmax(0, 1fr); gap: 10px; margin-top: 16px; }
+  .dg-warehouse { position: relative; padding: 16px 16px 16px 58px; gap: 6px; margin: 0; }
+  .dg-warehouse > svg { position: absolute; left: 16px; top: 18px; color: var(--accent-color); }
+  .dg-warehouse strong { font-size: 1rem; }
+  .dg-warehouse span { font-size: .85rem; }
+  .dg-edit-button { width: 100%; min-height: 48px; margin-top: 4px; }
+  .dg-controls { flex-direction: column; gap: 10px; }
+  .dg-controls.dg-map-controls { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+  .dg-stats { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; font-size: .7rem; }
+  .dg-stats > span { padding: 10px 6px; text-align: center; line-height: 1.4; }
+  .dg-stats strong { display: block; font-size: 1.3rem; margin-bottom: 4px; color: var(--text-primary); }
+  .dg-legend { gap: 8px 12px; font-size: .7rem; margin: 12px 0; }
+  .dg-segments { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 4px; gap: 4px; background: var(--glass-bg); border: 1px solid var(--glass-border); border-radius: 14px; margin: 14px 0; }
+  .dg-segments button { min-height: 46px; padding: 8px; border: 0; border-radius: 10px; background: transparent; font-size: .85rem; }
+  .dg-segments button[aria-pressed="true"] { background: #2563eb; color: #fff; font-weight: 600; }
+  .dg-mobile-hidden { display: none; }
+  .dg-editor-workspace { display: block; }
+  .dg-editor-actions .dg-mobile-next { display: block; width: 100%; min-height: 48px; }
+  .dg-map { max-height: 52dvh; }
+  .dg-map th { padding: 8px 5px; font-size: .7rem; }
+  .dg-slot { min-width: 104px; max-width: 130px; padding: 6px; font-size: .72rem !important; }
+  .dg-layout-editor .dg-slot { min-width: 64px; min-height: 52px; max-width: 90px; overflow-wrap: anywhere; }
+  .dg-list { grid-template-columns: minmax(0, 1fr); max-height: none; overflow-y: visible; }
+  .dg-list button { min-height: 88px; }
+  .dg-layout-editor > h3 { margin-top: 20px; margin-bottom: 8px; }
+  .dg-editor-save { padding: 12px; }
+  .dg-detail { margin-top: 12px; font-size: .85rem; overflow-wrap: anywhere; }
+}

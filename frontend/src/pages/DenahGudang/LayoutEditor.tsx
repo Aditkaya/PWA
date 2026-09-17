@@ -13,9 +13,11 @@ export default function LayoutEditor({ gudangId, version, layout, positions, onC
   const [active, setActive] = useState(0)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
+  const [panel, setPanel] = useState<'settings' | 'map'>('settings')
   const block = blocks[active]
   const dirty = JSON.stringify({ blocks }) !== JSON.stringify(layout)
   const total = blocks.reduce((sum, b) => sum + b.bays * b.rows, 0)
+  const occupied = positions.some(p => p.block === block.code)
 
   useEffect(() => {
     function preventLoss(event: BeforeUnloadEvent) { if (dirty || saving) { event.preventDefault(); event.returnValue = '' } }
@@ -44,6 +46,7 @@ export default function LayoutEditor({ gudangId, version, layout, positions, onC
     while (blocks.some(b => b.code === `AREA${n}`)) n++
     setBlocks([...blocks, { code: `AREA${n}`, bays: 10, rows: 5, tiers: 3, disabled: [] }])
     setActive(blocks.length)
+    setPanel('settings')
   }
   function remove(index: number) {
     if (!window.confirm(`Hapus area ${blocks[index].code} dari rancangan layout?`)) return
@@ -79,21 +82,22 @@ export default function LayoutEditor({ gudangId, version, layout, positions, onC
 
   return <div className="dg-layout-editor">
     <h3>Atur Layout Gudang</h3>
-    <p>Atur area, slot, baris dan tingkat. Satu slot sepanjang kontainer 20 kaki. Klik petak pratinjau untuk menandai jalan / nonaktif pada seluruh tingkat.</p>
+    <p className="dg-help">Pilih area, sesuaikan ukurannya, lalu tandai jalan pada denah.</p>
     <fieldset disabled={saving}>
-      <div className="dg-editor-areas">{blocks.map((b, i) => {
-        const occupied = positions.some(p => p.block === b.code)
-        return <div className="dg-card" key={i}>
-          <div className="dg-controls"><label>Kode area<input value={b.code} maxLength={12} disabled={occupied} onChange={e => update(i, { code: e.target.value.toUpperCase() })} /></label>
-            {(['bays', 'rows', 'tiers'] as const).map((field, j) => <label key={field}>{['Jumlah slot', 'Jumlah baris', 'Maks. tingkat'][j]}<select value={b[field]} onChange={e => resize(i, field, Number(e.target.value))}>{sequence([40, 20, 6][j]).map(n => <option key={n} value={n}>{n}</option>)}</select></label>)}
+      <div className="dg-area-picker"><div className="dg-area-tabs" aria-label="Pilih area">{blocks.map((b, i) => <button key={i} type="button" aria-pressed={active === i} onClick={() => { setActive(i); setError('') }}>{b.code || `Area ${i + 1}`}</button>)}</div><button className="dg-back" onClick={add} disabled={blocks.length >= 12}>+ Area</button></div>
+      <div className="dg-segments" aria-label="Bagian pengaturan layout"><button aria-pressed={panel === 'settings'} onClick={() => setPanel('settings')}>1. Ukuran area</button><button aria-pressed={panel === 'map'} onClick={() => setPanel('map')}>2. Tandai jalan</button></div>
+      <div className="dg-editor-workspace">
+        <div className={`dg-card dg-settings ${panel !== 'settings' ? 'dg-mobile-hidden' : ''}`}>
+          <h3>Area {block.code || active + 1}</h3>
+          <div className="dg-controls dg-dimensions"><label className="dg-code-field">Kode area<input value={block.code} maxLength={12} disabled={occupied} autoCapitalize="characters" autoComplete="off" onChange={e => update(active, { code: e.target.value.toUpperCase() })} /></label>
+            {(['bays', 'rows', 'tiers'] as const).map((field, j) => <label key={field}>{['Slot', 'Baris', 'Tingkat'][j]}<select value={block[field]} onChange={e => resize(active, field, Number(e.target.value))}>{sequence([40, 20, 6][j]).map(n => <option key={n} value={n}>{n}</option>)}</select></label>)}
           </div>
+          <p className="dg-help">{block.bays * block.rows} petak dasar · {block.disabled.length} petak jalan. Satu slot = 20 kaki.</p>
           {occupied && <p className="dg-help">Kode area dan penghapusan dikunci karena masih ada kontainer.</p>}
-          <div className="dg-editor-actions"><button onClick={() => setActive(i)} aria-pressed={active === i}>Pratinjau {b.code || 'area'}</button><button className="dg-danger" onClick={() => remove(i)} disabled={occupied || blocks.length === 1}>Hapus Area</button></div>
+          <div className="dg-editor-actions"><button className="dg-primary dg-mobile-next" onClick={() => setPanel('map')}>Lanjut tandai jalan →</button><button className="dg-danger" onClick={() => remove(active)} disabled={occupied || blocks.length === 1}>Hapus Area</button></div>
         </div>
-      })}</div>
-      <button className="dg-back" onClick={add} disabled={blocks.length >= 12}>+ Tambah Area</button>
-      <p>{blocks.length}/12 area · {total}/2.000 petak dasar</p>
-      <div className="dg-card"><h3>Pratinjau Area {block.code}</h3>
+      <div className={`dg-card ${panel !== 'map' ? 'dg-mobile-hidden' : ''}`}><h3>Jalan di Area {block.code}</h3>
+        <p className="dg-help">Ketuk petak kosong untuk menandai jalan. Ketuk lagi untuk membatalkan. Geser untuk melihat area lainnya.</p>
         <div className="dg-legend"><span>□ Aktif</span><span>▧ Jalan / nonaktif</span><span className="dg-stock-label">■ Terisi pada salah satu tingkat</span></div>
         <div className="dg-map" tabIndex={0} role="region" aria-label="Pratinjau layout, geser untuk melihat semua petak">
           <table><thead><tr><th>Slot / Baris</th>{sequence(block.rows).map(row => <th key={row}>B{row}</th>)}</tr></thead>
@@ -105,8 +109,9 @@ export default function LayoutEditor({ gudangId, version, layout, positions, onC
           </table>
         </div>
       </div>
+      </div>
       {error && <div className="dg-error" role="alert">{error}</div>}
-      <div className="dg-editor-save"><p role="status">{saving ? 'Menyimpan layout...' : dirty ? 'Ada perubahan belum disimpan.' : 'Layout sesuai data tersimpan.'}</p><div className="dg-editor-actions"><button className="dg-primary" onClick={save} disabled={!dirty || total > 2000}>Simpan Layout Gudang</button><button onClick={cancel}>Batal</button></div></div>
+      <div className="dg-editor-save"><p role="status">{saving ? 'Menyimpan...' : total > 2000 ? 'Melebihi batas 2.000 petak.' : dirty ? 'Perubahan belum disimpan' : 'Semua perubahan tersimpan'} · {blocks.length} area</p><div className="dg-editor-actions"><button onClick={cancel}>Batal</button><button className="dg-primary" onClick={save} disabled={!dirty || total > 2000}>{saving ? 'Menyimpan...' : 'Simpan Layout'}</button></div></div>
     </fieldset>
   </div>
 }

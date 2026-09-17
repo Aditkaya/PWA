@@ -20,6 +20,7 @@ interface HistoryItem {
   type: string
   time: string
   status: string
+  is_overnight?: boolean
 }
 
 export default function Dashboard() {
@@ -186,6 +187,11 @@ export default function Dashboard() {
 
   const now = new Date()
   const todayString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  // Tanggal kemarin untuk mendeteksi sesi lembur lintas malam
+  const yesterdayDate = new Date(now)
+  yesterdayDate.setDate(yesterdayDate.getDate() - 1)
+  const yesterdayString = `${yesterdayDate.getFullYear()}-${String(yesterdayDate.getMonth() + 1).padStart(2, '0')}-${String(yesterdayDate.getDate()).padStart(2, '0')}`
+
   const todayCheckIn = historyData.find(h => h.date === todayString && (h.type.toLowerCase() === 'masuk' || h.type.toLowerCase() === 'check in' || (h.type.toLowerCase().includes('masuk') && !h.type.toLowerCase().includes('istirahat') && !h.type.toLowerCase().includes('izin'))))
   
   const isTodayRecord = (h: HistoryItem) => {
@@ -205,14 +211,33 @@ export default function Dashboard() {
   // Multiple permit tracking
   const permitOuts = historyData.filter(h => isTodayRecord(h) && h.type.toLowerCase().includes('izin keluar'))
   const permitIns = historyData.filter(h => isTodayRecord(h) && h.type.toLowerCase().includes('izin masuk'))
-  
-  const todayOvertimeInHistory = historyData.find(h => isTodayRecord(h) && (h.type.toLowerCase().includes('mulai lembur') || h.type.toLowerCase() === 'lembur' || h.type.toLowerCase().includes('lembur masuk') || h.type.toLowerCase().includes('lembur_masuk')))
-  
-  // Directly use history data for Mulai Lembur since it no longer requires approval
-  const todayOvertimeIn = todayOvertimeInHistory;
-  const isOvertimeStarted = !!todayOvertimeIn;
 
-  const todayOvertimeOut = historyData.find(h => isTodayRecord(h) && (h.type.toLowerCase().includes('selesai lembur') || h.type.toLowerCase() === 'lembur_pulang' || h.type.toLowerCase() === 'pulang lembur'))
+  // =====================================================================
+  // OVERNIGHT OVERTIME DETECTION
+  // Deteksi sesi "Mulai Lembur" yang dimulai H-1 dan belum selesai.
+  // Ini memastikan tombol "Selesai Lembur" tetap aktif di dini hari.
+  // =====================================================================
+  const overtimeStartTypes = (t: string) => ['mulai lembur', 'lembur masuk', 'lembur'].some(k => t.toLowerCase().replace(/_/g, ' ').includes(k))
+  const overtimeEndTypes   = (t: string) => ['selesai lembur', 'lembur pulang', 'lembur keluar'].some(k => t.toLowerCase().replace(/_/g, ' ').includes(k))
+
+  // Mulai Lembur hari ini
+  const todayOvertimeInHistory = historyData.find(h => h.date === todayString && overtimeStartTypes(h.type))
+  // Mulai Lembur H-1 (sesi aktif semalam yang belum ditutup)
+  const yesterdayOvertimeIn = historyData.find(h => h.date === yesterdayString && overtimeStartTypes(h.type))
+  // Selesai Lembur H-1 (apakah sudah ada penutupan di H-1)
+  const yesterdayOvertimeOut = historyData.find(h => h.date === yesterdayString && overtimeEndTypes(h.type))
+  // Selesai Lembur hari ini (sudah closed di hari ini)
+  const todayOvertimeOutHistory = historyData.find(h => h.date === todayString && overtimeEndTypes(h.type))
+
+  // Sesi lembur lintas malam aktif: ada Mulai Lembur kemarin, belum ada Selesai Lembur kemarin
+  const hasActiveOvernightSession = !!yesterdayOvertimeIn && !yesterdayOvertimeOut && !todayOvertimeOutHistory
+
+  // todayOvertimeIn mencakup sesi hari ini ATAU sesi lintas malam dari kemarin
+  const todayOvertimeIn = todayOvertimeInHistory ?? (hasActiveOvernightSession ? yesterdayOvertimeIn : undefined)
+  const isOvertimeStarted = !!todayOvertimeIn
+
+  // todayOvertimeOut: sudah selesai hari ini (termasuk yang terjadi dini hari via is_overnight)
+  const todayOvertimeOut = todayOvertimeOutHistory ?? historyData.find(h => h.is_overnight && overtimeEndTypes(h.type))
 
   const isCurrentlyOnPermit = permitOuts.length > permitIns.length
   const lastPermitOut = isCurrentlyOnPermit ? permitOuts[0] : null
@@ -352,7 +377,12 @@ export default function Dashboard() {
             >
               <Clock size={24} strokeWidth={1.25} />
               <span>
-                {todayOvertimeIn ? `${t.startOvertime}: ${todayOvertimeIn.time}` : t.startOvertime}
+                {todayOvertimeIn
+                  ? hasActiveOvernightSession
+                    ? `${t.startOvertime}: ${todayOvertimeIn.time} (kemarin)`
+                    : `${t.startOvertime}: ${todayOvertimeIn.time}`
+                  : t.startOvertime
+                }
               </span>
             </button>
             <button 

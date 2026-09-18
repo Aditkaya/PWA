@@ -240,7 +240,7 @@ class FeaturePermissionController
                     VALUES (?, ?, ?, ?)
                     ON DUPLICATE KEY UPDATE is_enabled = VALUES(is_enabled), updated_by = VALUES(updated_by)
                 ");
-                $stmt->execute([$userId, $featureKey, (int)(bool)$isEnabled, $body['requester_id']]);
+                $stmt->execute([$userId, $featureKey, (int)(bool)$isEnabled, $requesterId]);
             }
             echo json_encode(['success' => true, 'message' => 'Izin fitur berhasil diperbarui.']);
         } catch (\Exception $e) {
@@ -254,18 +254,27 @@ class FeaturePermissionController
      */
     public static function getPermissionsForUser(PDO $pdo, int $userId): array
     {
-        $stmt = $pdo->prepare("SELECT feature_key, is_enabled FROM user_feature_permissions WHERE user_id = ?");
-        $stmt->execute([$userId]);
-        $rows = $stmt->fetchAll();
+        try {
+            $stmt = $pdo->prepare("SELECT feature_key, is_enabled FROM user_feature_permissions WHERE user_id = ?");
+            $stmt->execute([$userId]);
+            $rows = $stmt->fetchAll();
 
-        $result = [];
-        foreach (self::VALID_FEATURES as $fk) {
-            $result[$fk] = true; // default aktif
+            $result = [];
+            foreach (self::VALID_FEATURES as $fk) {
+                $result[$fk] = true; // default aktif
+            }
+            foreach ($rows as $row) {
+                $result[$row['feature_key']] = (bool)$row['is_enabled'];
+            }
+            return $result;
+        } catch (\Throwable $e) {
+            // Fallback aman jika tabel belum dimigrasi di server
+            $result = [];
+            foreach (self::VALID_FEATURES as $fk) {
+                $result[$fk] = true;
+            }
+            return $result;
         }
-        foreach ($rows as $row) {
-            $result[$row['feature_key']] = (bool)$row['is_enabled'];
-        }
-        return $result;
     }
 
     /** Cek apakah requester adalah IT */

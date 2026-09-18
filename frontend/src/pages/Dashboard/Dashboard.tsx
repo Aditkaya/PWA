@@ -8,6 +8,7 @@ import CutiModal from '../../components/CutiModal'
 import PermitOutModal from '../../components/PermitOutModal'
 import LupaAbsenModal from '../../components/LupaAbsenModal'
 import PerencanaanLemburModal from '../../components/PerencanaanLemburModal'
+import PamfletCarousel from '../../components/PamfletCarousel'
 import { useLangStore } from '../../store/lang.store'
 import { useModeStore } from '../../store/mode.store'
 import { translations } from '../../utils/translations'
@@ -445,6 +446,13 @@ export default function Dashboard() {
           </>
         )}
       </div>
+
+      {/* ── Pamflet Banner Carousel ── */}
+      {!isOvertimeMode && (
+        <div style={{ padding: '4px 0 0 0' }}>
+          <PamfletCarousel />
+        </div>
+      )}
 
       {!isOvertimeMode && (
         <div className="leave-section glass-panel">

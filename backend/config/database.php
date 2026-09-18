@@ -6,8 +6,8 @@ class Database {
     public static function getConnection() {
         if (self::$pdo === null) {
             $host = '127.0.0.1';
-            $db   = 'aypsis';
-            $isLocal = ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NAME'] === '127.0.0.1');
+            $serverName = $_SERVER['SERVER_NAME'] ?? '';
+            $isLocal = ($serverName === 'localhost' || $serverName === '127.0.0.1');
             $user = $isLocal ? 'root' : 'aypsis_web';
             $pass = $isLocal ? '' : 'WebPass2025#!';
             $charset = 'utf8mb4';

@@ -16,7 +16,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 $uri = parse_url($_SERVER['REQUEST_URI'], PHP_URL_PATH);
 $isLocalServer = ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NAME'] === '127.0.0.1');
 if ($isLocalServer) {
-    define('UPLOAD_BASE_DIR', getenv('UPLOAD_BASE_DIR') ?: 'D:/kerjaan/aypsis/aypsis/aypsis/public');
+    define('UPLOAD_BASE_DIR', getenv('UPLOAD_BASE_DIR') ?: (file_exists('C:/kerjaan/aypsis/aypsis/aypsis/public') ? 'C:/kerjaan/aypsis/aypsis/aypsis/public' : 'D:/kerjaan/aypsis/aypsis/aypsis/public'));
     define('AYPSIS_PUBLIC_DIR', getenv('AYPSIS_PUBLIC_DIR') ?: UPLOAD_BASE_DIR);
 } else {
     define('UPLOAD_BASE_DIR', getenv('UPLOAD_BASE_DIR') ?: '/var/www/pwa/backend');

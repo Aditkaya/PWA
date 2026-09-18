@@ -20,7 +20,7 @@ class OvertimeValidator {
 
             // Cari absensi lembur aktual (Lembur Masuk)
             $stmtStart = $pdo->prepare("
-                SELECT id, waktu, tipe 
+                SELECT id, waktu, tipe, foto, detail_lokasi, latitude, longitude 
                 FROM absensis 
                 WHERE karyawan_id = ? 
                   AND DATE(waktu) = ?
@@ -33,7 +33,7 @@ class OvertimeValidator {
             // Find the return belonging to this start date, even after noon or month-end.
             $workDate = AttendanceWorkDate::sql('mysql', 'a', 0);
             $stmtActual = $pdo->prepare("
-                SELECT a.id, a.waktu, a.tipe FROM absensis a
+                SELECT a.id, a.waktu, a.tipe, a.foto, a.detail_lokasi, a.latitude, a.longitude FROM absensis a
                 WHERE a.karyawan_id = ? AND ($workDate) = ?
                   AND LOWER(REPLACE(a.tipe, '_', ' ')) IN ('lembur pulang', 'selesai lembur', 'lembur keluar')
                 ORDER BY a.waktu ASC LIMIT 1
@@ -97,6 +97,12 @@ class OvertimeValidator {
             $actualStartTimeDB = $actualStartTs ? date('H:i:s', $actualStartTs) : $plan['jam_mulai'];
             $actualEndTimeDB = date('H:i:s', $actualEndTs);
 
+            // Foto dan lokasi dari absensi aktual
+            $actualPhoto = $actualEnd['foto'] ?? ($actualStart['foto'] ?? null);
+            $actualLocation = $actualEnd['detail_lokasi'] ?? ($actualStart['detail_lokasi'] ?? null);
+            $actualLat = $actualEnd['latitude'] ?? ($actualStart['latitude'] ?? null);
+            $actualLng = $actualEnd['longitude'] ?? ($actualStart['longitude'] ?? null);
+
             // Cek apakah sudah ada di persetujuan_absensi_lemburs untuk tanggal ini agar tidak duplikat
             $stmtCheck = $pdo->prepare("SELECT id, status FROM persetujuan_absensi_lemburs WHERE karyawan_id = ? AND tanggal = ?");
             $stmtCheck->execute([$karyawan_id, $tanggal]);
@@ -105,13 +111,13 @@ class OvertimeValidator {
             if ($existing) {
                 // Hanya update jika statusnya masih pending
                 if (strtolower($existing['status']) === 'pending') {
-                    $stmtUpdate = $pdo->prepare("UPDATE persetujuan_absensi_lemburs SET jam_mulai = ?, jam_selesai = ?, keterangan = ? WHERE id = ?");
-                    $stmtUpdate->execute([$actualStartTimeDB, $actualEndTimeDB, $keterangan, $existing['id']]);
+                    $stmtUpdate = $pdo->prepare("UPDATE persetujuan_absensi_lemburs SET jam_mulai = ?, jam_selesai = ?, keterangan = ?, foto = COALESCE(?, foto), detail_lokasi = COALESCE(?, detail_lokasi), latitude = COALESCE(?, latitude), longitude = COALESCE(?, longitude) WHERE id = ?");
+                    $stmtUpdate->execute([$actualStartTimeDB, $actualEndTimeDB, $keterangan, $actualPhoto, $actualLocation, $actualLat, $actualLng, $existing['id']]);
                 }
             } else {
                 // Insert baru
-                $stmtInsert = $pdo->prepare("INSERT INTO persetujuan_absensi_lemburs (karyawan_id, tanggal, jam_mulai, jam_selesai, keterangan, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, 'pending', NOW(), NOW())");
-                $stmtInsert->execute([$karyawan_id, $tanggal, $actualStartTimeDB, $actualEndTimeDB, $keterangan]);
+                $stmtInsert = $pdo->prepare("INSERT INTO persetujuan_absensi_lemburs (karyawan_id, tanggal, jam_mulai, jam_selesai, keterangan, foto, detail_lokasi, latitude, longitude, status, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, 'pending', NOW(), NOW())");
+                $stmtInsert->execute([$karyawan_id, $tanggal, $actualStartTimeDB, $actualEndTimeDB, $keterangan, $actualPhoto, $actualLocation, $actualLat, $actualLng]);
             }
 
         } catch (\Exception $e) {

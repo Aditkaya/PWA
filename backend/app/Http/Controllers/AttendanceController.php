@@ -226,6 +226,12 @@ class AttendanceController {
                     $file_path = $upload_dir . $filename;
                     file_put_contents($file_path, $image_base64);
                     $db_photo_path = 'uploads/attendance/lembur/' . $filename;
+                    // Duplikat ke public AYPSIS agar bisa diakses via Laravel
+                    if (defined('AYPSIS_PUBLIC_DIR')) {
+                        $aypsis_dir = AYPSIS_PUBLIC_DIR . '/uploads/attendance/lembur/';
+                        if (!is_dir($aypsis_dir)) { @mkdir($aypsis_dir, 0777, true); }
+                        if (AYPSIS_PUBLIC_DIR !== UPLOAD_BASE_DIR) { @file_put_contents($aypsis_dir . $filename, $image_base64); }
+                    }
                 }
             }
 

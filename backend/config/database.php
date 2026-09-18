@@ -4,8 +4,8 @@ class Database {
     private static $pdo = null;
 
     public static function getConnection() {
-        if (self::$pdo === null) {
             $host = '127.0.0.1';
+            $db   = 'aypsis';
             $serverName = $_SERVER['SERVER_NAME'] ?? '';
             $isLocal = ($serverName === 'localhost' || $serverName === '127.0.0.1');
             $user = $isLocal ? 'root' : 'aypsis_web';

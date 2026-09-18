@@ -1,0 +1,352 @@
+/* ================================================================
+   Berita & Pamflet – PWA Frontend
+   Dark & Light Theme Adaptive
+   ================================================================ */
+
+.berita-page {
+  padding: 0 0 110px;
+  animation: beritaFadeIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+@keyframes beritaFadeIn {
+  from { opacity: 0; transform: translateY(6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ----------------------------------------------------------------
+   Header Banner
+   ---------------------------------------------------------------- */
+.berita-header {
+  position: relative;
+  padding: 18px 16px 16px;
+  background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(139, 92, 246, 0.04) 100%);
+  border-bottom: 1px solid var(--glass-border, rgba(148, 163, 184, 0.15));
+  margin-bottom: 14px;
+}
+
+.berita-header h1 {
+  font-size: 1.2rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+  letter-spacing: -0.02em;
+}
+
+.berita-header p {
+  font-size: 0.78rem;
+  color: var(--text-secondary);
+  margin: 0;
+}
+
+/* ----------------------------------------------------------------
+   Filter Tabs
+   ---------------------------------------------------------------- */
+.berita-tabs {
+  display: flex;
+  gap: 8px;
+  padding: 0 16px 14px;
+}
+
+.berita-tab {
+  flex: 1;
+  padding: 8px 12px;
+  border: 1.5px solid var(--glass-border, rgba(148,163,184,0.2));
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: center;
+}
+
+.berita-tab.active {
+  background: linear-gradient(135deg, #6366f1, #8b5cf6);
+  border-color: transparent;
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(99, 102, 241, 0.3);
+}
+
+.berita-tab:not(.active):hover {
+  border-color: #6366f1;
+  color: #6366f1;
+}
+
+/* ----------------------------------------------------------------
+   Grid berita cards
+   ---------------------------------------------------------------- */
+.berita-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 0 16px;
+}
+
+.berita-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--glass-bg, rgba(255,255,255,0.05));
+  border: 1px solid var(--glass-border, rgba(148,163,184,0.15));
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-align: left;
+  width: 100%;
+}
+
+.berita-card:hover,
+.berita-card:active {
+  transform: translateY(-1px);
+  box-shadow: 0 6px 24px rgba(99, 102, 241, 0.12);
+  border-color: rgba(99, 102, 241, 0.3);
+}
+
+.berita-card-pinned {
+  border-color: rgba(234, 179, 8, 0.4);
+  background: rgba(234, 179, 8, 0.04);
+}
+
+.berita-card-img {
+  width: 72px;
+  height: 56px;
+  border-radius: 10px;
+  object-fit: cover;
+  flex-shrink: 0;
+  background: var(--glass-bg);
+}
+
+.berita-card-img-placeholder {
+  width: 72px;
+  height: 56px;
+  border-radius: 10px;
+  background: var(--glass-bg, rgba(99,102,241,0.08));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 1.4rem;
+}
+
+.berita-card-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.berita-card-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 5px;
+  flex-wrap: wrap;
+}
+
+.badge-tipe {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 8px;
+  border-radius: 20px;
+  font-size: 0.62rem;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+}
+
+.badge-berita {
+  background: rgba(59, 130, 246, 0.12);
+  color: #3b82f6;
+  border: 1px solid rgba(59, 130, 246, 0.2);
+}
+
+.badge-pamflet {
+  background: rgba(139, 92, 246, 0.12);
+  color: #8b5cf6;
+  border: 1px solid rgba(139, 92, 246, 0.2);
+}
+
+.badge-pin {
+  font-size: 0.7rem;
+}
+
+.berita-card-title {
+  font-size: 0.88rem;
+  font-weight: 700;
+  color: var(--text-primary);
+  margin: 0 0 4px;
+  line-height: 1.35;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.berita-card-snippet {
+  font-size: 0.75rem;
+  color: var(--text-secondary);
+  line-height: 1.45;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-bottom: 6px;
+}
+
+.berita-card-date {
+  font-size: 0.68rem;
+  color: var(--text-muted, var(--text-secondary));
+  opacity: 0.7;
+}
+
+/* Pamflet card — full image */
+.berita-card-pamflet {
+  flex-direction: column;
+  padding: 0;
+  overflow: hidden;
+}
+
+.berita-card-pamflet .berita-card-img {
+  width: 100%;
+  height: 180px;
+  border-radius: 14px 14px 0 0;
+}
+
+.berita-card-pamflet .berita-card-body {
+  padding: 12px 14px 14px;
+}
+
+/* ----------------------------------------------------------------
+   Empty state
+   ---------------------------------------------------------------- */
+.berita-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 60px 20px;
+  color: var(--text-secondary);
+  text-align: center;
+}
+
+.berita-empty-icon {
+  font-size: 2.5rem;
+  opacity: 0.5;
+}
+
+.berita-empty p {
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0;
+}
+
+.berita-empty span {
+  font-size: 0.75rem;
+  opacity: 0.65;
+}
+
+/* ----------------------------------------------------------------
+   Skeleton loader
+   ---------------------------------------------------------------- */
+.berita-skeleton {
+  display: flex;
+  gap: 12px;
+  padding: 14px;
+  border-radius: 14px;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+}
+
+.skeleton-box {
+  background: var(--glass-border, rgba(148,163,184,0.15));
+  border-radius: 8px;
+  animation: shimmer 1.4s infinite ease-in-out;
+}
+
+@keyframes shimmer {
+  0%, 100% { opacity: 0.5; }
+  50%       { opacity: 1; }
+}
+
+/* ----------------------------------------------------------------
+   Detail page
+   ---------------------------------------------------------------- */
+.berita-detail-page {
+  padding-bottom: 110px;
+  animation: beritaFadeIn 0.25s ease;
+}
+
+.berita-detail-back {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 14px 16px;
+  background: transparent;
+  border: none;
+  color: var(--text-primary);
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  border-bottom: 1px solid var(--glass-border, rgba(148,163,184,0.15));
+  width: 100%;
+  text-align: left;
+}
+
+.berita-detail-back:hover {
+  color: #6366f1;
+}
+
+.berita-detail-hero {
+  width: 100%;
+  max-height: 240px;
+  object-fit: cover;
+}
+
+.berita-detail-body {
+  padding: 16px;
+}
+
+.berita-detail-badges {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 10px;
+  flex-wrap: wrap;
+}
+
+.berita-detail-title {
+  font-size: 1.12rem;
+  font-weight: 800;
+  color: var(--text-primary);
+  margin: 0 0 8px;
+  line-height: 1.35;
+  letter-spacing: -0.01em;
+}
+
+.berita-detail-meta {
+  font-size: 0.73rem;
+  color: var(--text-secondary);
+  opacity: 0.7;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.berita-detail-divider {
+  height: 1px;
+  background: var(--glass-border, rgba(148,163,184,0.15));
+  margin-bottom: 16px;
+}
+
+.berita-detail-konten {
+  font-size: 0.88rem;
+  color: var(--text-primary);
+  line-height: 1.7;
+  white-space: pre-wrap;
+  word-break: break-word;
+}

@@ -392,5 +392,22 @@ if ($uri === '/api/it/feature-permissions/bulk' && $method === 'PUT') {
     exit();
 }
 
+
+// =====================================================================
+// Berita & Pamflet – Konten PWA
+// =====================================================================
+if ($uri === '/api/berita' && $method === 'GET') {
+    require_once __DIR__ . '/../app/Http/Controllers/BeritaController.php';
+    $controller = new \App\Http\Controllers\BeritaController();
+    $controller->index($_GET);
+    exit();
+}
+
+if (preg_match('#^/api/berita/(\d+)$#', $uri, $matches) && $method === 'GET') {
+    require_once __DIR__ . '/../app/Http/Controllers/BeritaController.php';
+    $controller = new \App\Http\Controllers\BeritaController();
+    $controller->show((int)$matches[1]);
+    exit();
+}
 http_response_code(404);
 echo json_encode(['message' => 'Endpoint tidak ditemukan']);

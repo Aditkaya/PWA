@@ -12,6 +12,8 @@ import TandaTerimaDetail from './pages/Amprahan/TandaTerimaDetail'
 import StowagePlan from './pages/StowagePlan/StowagePlan'
 import DenahGudang from './pages/DenahGudang/DenahGudang'
 import ItAdmin from './pages/ItAdmin/ItAdmin'
+import Berita from './pages/Berita/Berita'
+import BeritaDetail from './pages/Berita/BeritaDetail'
 import PrivateRoute from './routes/PrivateRoute'
 import { ToastProvider } from './contexts/ToastContext'
 import UpdateNotification from './components/UpdateNotification'
@@ -36,6 +38,8 @@ function App() {
             <Route path="amprahan/request" element={<AmprahanRequest />} />
             <Route path="amprahan/tanda-terima" element={<TandaTerima />} />
             <Route path="amprahan/tanda-terima/detail" element={<TandaTerimaDetail />} />
+            <Route path="berita" element={<Berita />} />
+            <Route path="berita/:id" element={<BeritaDetail />} />
             <Route path="it/admin" element={<ItAdmin />} />
           </Route>
 

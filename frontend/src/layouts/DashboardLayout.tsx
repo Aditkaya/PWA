@@ -1,7 +1,7 @@
 
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth.store'
-import { Home, History, User, LogOut as LogOutIcon, Download, Sun, Moon, Globe, MoreVertical, ClipboardList, Ship, Warehouse } from 'lucide-react'
+import { Home, History, User, LogOut as LogOutIcon, Download, Sun, Moon, Globe, MoreVertical, ClipboardList, Ship, Warehouse , Newspaper } from 'lucide-react'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { useState, useEffect, useRef } from 'react'
 import { useLangStore } from '../store/lang.store'
@@ -249,6 +249,13 @@ export default function DashboardLayout() {
         >
           <User size={22} />
           <span>{t.profile}</span>
+        </button>
+        <button 
+          className={`nav-item ${location.pathname.startsWith('/berita') ? 'active' : ''}`}
+          onClick={() => navigate('/berita')}
+        >
+          <Newspaper size={22} />
+          <span>Berita</span>
         </button>
       </nav>
 

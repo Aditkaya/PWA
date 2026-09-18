@@ -368,5 +368,29 @@ if ($uri === '/api/health' && $method === 'GET') {
     exit();
 }
 
+// =====================================================================
+// IT Admin – Feature Permission Routes
+// =====================================================================
+if ($uri === '/api/it/users' && $method === 'GET') {
+    require_once __DIR__ . '/../app/Http/Controllers/FeaturePermissionController.php';
+    $controller = new \App\Http\Controllers\FeaturePermissionController();
+    $controller->getUsers($_GET);
+    exit();
+}
+
+if ($uri === '/api/it/feature-permissions' && $method === 'PUT') {
+    require_once __DIR__ . '/../app/Http/Controllers/FeaturePermissionController.php';
+    $controller = new \App\Http\Controllers\FeaturePermissionController();
+    $controller->updatePermission(is_array($requestData) ? $requestData : []);
+    exit();
+}
+
+if ($uri === '/api/it/feature-permissions/bulk' && $method === 'PUT') {
+    require_once __DIR__ . '/../app/Http/Controllers/FeaturePermissionController.php';
+    $controller = new \App\Http\Controllers\FeaturePermissionController();
+    $controller->bulkUpdatePermissions(is_array($requestData) ? $requestData : []);
+    exit();
+}
+
 http_response_code(404);
 echo json_encode(['message' => 'Endpoint tidak ditemukan']);

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useOutletContext, useNavigate } from 'react-router-dom'
-import { Clock, Coffee, LogOut, LogIn, CalendarDays, Sun, Plane, AlertCircle, Info, XCircle, ScanFace, ClipboardCheck, CalendarClock } from 'lucide-react'
+import { Clock, Coffee, LogOut, LogIn, CalendarDays, Sun, Plane, AlertCircle, Info, XCircle, ScanFace, ClipboardCheck, CalendarClock, Shield } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import CameraModal from '../../components/CameraModal'
 import IzinModal from '../../components/IzinModal'
@@ -450,85 +450,99 @@ export default function Dashboard() {
         <div className="leave-section glass-panel">
           <h3 className="section-title">{t.leavePermit}</h3>
           <div className="leave-grid">
-            <button className="btn-leave" onClick={() => {
-              setIzinModalType('Izin Sakit')
-              setIsIzinModalOpen(true)
-            }}>
-              <CalendarDays size={24} strokeWidth={1.25} />
-              <span>{t.fullDayPermit}</span>
-            </button>
-            <button className="btn-leave" onClick={() => {
-              setIzinModalType('Izin 1/2 Hari')
-              setIsIzinModalOpen(true)
-            }}>
-              <Sun size={24} strokeWidth={1.25} />
-              <span>{t.halfDayPermit}</span>
-            </button>
-            <button 
-              className="btn-leave" 
-              onClick={() => {
-                if (userGroup && userGroup.toUpperCase().includes('CUTI')) {
-                  setIsCutiModalOpen(true)
-                } else {
-                  setAlertState({
-                    show: true,
-                    type: 'info',
-                    title: t.accessDenied,
-                    message: t.notEligibleLeave
-                  })
-                }
-              }}
-            >
-              <Plane size={24} strokeWidth={1.25} />
-              <span>{t.annualLeave}</span>
-            </button>
-            <button 
-              className="btn-leave" 
-              onClick={() => setIsLupaAbsenModalOpen(true)}
-            >
-              <Clock size={24} strokeWidth={1.25} />
-              <span>Lupa Absen</span>
-            </button>
-            {userProfile && (userProfile.pekerjaan?.trim().toUpperCase() === 'HRD' || userProfile.pekerjaan?.trim().toUpperCase() === 'IT' || userProfile.is_supervisor) && (
-              <>
-                <button 
-                  className="btn-leave" 
-                  onClick={() => setIsPerencanaanModalOpen(true)}
-                >
-                  <CalendarClock size={24} strokeWidth={1.25} />
-                  <span>Perencanaan Lembur</span>
-                </button>
-                <button 
-                  className="btn-leave" 
-                  onClick={() => navigate('/hrd/approval')}
-                  style={{ position: 'relative' }}
-                >
-                  {pendingApprovalCount > 0 && (
-                    <div style={{
-                      position: 'absolute',
-                      top: '-6px',
-                      right: '-6px',
-                      background: '#ef4444',
-                      color: 'white',
-                      fontSize: '0.75rem',
-                      fontWeight: 'bold',
-                      width: '24px',
-                      height: '24px',
-                      borderRadius: '50%',
-                      display: 'flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      border: '2px solid var(--panel-bg)',
-                      boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+            {/* fp() helper: true jika fitur aktif atau belum diset */}
+            {(() => {
+              const fp = (key: string) =>
+                !userProfile?.feature_permissions || userProfile.feature_permissions[key] !== false
+              const isIT = userProfile?.pekerjaan?.trim().toUpperCase() === 'IT'
+              const isHrdOrSpv = userProfile && (
+                userProfile.pekerjaan?.trim().toUpperCase() === 'HRD' ||
+                userProfile.pekerjaan?.trim().toUpperCase() === 'IT' ||
+                userProfile.is_supervisor
+              )
+              return (
+                <>
+                  {fp('izin_sakit') && (
+                    <button className="btn-leave" onClick={() => {
+                      setIzinModalType('Izin Sakit')
+                      setIsIzinModalOpen(true)
                     }}>
-                      {pendingApprovalCount}
-                    </div>
+                      <CalendarDays size={24} strokeWidth={1.25} />
+                      <span>{t.fullDayPermit}</span>
+                    </button>
                   )}
-                  <ClipboardCheck size={24} strokeWidth={1.25} />
-                  <span>Approval Karyawan</span>
-                </button>
-              </>
-            )}
+                  {fp('izin_setengah_hari') && (
+                    <button className="btn-leave" onClick={() => {
+                      setIzinModalType('Izin 1/2 Hari')
+                      setIsIzinModalOpen(true)
+                    }}>
+                      <Sun size={24} strokeWidth={1.25} />
+                      <span>{t.halfDayPermit}</span>
+                    </button>
+                  )}
+                  {fp('cuti_tahunan') && (
+                    <button
+                      className="btn-leave"
+                      onClick={() => {
+                        if (userGroup && userGroup.toUpperCase().includes('CUTI')) {
+                          setIsCutiModalOpen(true)
+                        } else {
+                          setAlertState({ show: true, type: 'info', title: t.accessDenied, message: t.notEligibleLeave })
+                        }
+                      }}
+                    >
+                      <Plane size={24} strokeWidth={1.25} />
+                      <span>{t.annualLeave}</span>
+                    </button>
+                  )}
+                  {fp('lupa_absen') && (
+                    <button className="btn-leave" onClick={() => setIsLupaAbsenModalOpen(true)}>
+                      <Clock size={24} strokeWidth={1.25} />
+                      <span>Lupa Absen</span>
+                    </button>
+                  )}
+                  {isHrdOrSpv && fp('perencanaan_lembur') && (
+                    <button className="btn-leave" onClick={() => setIsPerencanaanModalOpen(true)}>
+                      <CalendarClock size={24} strokeWidth={1.25} />
+                      <span>Perencanaan Lembur</span>
+                    </button>
+                  )}
+                  {isHrdOrSpv && fp('approval_karyawan') && (
+                    <button
+                      className="btn-leave"
+                      onClick={() => navigate('/hrd/approval')}
+                      style={{ position: 'relative' }}
+                    >
+                      {pendingApprovalCount > 0 && (
+                        <div style={{
+                          position: 'absolute', top: '-6px', right: '-6px',
+                          background: '#ef4444', color: 'white', fontSize: '0.75rem',
+                          fontWeight: 'bold', width: '24px', height: '24px',
+                          borderRadius: '50%', display: 'flex', alignItems: 'center',
+                          justifyContent: 'center', border: '2px solid var(--panel-bg)',
+                          boxShadow: '0 2px 5px rgba(0,0,0,0.2)'
+                        }}>
+                          {pendingApprovalCount}
+                        </div>
+                      )}
+                      <ClipboardCheck size={24} strokeWidth={1.25} />
+                      <span>Approval Karyawan</span>
+                    </button>
+                  )}
+                  {/* Tombol IT Admin – hanya muncul untuk user IT */}
+                  {isIT && (
+                    <button
+                      className="btn-leave"
+                      onClick={() => navigate('/it/admin')}
+                      style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1))', borderColor: 'rgba(99,102,241,0.3)' }}
+                    >
+                      <Shield size={24} strokeWidth={1.25} color="#6366f1" />
+                      <span style={{ color: '#6366f1' }}>IT Admin</span>
+                    </button>
+                  )}
+                </>
+              )
+            })()}
           </div>
         </div>
       )}

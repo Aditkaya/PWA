@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 require_once __DIR__ . '/../../../config/database.php';
 require_once __DIR__ . '/../../Services/FaceVerificationService.php';
+require_once __DIR__ . '/FeaturePermissionController.php';
 
 use Database;
 use PDO;
@@ -22,7 +23,7 @@ class ProfileController {
             $pdo = Database::getConnection();
             // Combine data from users and karyawans
             $stmt = $pdo->prepare("
-                SELECT u.id as user_id, u.username, u.avatar_updated_at, u.face_verified_at, u.face_photo_path, k.*, k.id as karyawan_id 
+                SELECT k.*, u.id as user_id, u.username, u.avatar_updated_at, u.face_verified_at, u.face_photo_path, k.id as karyawan_id 
                 FROM users u 
                 LEFT JOIN karyawans k ON u.karyawan_id = k.id 
                 WHERE u.id = ?
@@ -31,6 +32,7 @@ class ProfileController {
             $profile = $stmt->fetch();
             
             if ($profile) {
+                $profile['user_id'] = (int)$user_id;
                 // Setup avatar url
                 $avatar_path = "/uploads/avatars/avatar_{$user_id}.jpg";
                 if (file_exists(UPLOAD_BASE_DIR . $avatar_path)) {
@@ -107,6 +109,9 @@ class ProfileController {
                 // To ensure compatibility with frontend components that expect 'id' to be user_id or karyawan_id,
                 // we will explicitly return id as user_id to fix IzinModal passing wrong user_id
                 $profile['id'] = $profile['user_id'];
+
+                // Sertakan feature permissions untuk user ini
+                $profile['feature_permissions'] = FeaturePermissionController::getPermissionsForUser($pdo, (int)$profile['user_id']);
 
                 http_response_code(200);
                 echo json_encode(['data' => $profile]);

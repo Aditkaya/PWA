@@ -1183,6 +1183,12 @@ body {
   color: #f59e0b;
 }
 
+.setting-icon-box.violet {
+  background: rgba(167, 139, 250, 0.12);
+  border: 1px solid rgba(167, 139, 250, 0.25);
+  color: #a78bfa;
+}
+
 .setting-btn-content {
   display: flex;
   flex-direction: column;

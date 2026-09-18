@@ -4,7 +4,7 @@ import { useOutletContext } from 'react-router-dom'
 
 import Cropper from 'react-easy-crop'
 import getCroppedImg from '../../utils/cropImage'
-import { User, Mail, Briefcase, Phone, MapPin, Key, ChevronRight, Loader2, Camera, X, Save, Eye, EyeOff, Lock, Trash2, Scan } from 'lucide-react'
+import { User, Mail, Briefcase, Phone, MapPin, Key, ChevronRight, Loader2, Camera, X, Save, Eye, EyeOff, Lock, Trash2, Scan, Bell, Clock, AlarmClock } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useLangStore } from '../../store/lang.store'
 import { translations } from '../../utils/translations'
@@ -22,7 +22,14 @@ interface KaryawanData {
   avatar_updated_at?: string
 }
 
-type ModalType = 'editProfile' | 'changePassword' | null
+type ModalType = 'editProfile' | 'changePassword' | 'reminder' | null
+
+interface ReminderSettings {
+  masukEnabled: boolean
+  masukTime: string
+  pulangEnabled: boolean
+  pulangTime: string
+}
 
 export default function Profile() {
   const { user } = useAuthStore()
@@ -50,11 +57,70 @@ export default function Profile() {
   const [showPw, setShowPw] = useState({ old: false, new: false, confirm: false })
   const [savingPw, setSavingPw] = useState(false)
 
+  // Reminder state
+  const REMINDER_KEY = `absen_reminder_${user?.id ?? 'guest'}`
+  const loadReminder = (): ReminderSettings => {
+    try {
+      const raw = localStorage.getItem(REMINDER_KEY)
+      if (raw) return JSON.parse(raw)
+    } catch {}
+    return { masukEnabled: false, masukTime: '07:30', pulangEnabled: false, pulangTime: '17:00' }
+  }
+  const [reminder, setReminder] = useState<ReminderSettings>(loadReminder)
+
   const { openFaceRegistration } = useOutletContext<{ openFaceRegistration: () => void }>()
   
   const { lang } = useLangStore()
   const t = translations[lang]
   const { showToast } = useToast()
+
+  // ── Reminder scheduling ──────────────────────────────────────────────────
+  const scheduleNotification = (type: 'masuk' | 'pulang', timeStr: string) => {
+    const [hours, minutes] = timeStr.split(':').map(Number)
+    const now = new Date()
+    const target = new Date()
+    target.setHours(hours, minutes, 0, 0)
+    if (target <= now) target.setDate(target.getDate() + 1) // besok jika sudah lewat
+    const delay = target.getTime() - now.getTime()
+    return setTimeout(() => {
+      if (Notification.permission === 'granted') {
+        new Notification(type === 'masuk' ? '⏰ Pengingat Absen Masuk' : '🏠 Pengingat Absen Pulang', {
+          body: type === 'masuk'
+            ? `Jangan lupa absen masuk! Sekarang ${timeStr}.`
+            : `Waktunya absen pulang! Sekarang ${timeStr}.`,
+          icon: '/pwa-192x192.png',
+          badge: '/pwa-192x192.png',
+          tag: `absen-${type}`,
+        })
+      }
+    }, delay)
+  }
+
+  useEffect(() => {
+    const timers: ReturnType<typeof setTimeout>[] = []
+    if (reminder.masukEnabled) timers.push(scheduleNotification('masuk', reminder.masukTime))
+    if (reminder.pulangEnabled) timers.push(scheduleNotification('pulang', reminder.pulangTime))
+    return () => timers.forEach(clearTimeout)
+  }, [reminder])
+
+  const saveReminder = (next: ReminderSettings) => {
+    setReminder(next)
+    localStorage.setItem(REMINDER_KEY, JSON.stringify(next))
+  }
+
+  const requestNotifPermission = async (): Promise<boolean> => {
+    if (!('Notification' in window)) {
+      showToast('Browser Anda tidak mendukung notifikasi.', 'error')
+      return false
+    }
+    if (Notification.permission === 'granted') return true
+    const perm = await Notification.requestPermission()
+    if (perm !== 'granted') {
+      showToast('Izin notifikasi ditolak. Aktifkan di pengaturan browser.', 'error')
+      return false
+    }
+    return true
+  }
 
 
 
@@ -562,6 +628,153 @@ export default function Profile() {
           </button>
         </div>
       </div>
+
+      {/* Reminder Settings Section */}
+      <div className="profile-section glass-panel">
+        <h3 className="section-title">Pengingat Absen</h3>
+        <div className="settings-list">
+          <button className="setting-btn" onClick={() => setActiveModal('reminder')}>
+            <div className="setting-btn-left">
+              <div className="setting-icon-box violet">
+                <Bell size={20} />
+              </div>
+              <div className="setting-btn-content">
+                <span className="setting-btn-title">Atur Pengingat Absen</span>
+                <span className="setting-btn-desc">
+                  {reminder.masukEnabled || reminder.pulangEnabled
+                    ? `Aktif: ${reminder.masukEnabled ? `Masuk ${reminder.masukTime}` : ''}${reminder.masukEnabled && reminder.pulangEnabled ? ' · ' : ''}${reminder.pulangEnabled ? `Pulang ${reminder.pulangTime}` : ''}`
+                    : 'Belum ada pengingat diaktifkan'}
+                </span>
+              </div>
+            </div>
+            <div className="setting-arrow">
+              <ChevronRight size={18} />
+            </div>
+          </button>
+        </div>
+      </div>
+
+      {/* Reminder Modal */}
+      {activeModal === 'reminder' && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(6px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ background: 'var(--panel-bg)', border: '1px solid var(--glass-border)', borderRadius: '20px', padding: '28px 24px', width: '100%', maxWidth: '400px', boxShadow: '0 20px 60px rgba(0,0,0,0.5)' }} className="fade-in">
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <AlarmClock size={22} style={{ color: '#a78bfa' }} />
+                <h3 style={{ margin: 0, fontSize: '1.1rem', fontWeight: 700 }}>Pengingat Absen</h3>
+              </div>
+              <button onClick={() => setActiveModal(null)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px' }}>
+                <X size={22} />
+              </button>
+            </div>
+
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              {/* Absen Masuk */}
+              <div style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '14px', padding: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: reminder.masukEnabled ? '14px' : '0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(59,130,246,0.12)', border: '1px solid rgba(59,130,246,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#3b82f6' }}>
+                      <Clock size={17} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>Absen Masuk</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Notifikasi sebelum jam kerja</div>
+                    </div>
+                  </div>
+                  {/* Toggle */}
+                  <button
+                    onClick={async () => {
+                      if (!reminder.masukEnabled) { if (!await requestNotifPermission()) return }
+                      saveReminder({ ...reminder, masukEnabled: !reminder.masukEnabled })
+                    }}
+                    style={{
+                      width: '48px', height: '26px', borderRadius: '13px', border: 'none', cursor: 'pointer',
+                      background: reminder.masukEnabled ? '#3b82f6' : 'rgba(255,255,255,0.12)',
+                      position: 'relative', transition: 'background 0.25s ease', flexShrink: 0
+                    }}
+                  >
+                    <span style={{
+                      position: 'absolute', top: '3px',
+                      left: reminder.masukEnabled ? '25px' : '3px',
+                      width: '20px', height: '20px', borderRadius: '50%',
+                      background: '#fff', transition: 'left 0.25s ease',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.3)'
+                    }} />
+                  </button>
+                </div>
+                {reminder.masukEnabled && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Jam:</label>
+                    <input
+                      type="time"
+                      value={reminder.masukTime}
+                      onChange={e => saveReminder({ ...reminder, masukTime: e.target.value })}
+                      style={{ flex: 1, padding: '8px 12px', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-color)', color: 'var(--text-primary)', fontSize: '1rem', outline: 'none' }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              {/* Absen Pulang */}
+              <div style={{ background: 'var(--glass-bg)', border: '1px solid var(--glass-border)', borderRadius: '14px', padding: '16px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: reminder.pulangEnabled ? '14px' : '0' }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <div style={{ width: '36px', height: '36px', borderRadius: '10px', background: 'rgba(16,185,129,0.12)', border: '1px solid rgba(16,185,129,0.25)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
+                      <Clock size={17} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: '0.9rem', fontWeight: 600 }}>Absen Pulang</div>
+                      <div style={{ fontSize: '0.75rem', color: 'var(--text-secondary)' }}>Notifikasi akhir jam kerja</div>
+                    </div>
+                  </div>
+                  {/* Toggle */}
+                  <button
+                    onClick={async () => {
+                      if (!reminder.pulangEnabled) { if (!await requestNotifPermission()) return }
+                      saveReminder({ ...reminder, pulangEnabled: !reminder.pulangEnabled })
+                    }}
+                    style={{
+                      width: '48px', height: '26px', borderRadius: '13px', border: 'none', cursor: 'pointer',
+                      background: reminder.pulangEnabled ? '#10b981' : 'rgba(255,255,255,0.12)',
+                      position: 'relative', transition: 'background 0.25s ease', flexShrink: 0
+                    }}
+                  >
+                    <span style={{
+                      position: 'absolute', top: '3px',
+                      left: reminder.pulangEnabled ? '25px' : '3px',
+                      width: '20px', height: '20px', borderRadius: '50%',
+                      background: '#fff', transition: 'left 0.25s ease',
+                      boxShadow: '0 1px 4px rgba(0,0,0,0.3)'
+                    }} />
+                  </button>
+                </div>
+                {reminder.pulangEnabled && (
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                    <label style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', fontWeight: 600 }}>Jam:</label>
+                    <input
+                      type="time"
+                      value={reminder.pulangTime}
+                      onChange={e => saveReminder({ ...reminder, pulangTime: e.target.value })}
+                      style={{ flex: 1, padding: '8px 12px', borderRadius: '10px', border: '1px solid var(--glass-border)', background: 'var(--bg-color)', color: 'var(--text-primary)', fontSize: '1rem', outline: 'none' }}
+                    />
+                  </div>
+                )}
+              </div>
+
+              <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--text-secondary)', textAlign: 'center', lineHeight: 1.5 }}>
+                ⚠️ Pengingat hanya berfungsi saat aplikasi terbuka di browser.
+              </p>
+
+              <button
+                onClick={() => setActiveModal(null)}
+                style={{ padding: '13px', background: 'linear-gradient(135deg, #a78bfa, #7c3aed)', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer' }}
+              >
+                Simpan Pengaturan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

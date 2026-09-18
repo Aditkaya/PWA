@@ -518,26 +518,47 @@ export default function Profile() {
         <div className="settings-list">
           <button className="setting-btn" onClick={openEditProfile}>
             <div className="setting-btn-left">
-              <User size={20} />
-              <span>{t.editProfile}</span>
+              <div className="setting-icon-box blue">
+                <User size={20} />
+              </div>
+              <div className="setting-btn-content">
+                <span className="setting-btn-title">{t.editProfile}</span>
+                <span className="setting-btn-desc">{t.editProfileDesc}</span>
+              </div>
             </div>
-            <ChevronRight size={20} />
+            <div className="setting-arrow">
+              <ChevronRight size={18} />
+            </div>
           </button>
           
           <button className="setting-btn" onClick={() => openFaceRegistration()}>
             <div className="setting-btn-left">
-              <Scan size={20} />
-              <span>Verifikasi Ulang Wajah</span>
+              <div className="setting-icon-box emerald">
+                <Scan size={20} />
+              </div>
+              <div className="setting-btn-content">
+                <span className="setting-btn-title">{t.reverifyFace}</span>
+                <span className="setting-btn-desc">{t.reverifyFaceDesc}</span>
+              </div>
             </div>
-            <ChevronRight size={20} />
+            <div className="setting-arrow">
+              <ChevronRight size={18} />
+            </div>
           </button>
 
           <button className="setting-btn" onClick={() => setActiveModal('changePassword')}>
             <div className="setting-btn-left">
-              <Key size={20} />
-              <span>{t.changePassword}</span>
+              <div className="setting-icon-box amber">
+                <Key size={20} />
+              </div>
+              <div className="setting-btn-content">
+                <span className="setting-btn-title">{t.changePassword}</span>
+                <span className="setting-btn-desc">{t.changePasswordDesc}</span>
+              </div>
             </div>
-            <ChevronRight size={20} />
+            <div className="setting-arrow">
+              <ChevronRight size={18} />
+            </div>
           </button>
         </div>
       </div>

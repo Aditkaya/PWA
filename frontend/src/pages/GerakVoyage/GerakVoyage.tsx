@@ -1,53 +1,121 @@
-﻿import { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Anchor, ArrowLeft, ChevronRight, CheckCircle, AlertCircle, Info, Ship, Calendar } from "lucide-react";
+import {
+  Anchor,
+  ArrowLeft,
+  ChevronRight,
+  CheckCircle2,
+  AlertCircle,
+  Info,
+  Ship,
+  Calendar,
+  Navigation,
+  MapPin,
+  Truck,
+  Package,
+  Sparkles,
+  RotateCcw,
+  Check,
+  Compass,
+  Zap
+} from "lucide-react";
 import "./GerakVoyage.css";
 
 const API = import.meta.env.VITE_API_BASE_URL || "/api";
 
 interface DateFields {
+  tanggal_muat: string;
   tanggal_mulai_berlayar: string;
   tanggal_berlabuh: string;
   tanggal_sandar: string;
   tanggal_mulai_bongkar: string;
   tanggal_selesai_bongkar: string;
-  tanggal_muat: string;
 }
 
-const DATE_LABELS: { key: keyof DateFields; label: string }[] = [
-  { key: "tanggal_mulai_berlayar", label: "Mulai Berlayar" },
-  { key: "tanggal_berlabuh",       label: "Berlabuh" },
-  { key: "tanggal_sandar",         label: "Sandar" },
-  { key: "tanggal_mulai_bongkar",  label: "Mulai Bongkar" },
-  { key: "tanggal_selesai_bongkar",label: "Selesai Bongkar" },
-  { key: "tanggal_muat",           label: "Muat" },
+const DATE_CONFIG: {
+  key: keyof DateFields;
+  label: string;
+  subLabel: string;
+  icon: typeof Package;
+  color: string;
+  step: number;
+}[] = [
+  {
+    key: "tanggal_muat",
+    label: "Muat",
+    subLabel: "Pemuatan barang/kargo ke kapal (OB Muat)",
+    icon: Package,
+    color: "#06b6d4", // Cyan
+    step: 1,
+  },
+  {
+    key: "tanggal_mulai_berlayar",
+    label: "Mulai Berlayar",
+    subLabel: "Kapal berangkat menuju pelabuhan tujuan",
+    icon: Navigation,
+    color: "#3b82f6", // Blue
+    step: 2,
+  },
+  {
+    key: "tanggal_berlabuh",
+    label: "Berlabuh",
+    subLabel: "Kapal tiba di area labuh / lego jangkar",
+    icon: Anchor,
+    color: "#8b5cf6", // Purple
+    step: 3,
+  },
+  {
+    key: "tanggal_sandar",
+    label: "Sandar",
+    subLabel: "Kapal sandar merapat di dermaga",
+    icon: MapPin,
+    color: "#f59e0b", // Amber
+    step: 4,
+  },
+  {
+    key: "tanggal_mulai_bongkar",
+    label: "Mulai Bongkar",
+    subLabel: "Proses bongkar kargo dimulai",
+    icon: Truck,
+    color: "#ec4899", // Pink
+    step: 5,
+  },
+  {
+    key: "tanggal_selesai_bongkar",
+    label: "Selesai Bongkar",
+    subLabel: "Seluruh muatan selesai dibongkar",
+    icon: CheckCircle2,
+    color: "#10b981", // Emerald
+    step: 6,
+  },
 ];
 
 const EMPTY_DATES: DateFields = {
+  tanggal_muat: "",
   tanggal_mulai_berlayar: "",
   tanggal_berlabuh: "",
   tanggal_sandar: "",
   tanggal_mulai_bongkar: "",
   tanggal_selesai_bongkar: "",
-  tanggal_muat: "",
 };
 
 export default function GerakVoyage() {
   const navigate = useNavigate();
 
-  const [ships,         setShips]         = useState<string[]>([]);
-  const [voyages,       setVoyages]       = useState<string[]>([]);
-  const [selectedShip,  setSelectedShip]  = useState("");
-  const [selectedVoyage,setSelectedVoyage]= useState("");
-  const [dates,         setDates]         = useState<DateFields>({ ...EMPTY_DATES });
+  const [ships, setShips] = useState<string[]>([]);
+  const [voyages, setVoyages] = useState<string[]>([]);
+  const [selectedShip, setSelectedShip] = useState("");
+  const [selectedVoyage, setSelectedVoyage] = useState("");
+  const [dates, setDates] = useState<DateFields>({ ...EMPTY_DATES });
+  const [autoObMuat, setAutoObMuat] = useState<string | null>(null);
 
-  const [loadingShips,  setLoadingShips]  = useState(false);
-  const [loadingVoyages,setLoadingVoyages]= useState(false);
-  const [loadingData,   setLoadingData]   = useState(false);
-  const [saving,        setSaving]        = useState(false);
+  const [loadingShips, setLoadingShips] = useState(false);
+  const [loadingVoyages, setLoadingVoyages] = useState(false);
+  const [loadingData, setLoadingData] = useState(false);
+  const [saving, setSaving] = useState(false);
 
-  const [step,    setStep]    = useState<1 | 2>(1);
-  const [alert,   setAlert]   = useState<{ type: "success" | "error" | "info"; msg: string } | null>(null);
+  const [step, setStep] = useState<1 | 2>(1);
+  const [alert, setAlert] = useState<{ type: "success" | "error" | "info"; msg: string } | null>(null);
   const [updatedCount, setUpdatedCount] = useState<number | null>(null);
 
   /* ─── Load ships on mount ─── */
@@ -62,7 +130,11 @@ export default function GerakVoyage() {
 
   /* ─── Load voyages when ship changes ─── */
   useEffect(() => {
-    if (!selectedShip) { setVoyages([]); setSelectedVoyage(""); return; }
+    if (!selectedShip) {
+      setVoyages([]);
+      setSelectedVoyage("");
+      return;
+    }
     setLoadingVoyages(true);
     setVoyages([]);
     setSelectedVoyage("");
@@ -80,7 +152,11 @@ export default function GerakVoyage() {
     setUpdatedCount(null);
     setLoadingData(true);
     setDates({ ...EMPTY_DATES });
-    fetch(`${API}/gerak-voyage?nama_kapal=${encodeURIComponent(selectedShip)}&no_voyage=${encodeURIComponent(selectedVoyage)}`)
+    setAutoObMuat(null);
+
+    fetch(
+      `${API}/gerak-voyage?nama_kapal=${encodeURIComponent(selectedShip)}&no_voyage=${encodeURIComponent(selectedVoyage)}`
+    )
       .then((r) => r.json())
       .then((d) => {
         if (d.data) {
@@ -89,6 +165,9 @@ export default function GerakVoyage() {
             filled[k] = d.data[k] ? d.data[k].substring(0, 10) : "";
           }
           setDates(filled);
+        }
+        if (d.auto_ob_muat) {
+          setAutoObMuat(d.auto_ob_muat);
         }
         setStep(2);
       })
@@ -113,9 +192,9 @@ export default function GerakVoyage() {
       const d = await res.json();
       if (res.ok) {
         setUpdatedCount(d.updated ?? null);
-        setAlert({ type: "success", msg: d.message || "Berhasil disimpan." });
+        setAlert({ type: "success", msg: d.message || "Data tanggal gerak voyage berhasil disimpan." });
       } else {
-        setAlert({ type: "error", msg: d.message || "Gagal menyimpan." });
+        setAlert({ type: "error", msg: d.message || "Gagal menyimpan tanggal." });
       }
     } catch {
       setAlert({ type: "error", msg: "Terjadi kesalahan jaringan." });
@@ -131,161 +210,314 @@ export default function GerakVoyage() {
     setUpdatedCount(null);
   };
 
+  const applyAutoObMuat = () => {
+    if (autoObMuat) {
+      setDates((prev) => ({ ...prev, tanggal_muat: autoObMuat }));
+    }
+  };
+
+  const filledCount = Object.values(dates).filter((v) => v.trim() !== "").length;
+
   return (
     <div className="gv-page">
+      {/* Top Navbar / Back Button */}
+      <div className="gv-header-bar">
+        <button className="gv-back-btn" onClick={() => (step === 2 ? backToStep1() : navigate(-1))}>
+          <ArrowLeft size={18} />
+          <span>{step === 2 ? "Ganti Kapal" : "Kembali"}</span>
+        </button>
+      </div>
 
-      {/* Back button */}
-      <button className="gv-btn-secondary" onClick={() => navigate(-1)} style={{ marginBottom: 16 }}>
-        <ArrowLeft size={18} /> Kembali
-      </button>
-
-      {/* Heading */}
-      <div className="gv-heading">
-        <div className="gv-heading-icon">
-          <Anchor size={24} color="white" />
+      {/* Main Hero Header */}
+      <div className="gv-hero">
+        <div className="gv-hero-glow" />
+        <div className="gv-hero-icon">
+          <Compass size={28} className="gv-icon-spin-slow" />
         </div>
-        <div>
+        <div className="gv-hero-text">
           <h2>Tanggal Gerak Voyage</h2>
-          <p>Atur tanggal pergerakan kapal berdasarkan voyage</p>
+          <p>Kelola urutan tanggal tahapan perjalanan &amp; muatan kapal</p>
         </div>
       </div>
 
-      {/* Step indicator */}
-      <div className="gv-steps">
-        <div className={`gv-step ${step === 1 ? "active" : "done"}`}>
-          <div className="gv-step-dot">{step > 1 ? "✓" : "1"}</div>
-          <span>Pilih Kapal & Voyage</span>
+      {/* Stepper Progress */}
+      <div className="gv-stepper">
+        <div
+          className={`gv-stepper-item ${step === 1 ? "active" : "completed"}`}
+          onClick={() => step === 2 && backToStep1()}
+          role="button"
+          style={{ cursor: step === 2 ? "pointer" : "default" }}
+        >
+          <div className="gv-stepper-circle">{step > 1 ? <Check size={14} strokeWidth={3} /> : "1"}</div>
+          <div className="gv-stepper-label">
+            <span className="gv-stepper-num">Langkah 1</span>
+            <span className="gv-stepper-title">Pilih Kapal &amp; Voyage</span>
+          </div>
         </div>
-        <div className="gv-step-line" />
-        <div className={`gv-step ${step === 2 ? "active" : ""}`}>
-          <div className="gv-step-dot">2</div>
-          <span>Input Tanggal</span>
+
+        <div className="gv-stepper-connector">
+          <div className={`gv-stepper-line ${step === 2 ? "filled" : ""}`} />
+        </div>
+
+        <div className={`gv-stepper-item ${step === 2 ? "active" : ""}`}>
+          <div className="gv-stepper-circle">2</div>
+          <div className="gv-stepper-label">
+            <span className="gv-stepper-num">Langkah 2</span>
+            <span className="gv-stepper-title">Input Urutan Tanggal</span>
+          </div>
         </div>
       </div>
 
-      {/* Alert */}
+      {/* Alert Notification */}
       {alert && (
-        <div className={`gv-alert ${alert.type}`}>
-          {alert.type === "success" && <CheckCircle size={18} />}
-          {alert.type === "error"   && <AlertCircle size={18} />}
-          {alert.type === "info"    && <Info size={18} />}
-          <span>{alert.msg}</span>
+        <div className={`gv-alert-card ${alert.type} fade-in`}>
+          <div className="gv-alert-icon">
+            {alert.type === "success" && <CheckCircle2 size={20} />}
+            {alert.type === "error" && <AlertCircle size={20} />}
+            {alert.type === "info" && <Info size={20} />}
+          </div>
+          <div className="gv-alert-content">
+            <p>{alert.msg}</p>
+          </div>
         </div>
       )}
 
-      {/* ─── STEP 1: Pilih Kapal & Voyage ─── */}
+      {/* ──────────────── STEP 1: Pilih Kapal & Voyage ──────────────── */}
       {step === 1 && (
-        <div className="gv-card">
-          <h3><Ship size={18} /> Pilih Kapal &amp; Voyage</h3>
-
-          <div className="gv-field">
-            <label>Nama Kapal</label>
-            <select
-              value={selectedShip}
-              onChange={(e) => setSelectedShip(e.target.value)}
-              disabled={loadingShips}
-            >
-              <option value="">{loadingShips ? "Memuat kapal…" : "-- Pilih Kapal --"}</option>
-              {ships.map((s) => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
+        <div className="gv-card gv-selection-card fade-in">
+          <div className="gv-card-header">
+            <div className="gv-card-title">
+              <Ship size={20} className="gv-accent-icon" />
+              <div>
+                <h3>Pilih Informasi Pelayaran</h3>
+                <p>Tentukan nama armada kapal beserta nomor voyagenya</p>
+              </div>
+            </div>
           </div>
 
-          <div className="gv-field">
-            <label>
-              Nomor Voyage
-              {voyages.length > 0 && (
-                <span className="gv-badge">{voyages.length} voyage</span>
+          <div className="gv-form-group">
+            <label className="gv-label">
+              <span>Nama Kapal</span>
+              {ships.length > 0 && <span className="gv-pill">{ships.length} Kapal</span>}
+            </label>
+            <div className="gv-input-wrapper">
+              <select
+                className="gv-select"
+                value={selectedShip}
+                onChange={(e) => setSelectedShip(e.target.value)}
+                disabled={loadingShips}
+              >
+                <option value="">{loadingShips ? "Memuat armada kapal…" : "-- Pilih Nama Kapal --"}</option>
+                {ships.map((s) => (
+                  <option key={s} value={s}>
+                    {s}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="gv-form-group">
+            <label className="gv-label">
+              <span>Nomor Voyage</span>
+              {selectedShip && voyages.length > 0 && (
+                <span className="gv-pill active">{voyages.length} Voyage Ditemukan</span>
               )}
             </label>
-            <select
-              value={selectedVoyage}
-              onChange={(e) => setSelectedVoyage(e.target.value)}
-              disabled={!selectedShip || loadingVoyages}
-            >
-              <option value="">
-                {!selectedShip
-                  ? "Pilih kapal dulu"
-                  : loadingVoyages
-                  ? "Memuat voyage…"
-                  : "-- Pilih Voyage --"}
-              </option>
-              {voyages.map((v) => (
-                <option key={v} value={v}>{v}</option>
-              ))}
-            </select>
+            <div className="gv-input-wrapper">
+              <select
+                className="gv-select"
+                value={selectedVoyage}
+                onChange={(e) => setSelectedVoyage(e.target.value)}
+                disabled={!selectedShip || loadingVoyages}
+              >
+                <option value="">
+                  {!selectedShip
+                    ? "Pilih kapal terlebih dahulu"
+                    : loadingVoyages
+                    ? "Memuat daftar voyage…"
+                    : voyages.length === 0
+                    ? "Tidak ada voyage untuk kapal ini"
+                    : "-- Pilih Nomor Voyage --"}
+                </option>
+                {voyages.map((v) => (
+                  <option key={v} value={v}>
+                    {v}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
 
-          <div className="gv-alert info" style={{ marginTop: 16, marginBottom: 0 }}>
-            <Info size={16} />
-            <span>Data tanggal akan diterapkan ke semua manifest dengan kapal &amp; voyage yang sama.</span>
+          <div className="gv-info-box">
+            <Info size={18} className="gv-info-icon" />
+            <p>
+              Tanggal yang Anda inputkan akan diperbarui secara otomatis pada seluruh dokumen manifest sesuai kombinasi{" "}
+              <strong>Kapal &amp; Voyage</strong> yang dipilih. Tanggal <strong>MUAT</strong> akan otomatis diambil dari data <strong>OB MUAT</strong>.
+            </p>
           </div>
 
           <button
-            className="gv-btn-primary"
+            className="gv-btn-submit"
             onClick={handleNext}
             disabled={!selectedShip || !selectedVoyage || loadingData}
           >
             {loadingData ? (
-              <>Memuat data…</>
+              <span>Memuat Data…</span>
             ) : (
-              <>Lanjutkan <ChevronRight size={18} /></>
+              <>
+                <span>Lanjutkan ke Pengisian Tanggal</span>
+                <ChevronRight size={18} />
+              </>
             )}
           </button>
         </div>
       )}
 
-      {/* ─── STEP 2: Input Tanggal ─── */}
+      {/* ──────────────── STEP 2: Input Urutan Tanggal ──────────────── */}
       {step === 2 && (
-        <>
-          {/* Info kapal terpilih */}
-          <div className="gv-card" style={{ padding: "14px 18px", marginBottom: 12 }}>
-            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-              <div>
-                <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Kapal</div>
-                <div style={{ fontWeight: 700, fontSize: "0.95rem" }}>{selectedShip}</div>
+        <div className="fade-in">
+          {/* Active Ship & Voyage Info Banner */}
+          <div className="gv-active-banner">
+            <div className="gv-active-info">
+              <div className="gv-active-item">
+                <span className="gv-active-label">Kapal</span>
+                <span className="gv-active-val">
+                  <Ship size={15} /> {selectedShip}
+                </span>
               </div>
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: "0.78rem", color: "var(--text-secondary)", fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.05em" }}>Voyage</div>
-                <div style={{ fontWeight: 700, fontSize: "0.95rem" }}>{selectedVoyage}</div>
+              <div className="gv-active-divider" />
+              <div className="gv-active-item">
+                <span className="gv-active-label">Voyage</span>
+                <span className="gv-active-val">
+                  <Anchor size={15} /> {selectedVoyage}
+                </span>
               </div>
-              <button className="gv-btn-secondary" onClick={backToStep1} style={{ flexShrink: 0, fontSize: "0.8rem" }}>
-                Ubah
-              </button>
             </div>
+            <button className="gv-btn-change" onClick={backToStep1} title="Ganti Kapal / Voyage">
+              <RotateCcw size={14} /> Ganti
+            </button>
           </div>
 
-          {/* Form tanggal */}
+          {/* Form Date Fields in Chronological Sequence */}
           <div className="gv-card">
-            <h3><Calendar size={18} /> Tanggal Pergerakan</h3>
-            <div className="gv-dates-grid">
-              {DATE_LABELS.map(({ key, label }) => (
-                <div className="gv-field" key={key}>
-                  <label>{label}</label>
-                  <input
-                    type="date"
-                    value={dates[key]}
-                    onChange={(e) => setDates((prev) => ({ ...prev, [key]: e.target.value }))}
-                  />
+            <div className="gv-card-header gv-card-header-flex">
+              <div className="gv-card-title">
+                <Calendar size={20} className="gv-accent-icon" />
+                <div>
+                  <h3>Urutan Kronologis Gerak Voyage</h3>
+                  <p>Isi tanggal sesuai tahapan alur operasional perkapalan</p>
                 </div>
-              ))}
+              </div>
+              <div className="gv-progress-badge">
+                <Sparkles size={14} />
+                <span>{filledCount}/6 Terisi</span>
+              </div>
+            </div>
+
+            {/* List of 6 stages in exact user sequence */}
+            <div className="gv-timeline-list">
+              {DATE_CONFIG.map(({ key, label, subLabel, icon: Icon, color, step: stepNum }, index) => {
+                const isFilled = dates[key].trim() !== "";
+                const isMuatField = key === "tanggal_muat";
+
+                return (
+                  <div key={key} className={`gv-timeline-card ${isFilled ? "filled" : ""}`}>
+                    {/* Left Step Number & Indicator Line */}
+                    <div className="gv-timeline-track">
+                      <div
+                        className="gv-step-badge"
+                        style={{
+                          background: isFilled ? color : "var(--glass-bg)",
+                          borderColor: color,
+                          color: isFilled ? "#ffffff" : color,
+                        }}
+                      >
+                        {stepNum}
+                      </div>
+                      {index < DATE_CONFIG.length - 1 && <div className="gv-track-connector" />}
+                    </div>
+
+                    {/* Right Content */}
+                    <div className="gv-timeline-body">
+                      <div className="gv-timeline-meta">
+                        <div className="gv-stage-title-wrap">
+                          <div className="gv-stage-icon" style={{ color: color, background: `${color}18` }}>
+                            <Icon size={16} />
+                          </div>
+                          <div>
+                            <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                              <span className="gv-stage-name">{label}</span>
+                              {isMuatField && autoObMuat && (
+                                <span
+                                  className="gv-auto-badge"
+                                  title={`Tanggal otomatis terdeteksi dari OB Muat: ${autoObMuat}`}
+                                  onClick={applyAutoObMuat}
+                                  role="button"
+                                >
+                                  <Zap size={11} /> Auto OB Muat
+                                </span>
+                              )}
+                            </div>
+                            <span className="gv-stage-desc">
+                              {isMuatField && autoObMuat && dates.tanggal_muat === autoObMuat ? (
+                                <span style={{ color: "#38bdf8" }}>Otomatis tersinkronisasi dari data OB Muat</span>
+                              ) : (
+                                subLabel
+                              )}
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="gv-date-input-wrap">
+                        <input
+                          type="date"
+                          className="gv-date-input"
+                          value={dates[key]}
+                          onChange={(e) => setDates((prev) => ({ ...prev, [key]: e.target.value }))}
+                        />
+                        {dates[key] && (
+                          <button
+                            type="button"
+                            className="gv-clear-date"
+                            onClick={() => setDates((prev) => ({ ...prev, [key]: "" }))}
+                            title="Hapus tanggal"
+                          >
+                            ×
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
 
             {updatedCount !== null && updatedCount === 0 && (
-              <div className="gv-alert info" style={{ marginTop: 12 }}>
-                <Info size={16} />
-                <span>Tidak ada manifest yang diperbarui. Pastikan nama kapal dan voyage sesuai.</span>
+              <div className="gv-alert-card info" style={{ marginTop: 16 }}>
+                <div className="gv-alert-icon">
+                  <Info size={18} />
+                </div>
+                <div className="gv-alert-content">
+                  <p>Tidak ada baris manifest yang terupdate. Pastikan nama kapal dan voyage terdaftar.</p>
+                </div>
               </div>
             )}
 
-            <button className="gv-btn-primary" onClick={handleSave} disabled={saving}>
-              {saving ? "Menyimpan…" : "Simpan Tanggal"}
+            <button className="gv-btn-submit" onClick={handleSave} disabled={saving} style={{ marginTop: 24 }}>
+              {saving ? (
+                <span>Menyimpan Perubahan…</span>
+              ) : (
+                <>
+                  <CheckCircle2 size={18} />
+                  <span>Simpan Tanggal Gerak Voyage</span>
+                </>
+              )}
             </button>
           </div>
-        </>
+        </div>
       )}
-
     </div>
   );
 }

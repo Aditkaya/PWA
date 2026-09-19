@@ -20,6 +20,7 @@ class FeaturePermissionController
         'stowage_plan',
         'denah_gudang',
         'amprahan',
+        'gerak_voyage',
     ];
 
     /**

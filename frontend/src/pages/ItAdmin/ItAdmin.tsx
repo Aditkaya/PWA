@@ -18,7 +18,8 @@ import {
   Sparkles,
   Check,
   SlidersHorizontal,
-  Users
+  Users,
+  Navigation
 } from "lucide-react";
 import { useAuthStore } from "../../store/auth.store";
 import { useToast } from "../../contexts/ToastContext";
@@ -36,7 +37,8 @@ type FeatureKey =
   | "approval_karyawan"
   | "stowage_plan"
   | "denah_gudang"
-  | "amprahan";
+  | "amprahan"
+  | "gerak_voyage";
 
 interface FeaturePermissions {
   [key: string]: boolean;
@@ -73,6 +75,7 @@ const FEATURES: {
   { key: "stowage_plan",       label: "Stowage Plan",         desc: "Akses modul perencanaan muat kapal",       icon: <Anchor size={18} />,         color: "#14b8a6" },
   { key: "denah_gudang",       label: "Denah Gudang",         desc: "Akses tata letak & kapasitas gudang",      icon: <Map size={18} />,            color: "#3b82f6" },
   { key: "amprahan",           label: "Amprahan",             desc: "Pengajuan & penerimaan barang amprahan",   icon: <Package size={18} />,        color: "#d946ef" },
+  { key: "gerak_voyage",       label: "Tanggal Gerak Voyage", desc: "Akses tanggal pergerakan kapal & voyage",  icon: <Navigation size={18} />,     color: "#38bdf8" },
 ];
 
 const TOTAL_FEATURES = FEATURES.length;

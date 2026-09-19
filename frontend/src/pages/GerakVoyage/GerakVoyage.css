@@ -1,0 +1,227 @@
+﻿/* ============ Gerak Voyage Page ============ */
+.gv-page {
+  --gv-select-bg: #1e293b;
+  --gv-select-text: #f8fafc;
+  --gv-select-scheme: dark;
+  max-width: 640px;
+  margin: 0 auto;
+  padding: 20px 16px 100px;
+  color: var(--text-primary);
+}
+:root[data-theme="light"] .gv-page {
+  --gv-select-bg: #ffffff;
+  --gv-select-text: #0f172a;
+  --gv-select-scheme: light;
+}
+
+/* Heading */
+.gv-heading {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 24px;
+}
+.gv-heading-icon {
+  width: 48px;
+  height: 48px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-shadow: 0 4px 16px rgba(37,99,235,0.35);
+}
+.gv-heading h2 {
+  margin: 0 0 4px;
+  font-size: 1.25rem;
+  font-weight: 700;
+  color: var(--text-primary);
+}
+.gv-heading p {
+  margin: 0;
+  font-size: 0.82rem;
+  color: var(--text-secondary);
+}
+
+/* Card */
+.gv-card {
+  background: var(--panel-bg);
+  border: 1px solid var(--glass-border);
+  border-radius: 18px;
+  padding: 22px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 16px rgba(0,0,0,0.08);
+}
+.gv-card h3 {
+  margin: 0 0 16px;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-primary);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.gv-card h3 svg { flex-shrink: 0; }
+
+/* Form controls */
+.gv-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.gv-field:last-child { margin-bottom: 0; }
+.gv-field label {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.gv-page select,
+.gv-page input[type="date"] {
+  color-scheme: var(--gv-select-scheme);
+  width: 100%;
+  min-height: 48px;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+  padding: 10px 14px;
+  background: var(--gv-select-bg);
+  color: var(--gv-select-text);
+  font: inherit;
+  font-size: 0.95rem;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  appearance: auto;
+}
+.gv-page select:focus,
+.gv-page input[type="date"]:focus {
+  outline: none;
+  border-color: #2563eb;
+  box-shadow: 0 0 0 3px rgba(37,99,235,0.18);
+}
+.gv-page select:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Dates grid */
+.gv-dates-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+@media (max-width: 440px) {
+  .gv-dates-grid { grid-template-columns: 1fr; }
+}
+
+/* Buttons */
+.gv-btn-primary {
+  width: 100%;
+  min-height: 52px;
+  border: none;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #2563eb 0%, #4f46e5 100%);
+  color: white;
+  font: inherit;
+  font-size: 1rem;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  transition: opacity 0.2s, transform 0.15s, box-shadow 0.2s;
+  box-shadow: 0 4px 18px rgba(37,99,235,0.35);
+  margin-top: 8px;
+}
+.gv-btn-primary:hover:not(:disabled) {
+  opacity: 0.92;
+  transform: translateY(-1px);
+  box-shadow: 0 6px 22px rgba(37,99,235,0.45);
+}
+.gv-btn-primary:active:not(:disabled) { transform: translateY(0); }
+.gv-btn-primary:disabled { opacity: 0.5; cursor: not-allowed; box-shadow: none; }
+
+.gv-btn-secondary {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: none;
+  background: transparent;
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 0.9rem;
+  cursor: pointer;
+  padding: 8px 0;
+  opacity: 0.75;
+  transition: opacity 0.2s;
+}
+.gv-btn-secondary:hover { opacity: 1; }
+
+/* Alert */
+.gv-alert {
+  border-radius: 12px;
+  padding: 14px 16px;
+  margin-bottom: 16px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  font-size: 0.88rem;
+  line-height: 1.5;
+}
+.gv-alert svg { flex-shrink: 0; margin-top: 1px; }
+.gv-alert.success { background: rgba(22,163,74,0.12); border: 1px solid rgba(22,163,74,0.35); color: #16a34a; }
+.gv-alert.error   { background: rgba(239,68,68,0.12);  border: 1px solid rgba(239,68,68,0.35);  color: #ef4444; }
+.gv-alert.info    { background: rgba(37,99,235,0.10);  border: 1px solid rgba(37,99,235,0.25);  color: #60a5fa; }
+
+/* Badge - count info */
+.gv-badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: rgba(37,99,235,0.15);
+  color: #60a5fa;
+  margin-left: auto;
+}
+
+/* Step indicator */
+.gv-steps {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 20px;
+}
+.gv-step {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+.gv-step.active { color: #60a5fa; }
+.gv-step.done   { color: #16a34a; }
+.gv-step-dot {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--glass-bg);
+  border: 1px solid var(--glass-border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.7rem;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+.gv-step.active .gv-step-dot { background: #2563eb; border-color: #2563eb; color: white; }
+.gv-step.done   .gv-step-dot { background: #16a34a; border-color: #16a34a; color: white; }
+.gv-step-line {
+  flex: 1;
+  height: 1px;
+  background: var(--glass-border);
+}

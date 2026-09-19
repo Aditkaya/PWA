@@ -12,6 +12,7 @@ import TandaTerimaDetail from './pages/Amprahan/TandaTerimaDetail'
 import StowagePlan from './pages/StowagePlan/StowagePlan'
 import DenahGudang from './pages/DenahGudang/DenahGudang'
 import ItAdmin from './pages/ItAdmin/ItAdmin'
+import GerakVoyage from './pages/GerakVoyage/GerakVoyage'
 import Berita from './pages/Berita/Berita'
 import BeritaDetail from './pages/Berita/BeritaDetail'
 import PrivateRoute from './routes/PrivateRoute'
@@ -41,6 +42,7 @@ function App() {
             <Route path="berita" element={<Berita />} />
             <Route path="berita/:id" element={<BeritaDetail />} />
             <Route path="it/admin" element={<ItAdmin />} />
+            <Route path="gerak-voyage" element={<GerakVoyage />} />
           </Route>
 
         </Route>

@@ -1,4 +1,4 @@
-<?php
+﻿<?php
 
 require_once __DIR__ . '/../config/database.php';
 
@@ -318,6 +318,30 @@ if ($uri === '/api/attendance/lembur' && $method === 'POST') {
     exit();
 }
 
+// Gerak Voyage — Tanggal Pergerakan Kapal
+if ($uri === '/api/gerak-voyage/ships' && $method === 'GET') {
+    require_once __DIR__ . '/../app/Http/Controllers/GerakVoyageController.php';
+    (new \App\Http\Controllers\GerakVoyageController())->getShips();
+    exit();
+}
+
+if ($uri === '/api/gerak-voyage/voyages' && $method === 'GET') {
+    require_once __DIR__ . '/../app/Http/Controllers/GerakVoyageController.php';
+    (new \App\Http\Controllers\GerakVoyageController())->getVoyages($_GET);
+    exit();
+}
+
+if ($uri === '/api/gerak-voyage' && $method === 'GET') {
+    require_once __DIR__ . '/../app/Http/Controllers/GerakVoyageController.php';
+    (new \App\Http\Controllers\GerakVoyageController())->getData($_GET);
+    exit();
+}
+
+if ($uri === '/api/gerak-voyage' && $method === 'POST') {
+    require_once __DIR__ . '/../app/Http/Controllers/GerakVoyageController.php';
+    (new \App\Http\Controllers\GerakVoyageController())->save(is_array($requestData) ? $requestData : []);
+    exit();
+}
 if ($uri === '/api/kapal' && $method === 'GET') {
     require_once __DIR__ . '/../app/Http/Controllers/KapalController.php';
     $controller = new \App\Http\Controllers\KapalController();
@@ -411,3 +435,4 @@ if (preg_match('#^/api/berita/(\d+)$#', $uri, $matches) && $method === 'GET') {
 }
 http_response_code(404);
 echo json_encode(['message' => 'Endpoint tidak ditemukan']);
+

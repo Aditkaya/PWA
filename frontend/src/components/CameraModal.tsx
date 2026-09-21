@@ -574,12 +574,38 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
               <div 
                 className="face-guide"
                 style={{
+                  position: 'relative',
                   borderColor: validationError ? '#ef4444' : undefined,
                   boxShadow: validationError 
-                    ? '0 0 0 4000px rgba(0, 0, 0, 0.6), inset 0 0 25px rgba(239, 68, 68, 0.4), 0 0 20px rgba(239, 68, 68, 0.6)' 
+                    ? '0 0 0 4000px rgba(0, 0, 0, 0.65), inset 0 0 30px rgba(239, 68, 68, 0.4), 0 0 25px rgba(239, 68, 68, 0.7)' 
                     : undefined
                 }}
-              ></div>
+              >
+                {validationError && (
+                  <div style={{
+                    position: 'absolute',
+                    top: '50%',
+                    left: '50%',
+                    transform: 'translate(-50%, -50%)',
+                    background: 'rgba(220, 38, 38, 0.92)',
+                    backdropFilter: 'blur(8px)',
+                    padding: '8px 18px',
+                    borderRadius: '20px',
+                    color: 'white',
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: '8px',
+                    fontSize: '0.88rem',
+                    fontWeight: 700,
+                    boxShadow: '0 4px 15px rgba(0,0,0,0.5)',
+                    whiteSpace: 'nowrap',
+                    pointerEvents: 'none'
+                  }}>
+                    <AlertCircle size={18} color="#ffffff" />
+                    <span>Wajah Ditolak</span>
+                  </div>
+                )}
+              </div>
             </div>
           )}
 

@@ -72,9 +72,13 @@ export default function PamfletCarousel() {
 
   if (loading) {
     return (
-      <div style={{ padding: '0 0 16px 0' }}>
+      <div style={{ paddingBottom: 4 }}>
         <div style={{
-          height: 130, borderRadius: 16,
+          width: '100%',
+          aspectRatio: '2.1 / 1',
+          minHeight: 150,
+          maxHeight: 200,
+          borderRadius: 18,
           background: 'var(--glass-bg)',
           border: '1px solid var(--glass-border)',
           animation: 'shimmer 1.5s infinite ease-in-out',
@@ -95,94 +99,217 @@ export default function PamfletCarousel() {
         ref={trackRef}
         onTouchStart={handleTouchStart}
         onTouchEnd={handleTouchEnd}
-        onClick={() => navigate('/berita')}
+        onClick={() => navigate(current.id ? `/berita/${current.id}` : '/berita')}
         style={{
           position: 'relative',
+          width: '100%',
+          aspectRatio: '2.1 / 1',
+          minHeight: 150,
+          maxHeight: 210,
           borderRadius: 18,
-          background: bg,
-          padding: '20px 20px 20px 20px',
+          background: current.gambar_url ? '#0f172a' : bg,
           display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          gap: 12,
+          flexDirection: 'column',
+          justifyContent: 'flex-end',
           cursor: 'pointer',
           overflow: 'hidden',
-          minHeight: 120,
           boxShadow: '0 8px 30px rgba(0,0,0,0.35)',
           userSelect: 'none',
           transition: 'background 0.4s ease',
         }}
       >
-        {/* Decorative circle bg */}
-        <div style={{
-          position: 'absolute', right: -20, bottom: -30,
-          width: 150, height: 150, borderRadius: '50%',
-          background: 'rgba(255,255,255,0.07)',
-          pointerEvents: 'none',
-        }} />
-        <div style={{
-          position: 'absolute', right: 60, top: -40,
-          width: 100, height: 100, borderRadius: '50%',
-          background: 'rgba(255,255,255,0.05)',
-          pointerEvents: 'none',
-        }} />
-
-        {/* Text side */}
-        <div style={{ flex: 1, zIndex: 1 }}>
-          <p style={{
-            margin: '0 0 8px 0',
-            fontSize: '0.97rem',
-            fontWeight: 700,
-            color: '#ffffff',
-            lineHeight: 1.35,
-            textShadow: '0 1px 4px rgba(0,0,0,0.3)',
-            display: '-webkit-box',
-            WebkitLineClamp: 3,
-            WebkitBoxOrient: 'vertical',
-            overflow: 'hidden',
-          }}>
-            {current.judul}
-          </p>
-          <button
-            onClick={(e) => { e.stopPropagation(); navigate('/berita') }}
-            style={{
-              padding: '5px 14px',
-              background: '#fbbf24',
-              color: '#1a1a1a',
-              border: 'none',
-              borderRadius: 20,
-              fontSize: '0.78rem',
-              fontWeight: 700,
-              cursor: 'pointer',
-              display: 'inline-flex',
-              alignItems: 'center',
-              gap: 5,
-              boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-              whiteSpace: 'nowrap',
-            }}
-          >
-            <ExternalLink size={12} />
-            Lihat selengkapnya
-          </button>
-        </div>
-
-        {/* Image side */}
-        {current.gambar_url && (
-          <div style={{
-            flexShrink: 0,
-            width: 90,
-            height: 90,
-            borderRadius: 12,
-            overflow: 'hidden',
-            boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
-            zIndex: 1,
-          }}>
+        {current.gambar_url ? (
+          <>
+            {/* Full-width Pamflet Image */}
             <img
               src={current.gambar_url}
               alt={current.judul}
-              style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
+              style={{
+                position: 'absolute',
+                top: 0,
+                left: 0,
+                width: '100%',
+                height: '100%',
+                objectFit: 'cover',
+                display: 'block',
+              }}
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = 'none'
+              }}
             />
+
+            {/* Gradient shadow overlay for text legibility */}
+            <div
+              style={{
+                position: 'absolute',
+                inset: 0,
+                background: 'linear-gradient(to top, rgba(10, 15, 29, 0.92) 0%, rgba(10, 15, 29, 0.45) 45%, transparent 75%)',
+                pointerEvents: 'none',
+              }}
+            />
+
+            {/* Bottom content overlay */}
+            <div
+              style={{
+                position: 'relative',
+                zIndex: 2,
+                padding: '12px 16px',
+                display: 'flex',
+                alignItems: 'flex-end',
+                justifyContent: 'space-between',
+                gap: 12,
+              }}
+            >
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <span
+                  style={{
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 4,
+                    fontSize: '0.66rem',
+                    fontWeight: 700,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.5px',
+                    padding: '2px 8px',
+                    borderRadius: 8,
+                    background: 'rgba(255, 255, 255, 0.2)',
+                    backdropFilter: 'blur(8px)',
+                    WebkitBackdropFilter: 'blur(8px)',
+                    color: '#ffffff',
+                    marginBottom: 5,
+                    border: '1px solid rgba(255, 255, 255, 0.25)',
+                  }}
+                >
+                  🖼️ Pamflet
+                </span>
+                <p
+                  style={{
+                    margin: 0,
+                    fontSize: '0.94rem',
+                    fontWeight: 700,
+                    color: '#ffffff',
+                    lineHeight: 1.3,
+                    textShadow: '0 2px 5px rgba(0,0,0,0.85)',
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {current.judul}
+                </p>
+              </div>
+
+              <div
+                style={{
+                  flexShrink: 0,
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  padding: '6px 12px',
+                  borderRadius: 20,
+                  background: '#fbbf24',
+                  color: '#1a1a1a',
+                  fontSize: '0.74rem',
+                  fontWeight: 700,
+                  boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <ExternalLink size={12} />
+                <span>Lihat</span>
+              </div>
+            </div>
+          </>
+        ) : (
+          /* Text-only banner when no image is uploaded */
+          <div
+            style={{
+              position: 'relative',
+              width: '100%',
+              height: '100%',
+              padding: '18px 20px',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'space-between',
+              boxSizing: 'border-box',
+            }}
+          >
+            {/* Decorative circles */}
+            <div style={{
+              position: 'absolute', right: -20, bottom: -30,
+              width: 150, height: 150, borderRadius: '50%',
+              background: 'rgba(255,255,255,0.07)',
+              pointerEvents: 'none',
+            }} />
+            <div style={{
+              position: 'absolute', right: 60, top: -40,
+              width: 100, height: 100, borderRadius: '50%',
+              background: 'rgba(255,255,255,0.05)',
+              pointerEvents: 'none',
+            }} />
+
+            <div style={{ zIndex: 1 }}>
+              <span
+                style={{
+                  display: 'inline-block',
+                  fontSize: '0.68rem',
+                  fontWeight: 700,
+                  textTransform: 'uppercase',
+                  letterSpacing: '0.5px',
+                  padding: '2px 8px',
+                  borderRadius: 8,
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  color: '#ffffff',
+                  marginBottom: 8,
+                }}
+              >
+                📢 Informasi
+              </span>
+              <p
+                style={{
+                  margin: 0,
+                  fontSize: '0.98rem',
+                  fontWeight: 700,
+                  color: '#ffffff',
+                  lineHeight: 1.35,
+                  textShadow: '0 1px 4px rgba(0,0,0,0.3)',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  lineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
+                }}
+              >
+                {current.judul}
+              </p>
+            </div>
+
+            <div style={{ zIndex: 1 }}>
+              <button
+                onClick={(e) => {
+                  e.stopPropagation()
+                  navigate(current.id ? `/berita/${current.id}` : '/berita')
+                }}
+                style={{
+                  padding: '6px 14px',
+                  background: '#fbbf24',
+                  color: '#1a1a1a',
+                  border: 'none',
+                  borderRadius: 20,
+                  fontSize: '0.78rem',
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 5,
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
+                  whiteSpace: 'nowrap',
+                }}
+              >
+                <ExternalLink size={12} />
+                Lihat selengkapnya
+              </button>
+            </div>
           </div>
         )}
       </div>

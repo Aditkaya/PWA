@@ -21,14 +21,15 @@ class BeritaController
     public function index(array $params = []): void
     {
         try {
-            $tipe   = isset($params['tipe']) && in_array($params['tipe'], ['berita', 'pamflet']) ? $params['tipe'] : null;
-            $limit  = min((int)($params['limit']  ?? 20), 50);
-            $offset = max((int)($params['offset'] ?? 0), 0);
+            $rawTipe = isset($params['tipe']) ? strtolower(trim($params['tipe'])) : null;
+            $tipe    = in_array($rawTipe, ['berita', 'pamflet']) ? $rawTipe : null;
+            $limit   = min((int)($params['limit']  ?? 20), 50);
+            $offset  = max((int)($params['offset'] ?? 0), 0);
 
-            $where = "b.is_active = 1 AND (b.published_at IS NULL OR b.published_at <= NOW())";
+            $where = "(b.is_active = 1 OR b.is_active IS NULL) AND (b.published_at IS NULL OR b.published_at <= NOW())";
             $bindings = [];
             if ($tipe) {
-                $where .= " AND b.tipe = :tipe";
+                $where .= " AND LOWER(TRIM(b.tipe)) = :tipe";
                 $bindings[':tipe'] = $tipe;
             }
 
@@ -47,8 +48,26 @@ class BeritaController
             $stmt->execute();
             $beritas = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
+            // Fallback: Jika mencari pamflet dan hasilnya kosong, ambil berita apa saja yang memiliki gambar
+            if ($tipe === 'pamflet' && empty($beritas)) {
+                $fallbackSql = "SELECT b.id, b.judul, b.konten, b.tipe, b.gambar, b.pinned,
+                                       b.published_at, b.created_at, u.name AS created_by_name
+                                FROM beritas b
+                                LEFT JOIN users u ON b.created_by = u.id
+                                WHERE (b.is_active = 1 OR b.is_active IS NULL)
+                                  AND (b.published_at IS NULL OR b.published_at <= NOW())
+                                  AND b.gambar IS NOT NULL AND b.gambar != ''
+                                ORDER BY b.pinned DESC, b.published_at DESC, b.created_at DESC
+                                LIMIT :limit OFFSET :offset";
+                $fallbackStmt = $this->pdo->prepare($fallbackSql);
+                $fallbackStmt->bindValue(':limit',  $limit,  PDO::PARAM_INT);
+                $fallbackStmt->bindValue(':offset', $offset, PDO::PARAM_INT);
+                $fallbackStmt->execute();
+                $beritas = $fallbackStmt->fetchAll(PDO::FETCH_ASSOC);
+            }
+
             foreach ($beritas as &$item) {
-                $item['gambar_url'] = $item['gambar'] ? $this->buildImageUrl($item['gambar']) : null;
+                $item['gambar_url'] = !empty($item['gambar']) ? $this->buildImageUrl($item['gambar']) : null;
                 $item['konten_singkat'] = mb_substr(strip_tags((string)$item['konten']), 0, 120);
             }
             unset($item);
@@ -79,7 +98,7 @@ class BeritaController
                         b.published_at, b.created_at, u.name AS created_by_name
                  FROM beritas b
                  LEFT JOIN users u ON b.created_by = u.id
-                 WHERE b.id = :id AND b.is_active = 1
+                 WHERE b.id = :id AND (b.is_active = 1 OR b.is_active IS NULL)
                    AND (b.published_at IS NULL OR b.published_at <= NOW())"
             );
             $stmt->execute([':id' => $id]);
@@ -91,7 +110,7 @@ class BeritaController
                 return;
             }
 
-            $berita['gambar_url'] = $berita['gambar'] ? $this->buildImageUrl($berita['gambar']) : null;
+            $berita['gambar_url'] = !empty($berita['gambar']) ? $this->buildImageUrl($berita['gambar']) : null;
 
             http_response_code(200);
             echo json_encode(['success' => true, 'data' => $berita]);
@@ -104,12 +123,23 @@ class BeritaController
 
     private function buildImageUrl(string $path): string
     {
-        $isLocal = in_array($_SERVER['SERVER_NAME'] ?? '', ['localhost', '127.0.0.1']);
-        if ($isLocal) {
-            // Pakai URL AYPSIS lokal
-            return 'http://127.0.0.1:8000/' . ltrim($path, '/');
+        $path = trim($path);
+        if (empty($path)) {
+            return '';
         }
-        $baseUrl = getenv('AYPSIS_BASE_URL') ?: '';
-        return rtrim($baseUrl, '/') . '/' . ltrim($path, '/');
+        if (preg_match('#^https?://#i', $path)) {
+            return $path;
+        }
+
+        // Standardize path: remove leading slashes
+        $cleanPath = ltrim($path, '/');
+
+        // If path doesn't begin with storage/ or uploads/, prepend storage/
+        // (Filament/Laravel default storage path in storage/app/public/)
+        if (!str_starts_with($cleanPath, 'storage/') && !str_starts_with($cleanPath, 'uploads/')) {
+            $cleanPath = 'storage/' . $cleanPath;
+        }
+
+        return '/' . $cleanPath;
     }
 }

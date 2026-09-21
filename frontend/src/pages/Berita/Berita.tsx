@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Newspaper, Image as ImageIcon, ArrowLeft } from 'lucide-react';
 import './berita.css';
 
-const API_BASE = import.meta.env.VITE_API_URL ?? 'http://localhost:8000';
+const API_BASE = import.meta.env.VITE_API_URL ?? '';
 
 interface BeritaItem {
   id: number;

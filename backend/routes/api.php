@@ -1,4 +1,4 @@
-﻿<?php
+<?php
 
 require_once __DIR__ . '/../config/database.php';
 
@@ -23,16 +23,27 @@ if ($isLocalServer) {
     define('AYPSIS_PUBLIC_DIR', getenv('AYPSIS_PUBLIC_DIR') ?: '/var/www/aypsis/public');
 }
 
-// Only uploaded files are public. Configuration, service tokens and AI models
+// Only uploaded and storage files are public. Configuration, service tokens and AI models
 // must never be exposed through this PHP router's static-file handler.
 $file_path = null;
-if (strpos($uri, '/uploads/') === 0) {
+if (strpos($uri, '/uploads/') === 0 || strpos($uri, '/storage/') === 0) {
     foreach ([UPLOAD_BASE_DIR, AYPSIS_PUBLIC_DIR] as $base) {
-        $root = realpath($base . '/uploads');
         $candidate = realpath($base . $uri);
-        if ($root && $candidate && is_file($candidate) && strpos($candidate, $root . DIRECTORY_SEPARATOR) === 0) {
+        if ($candidate && is_file($candidate)) {
+            $baseReal = realpath($base);
+            if ($baseReal && strpos($candidate, $baseReal . DIRECTORY_SEPARATOR) === 0) {
+                $file_path = $candidate;
+                break;
+            }
+        }
+    }
+    // Jika tidak ditemukan langsung di public/storage, coba cek di storage/app/public/...
+    if ($file_path === null && strpos($uri, '/storage/') === 0) {
+        $sub = substr($uri, strlen('/storage'));
+        $appStorageBase = dirname(AYPSIS_PUBLIC_DIR) . '/storage/app/public';
+        $candidate = realpath($appStorageBase . $sub);
+        if ($candidate && is_file($candidate)) {
             $file_path = $candidate;
-            break;
         }
     }
 }
@@ -48,6 +59,8 @@ if ($file_path !== null) {
         'jpg' => 'image/jpeg',
         'jpeg' => 'image/jpeg',
         'png' => 'image/png',
+        'gif' => 'image/gif',
+        'webp' => 'image/webp',
         'svg' => 'image/svg+xml',
         'ico' => 'image/x-icon',
         'woff' => 'font/woff',

@@ -342,11 +342,15 @@ class ProfileController {
                 return;
             }
 
-            // if ($user['face_verified_at']) {
-            //     http_response_code(400);
-            //     echo json_encode(['message' => 'Wajah sudah terverifikasi sebelumnya']);
-            //     return;
-            // }
+            // Jika wajah sudah pernah terverifikasi sebelumnya (re-registrasi), cek izin 'perbarui_wajah'
+            if (!empty($user['face_verified_at'])) {
+                $perms = FeaturePermissionController::getPermissionsForUser($pdo, (int)$user_id);
+                if (empty($perms['perbarui_wajah'])) {
+                    http_response_code(403);
+                    echo json_encode(['message' => 'Akses ditolak. Anda tidak memiliki izin untuk memperbarui ulang wajah. Silakan hubungi IT atau HRD.']);
+                    return;
+                }
+            }
 
             $verifiedImage = (new \App\Services\FaceVerificationService())->validateRegistration($image);
 

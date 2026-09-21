@@ -19,7 +19,8 @@ import {
   Check,
   SlidersHorizontal,
   Users,
-  Navigation
+  Navigation,
+  ScanFace
 } from "lucide-react";
 import { useAuthStore } from "../../store/auth.store";
 import { useToast } from "../../contexts/ToastContext";
@@ -38,7 +39,8 @@ type FeatureKey =
   | "stowage_plan"
   | "denah_gudang"
   | "amprahan"
-  | "gerak_voyage";
+  | "gerak_voyage"
+  | "perbarui_wajah";
 
 interface FeaturePermissions {
   [key: string]: boolean;
@@ -76,6 +78,7 @@ const FEATURES: {
   { key: "denah_gudang",       label: "Denah Gudang",         desc: "Akses tata letak & kapasitas gudang",      icon: <Map size={18} />,            color: "#3b82f6" },
   { key: "amprahan",           label: "Amprahan",             desc: "Pengajuan & penerimaan barang amprahan",   icon: <Package size={18} />,        color: "#d946ef" },
   { key: "gerak_voyage",       label: "Tanggal Gerak Voyage", desc: "Akses tanggal pergerakan kapal & voyage",  icon: <Navigation size={18} />,     color: "#38bdf8" },
+  { key: "perbarui_wajah",     label: "Perbarui Wajah Ulang", desc: "Izin memindai ulang biometrik wajah",      icon: <ScanFace size={18} />,       color: "#10b981" },
 ];
 
 const TOTAL_FEATURES = FEATURES.length;

@@ -21,6 +21,7 @@ class FeaturePermissionController
         'denah_gudang',
         'amprahan',
         'gerak_voyage',
+        'perbarui_wajah',
     ];
 
     /**
@@ -145,8 +146,9 @@ class FeaturePermissionController
                 $uid = $u['user_id'];
                 $features = [];
                 foreach (self::VALID_FEATURES as $fk) {
-                    // Default: aktif jika belum pernah diset
-                    $features[$fk] = isset($permsMap[$uid][$fk]) ? $permsMap[$uid][$fk] : true;
+                    // Default: perbarui_wajah harus dibuka izinnya oleh IT (default false), lainnya aktif
+                    $defaultVal = ($fk === 'perbarui_wajah') ? false : true;
+                    $features[$fk] = isset($permsMap[$uid][$fk]) ? (bool)$permsMap[$uid][$fk] : $defaultVal;
                 }
                 $u['feature_permissions'] = $features;
                 $u['active_feature_count'] = count(array_filter($features));
@@ -262,7 +264,7 @@ class FeaturePermissionController
 
             $result = [];
             foreach (self::VALID_FEATURES as $fk) {
-                $result[$fk] = true; // default aktif
+                $result[$fk] = ($fk === 'perbarui_wajah') ? false : true;
             }
             foreach ($rows as $row) {
                 $result[$row['feature_key']] = (bool)$row['is_enabled'];
@@ -272,7 +274,7 @@ class FeaturePermissionController
             // Fallback aman jika tabel belum dimigrasi di server
             $result = [];
             foreach (self::VALID_FEATURES as $fk) {
-                $result[$fk] = true;
+                $result[$fk] = ($fk === 'perbarui_wajah') ? false : true;
             }
             return $result;
         }

@@ -23,6 +23,7 @@ interface KaryawanData {
   is_face_verified?: boolean
   face_verification_url?: string | null
   face_verified_at?: string | null
+  feature_permissions?: Record<string, boolean>
 }
 
 type ModalType = 'editProfile' | 'changePassword' | 'reminder' | 'faceDetail' | null
@@ -993,32 +994,62 @@ export default function Profile() {
 
             {/* Actions */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
-              <button
-                onClick={() => {
-                  setActiveModal(null);
-                  openFaceRegistration();
-                }}
-                style={{
-                  width: '100%',
-                  padding: '13px',
-                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                  color: 'white',
-                  border: 'none',
-                  borderRadius: '14px',
-                  fontWeight: 700,
-                  fontSize: '0.92rem',
-                  cursor: 'pointer',
-                  display: 'flex',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: '8px',
-                  boxShadow: '0 4px 16px rgba(16, 185, 129, 0.35)',
-                  transition: 'all 0.2s'
-                }}
-              >
-                <RefreshCw size={17} />
-                Pindai / Perbarui Wajah Ulang
-              </button>
+              {profileData?.feature_permissions?.['perbarui_wajah'] === true ? (
+                <button
+                  onClick={() => {
+                    setActiveModal(null);
+                    openFaceRegistration();
+                  }}
+                  style={{
+                    width: '100%',
+                    padding: '13px',
+                    background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    color: 'white',
+                    border: 'none',
+                    borderRadius: '14px',
+                    fontWeight: 700,
+                    fontSize: '0.92rem',
+                    cursor: 'pointer',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: '8px',
+                    boxShadow: '0 4px 16px rgba(16, 185, 129, 0.35)',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  <RefreshCw size={17} />
+                  Pindai / Perbarui Wajah Ulang
+                </button>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                  <button
+                    disabled
+                    style={{
+                      width: '100%',
+                      padding: '13px',
+                      background: 'rgba(255, 255, 255, 0.04)',
+                      color: 'var(--text-secondary)',
+                      border: '1px solid var(--glass-border)',
+                      borderRadius: '14px',
+                      fontWeight: 600,
+                      fontSize: '0.9rem',
+                      cursor: 'not-allowed',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '8px',
+                      opacity: 0.7
+                    }}
+                  >
+                    <Lock size={16} />
+                    Pindai Ulang Wajah Terkunci
+                  </button>
+                  <span style={{ fontSize: '0.74rem', color: '#f59e0b', textAlign: 'center', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '5px' }}>
+                    🔒 Hubungi tim IT untuk membuka hak akses fitur pembaruan wajah.
+                  </span>
+                </div>
+              )}
 
               <button
                 onClick={() => setActiveModal(null)}

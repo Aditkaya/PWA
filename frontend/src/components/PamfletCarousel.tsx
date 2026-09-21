@@ -7,6 +7,7 @@ interface PamfletItem {
   judul: string
   konten_singkat: string
   gambar_url: string | null
+  aspect_ratio?: string | null
   published_at: string | null
 }
 
@@ -19,6 +20,26 @@ const SLIDE_COLORS = [
   'linear-gradient(135deg, #e65100 0%, #bf360c 100%)',
   'linear-gradient(135deg, #006064 0%, #00838f 100%)',
 ]
+
+const getAspectRatioStyle = (ratio?: string | null) => {
+  switch (ratio) {
+    case '16:9':
+      return { aspectRatio: '16 / 9', minHeight: 160, maxHeight: 240, objectFit: 'cover' as const }
+    case '4:3':
+      return { aspectRatio: '4 / 3', minHeight: 180, maxHeight: 300, objectFit: 'cover' as const }
+    case '1:1':
+      return { aspectRatio: '1 / 1', minHeight: 220, maxHeight: 360, objectFit: 'cover' as const }
+    case '4:5':
+      return { aspectRatio: '4 / 5', minHeight: 260, maxHeight: 420, objectFit: 'cover' as const }
+    case 'original':
+      return { aspectRatio: 'auto', minHeight: 140, maxHeight: 360, objectFit: 'contain' as const }
+    case 'free':
+      return { aspectRatio: 'auto', minHeight: 140, maxHeight: 320, objectFit: 'cover' as const }
+    case '2.2:1':
+    default:
+      return { aspectRatio: '2.2 / 1', minHeight: 140, maxHeight: 200, objectFit: 'cover' as const }
+  }
+}
 
 export default function PamfletCarousel() {
   const navigate = useNavigate()
@@ -61,7 +82,6 @@ export default function PamfletCarousel() {
     if (touchStartX.current === null || touchStartY.current === null) return
     const dx = e.changedTouches[0].clientX - touchStartX.current
     const dy = e.changedTouches[0].clientY - touchStartY.current
-    // Only swipe if horizontal movement is dominant
     if (Math.abs(dx) > Math.abs(dy) && Math.abs(dx) > 40) {
       if (dx < 0) setActiveIndex(i => Math.min(i + 1, pamflets.length - 1))
       else setActiveIndex(i => Math.max(i - 1, 0))
@@ -75,10 +95,10 @@ export default function PamfletCarousel() {
       <div style={{ paddingBottom: 4 }}>
         <div style={{
           width: '100%',
-          aspectRatio: '2.1 / 1',
-          minHeight: 150,
+          aspectRatio: '2.2 / 1',
+          minHeight: 140,
           maxHeight: 200,
-          borderRadius: 18,
+          borderRadius: 16,
           background: 'var(--glass-bg)',
           border: '1px solid var(--glass-border)',
           animation: 'shimmer 1.5s infinite ease-in-out',
@@ -91,6 +111,7 @@ export default function PamfletCarousel() {
 
   const current = pamflets[activeIndex]
   const bg = SLIDE_COLORS[activeIndex % SLIDE_COLORS.length]
+  const bannerStyle = getAspectRatioStyle(current.aspect_ratio)
 
   return (
     <div style={{ paddingBottom: 4 }}>
@@ -103,9 +124,9 @@ export default function PamfletCarousel() {
         style={{
           position: 'relative',
           width: '100%',
-          aspectRatio: '2.2 / 1',
-          minHeight: 140,
-          maxHeight: 200,
+          aspectRatio: bannerStyle.aspectRatio,
+          minHeight: bannerStyle.minHeight,
+          maxHeight: bannerStyle.maxHeight,
           borderRadius: 16,
           background: current.gambar_url ? '#0b1120' : bg,
           cursor: 'pointer',
@@ -113,7 +134,7 @@ export default function PamfletCarousel() {
           boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
           border: '1px solid rgba(255, 255, 255, 0.08)',
           userSelect: 'none',
-          transition: 'all 0.3s ease',
+          transition: 'all 0.35s ease',
         }}
       >
         {current.gambar_url ? (
@@ -125,7 +146,7 @@ export default function PamfletCarousel() {
               style={{
                 width: '100%',
                 height: '100%',
-                objectFit: 'cover',
+                objectFit: bannerStyle.objectFit,
                 display: 'block',
               }}
               onError={(e) => {

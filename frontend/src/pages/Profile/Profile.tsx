@@ -4,7 +4,7 @@ import { useOutletContext } from 'react-router-dom'
 
 import Cropper from 'react-easy-crop'
 import getCroppedImg from '../../utils/cropImage'
-import { User, Mail, Briefcase, Phone, MapPin, Key, ChevronRight, Loader2, Camera, X, Save, Eye, EyeOff, Lock, Trash2, Scan, Bell, Clock, AlarmClock } from 'lucide-react'
+import { User, Mail, Briefcase, Phone, MapPin, Key, ChevronRight, Loader2, Camera, X, Save, Eye, EyeOff, Lock, Trash2, Scan, Bell, Clock, AlarmClock, CheckCircle2, ShieldCheck, RefreshCw } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import { useLangStore } from '../../store/lang.store'
 import { translations } from '../../utils/translations'
@@ -20,9 +20,12 @@ interface KaryawanData {
   divisi: string
   avatar_url?: string
   avatar_updated_at?: string
+  is_face_verified?: boolean
+  face_verification_url?: string | null
+  face_verified_at?: string | null
 }
 
-type ModalType = 'editProfile' | 'changePassword' | 'reminder' | null
+type ModalType = 'editProfile' | 'changePassword' | 'reminder' | 'faceDetail' | null
 
 interface ReminderSettings {
   masukEnabled: boolean
@@ -140,6 +143,14 @@ export default function Profile() {
   }
 
   useEffect(() => { fetchProfile() }, [user])
+
+  useEffect(() => {
+    const handleFaceRegistered = () => {
+      fetchProfile()
+    }
+    window.addEventListener('face-registered', handleFaceRegistered)
+    return () => window.removeEventListener('face-registered', handleFaceRegistered)
+  }, [])
 
   const openEditProfile = () => {
     setEditForm({
@@ -597,14 +608,62 @@ export default function Profile() {
             </div>
           </button>
           
-          <button className="setting-btn" onClick={() => openFaceRegistration()}>
+          <button 
+            className="setting-btn" 
+            onClick={() => {
+              if (profileData?.is_face_verified) {
+                setActiveModal('faceDetail')
+              } else {
+                openFaceRegistration()
+              }
+            }}
+          >
             <div className="setting-btn-left">
               <div className="setting-icon-box emerald">
                 <Scan size={20} />
               </div>
               <div className="setting-btn-content">
-                <span className="setting-btn-title">{t.reverifyFace}</span>
-                <span className="setting-btn-desc">{t.reverifyFaceDesc}</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
+                  <span className="setting-btn-title">{t.reverifyFace}</span>
+                  {profileData?.is_face_verified ? (
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: '10px',
+                      background: 'rgba(16, 185, 129, 0.15)',
+                      color: '#10b981',
+                      border: '1px solid rgba(16, 185, 129, 0.3)',
+                      letterSpacing: '0.2px'
+                    }}>
+                      <CheckCircle2 size={11} strokeWidth={2.5} /> Terdaftar
+                    </span>
+                  ) : (
+                    <span style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: '4px',
+                      fontSize: '0.68rem',
+                      fontWeight: 700,
+                      padding: '2px 8px',
+                      borderRadius: '10px',
+                      background: 'rgba(245, 158, 11, 0.15)',
+                      color: '#f59e0b',
+                      border: '1px solid rgba(245, 158, 11, 0.3)',
+                      letterSpacing: '0.2px'
+                    }}>
+                      Belum Terdaftar
+                    </span>
+                  )}
+                </div>
+                <span className="setting-btn-desc">
+                  {profileData?.is_face_verified 
+                    ? 'Wajah aktif untuk presensi · Ketuk untuk melihat detail' 
+                    : t.reverifyFaceDesc}
+                </span>
               </div>
             </div>
             <div className="setting-arrow">
@@ -770,6 +829,212 @@ export default function Profile() {
                 style={{ padding: '13px', background: 'linear-gradient(135deg, #a78bfa, #7c3aed)', color: '#fff', border: 'none', borderRadius: '12px', fontWeight: 700, fontSize: '0.95rem', cursor: 'pointer' }}
               >
                 Simpan Pengaturan
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Face Biometric Status & Re-verification Modal */}
+      {activeModal === 'faceDetail' && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.78)', backdropFilter: 'blur(8px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '16px' }}>
+          <div style={{ background: 'var(--panel-bg)', border: '1px solid var(--glass-border)', borderRadius: '24px', padding: '26px 22px', width: '100%', maxWidth: '420px', boxShadow: '0 25px 60px rgba(0,0,0,0.6)', maxHeight: '90vh', overflowY: 'auto' }} className="fade-in">
+            {/* Header */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                <div style={{ width: '40px', height: '40px', borderRadius: '12px', background: 'rgba(16, 185, 129, 0.15)', border: '1px solid rgba(16, 185, 129, 0.3)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
+                  <ShieldCheck size={24} />
+                </div>
+                <div>
+                  <h3 style={{ margin: 0, fontSize: '1.15rem', fontWeight: 700, color: 'var(--text-primary)' }}>Biometrik Wajah</h3>
+                  <p style={{ margin: '2px 0 0', fontSize: '0.78rem', color: 'var(--text-secondary)' }}>Status data wajah terdaftar Anda</p>
+                </div>
+              </div>
+              <button onClick={() => setActiveModal(null)} style={{ background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer', padding: '4px', borderRadius: '8px' }}>
+                <X size={22} />
+              </button>
+            </div>
+
+            {/* Photo Preview with Futuristic Biometric Frame */}
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', margin: '14px 0 22px' }}>
+              <div style={{
+                position: 'relative',
+                width: '180px',
+                height: '210px',
+                borderRadius: '20px',
+                padding: '4px',
+                background: 'linear-gradient(135deg, rgba(16, 185, 129, 0.6), rgba(56, 189, 248, 0.3), rgba(16, 185, 129, 0.1))',
+                boxShadow: '0 0 35px rgba(16, 185, 129, 0.25)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}>
+                {/* Image */}
+                <div style={{ width: '100%', height: '100%', borderRadius: '16px', overflow: 'hidden', background: '#0b132b', position: 'relative' }}>
+                  {profileData?.face_verification_url || profileData?.avatar_url ? (
+                    <img 
+                      src={profileData?.face_verification_url || profileData?.avatar_url} 
+                      alt="Wajah Terdaftar" 
+                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                    />
+                  ) : (
+                    <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#10b981' }}>
+                      <Scan size={56} />
+                    </div>
+                  )}
+                  {/* Subtle Scan Overlay Line */}
+                  <div style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: 0,
+                    right: 0,
+                    height: '2px',
+                    background: 'linear-gradient(90deg, transparent, #10b981, transparent)',
+                    boxShadow: '0 0 10px #10b981',
+                    animation: 'scanLine 3s infinite linear'
+                  }} />
+                </div>
+
+                {/* Floating Badge */}
+                <div style={{
+                  position: 'absolute',
+                  bottom: '-12px',
+                  background: 'rgba(15, 23, 42, 0.95)',
+                  backdropFilter: 'blur(10px)',
+                  border: '1px solid rgba(16, 185, 129, 0.5)',
+                  color: '#10b981',
+                  borderRadius: '20px',
+                  padding: '5px 14px',
+                  fontSize: '0.72rem',
+                  fontWeight: 700,
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  boxShadow: '0 4px 16px rgba(0,0,0,0.4)',
+                  letterSpacing: '0.3px',
+                  whiteSpace: 'nowrap'
+                }}>
+                  <CheckCircle2 size={13} color="#10b981" />
+                  <span>TERVERIFIKASI AKTIF</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Info Cards */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '22px' }}>
+              <div style={{
+                background: 'var(--glass-bg)',
+                border: '1px solid var(--glass-border)',
+                borderRadius: '14px',
+                padding: '12px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Status Biometrik</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: '#10b981', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                  <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 8px #10b981' }} />
+                  Aktif & Terlindungi
+                </span>
+              </div>
+
+              <div style={{
+                background: 'var(--glass-bg)',
+                border: '1px solid var(--glass-border)',
+                borderRadius: '14px',
+                padding: '12px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Waktu Verifikasi</span>
+                <span style={{ fontSize: '0.85rem', fontWeight: 600, color: 'var(--text-primary)' }}>
+                  {profileData?.face_verified_at 
+                    ? new Date(profileData.face_verified_at).toLocaleDateString('id-ID', {
+                        day: 'numeric',
+                        month: 'short',
+                        year: 'numeric',
+                        hour: '2-digit',
+                        minute: '2-digit'
+                      }).replace(/\./g, ':') + ' WIB'
+                    : 'Sudah Terdaftar'}
+                </span>
+              </div>
+
+              <div style={{
+                background: 'var(--glass-bg)',
+                border: '1px solid var(--glass-border)',
+                borderRadius: '14px',
+                padding: '12px 14px',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between'
+              }}>
+                <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Standar Biometrik</span>
+                <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#38bdf8' }}>
+                  Threshold Ketat (0.44)
+                </span>
+              </div>
+            </div>
+
+            {/* Note box */}
+            <div style={{
+              marginTop: '14px',
+              padding: '12px',
+              borderRadius: '12px',
+              background: 'rgba(56, 189, 248, 0.08)',
+              border: '1px solid rgba(56, 189, 248, 0.2)',
+              fontSize: '0.78rem',
+              color: 'var(--text-secondary)',
+              lineHeight: '1.45'
+            }}>
+              💡 Foto wajah ini digunakan sistem untuk mencocokkan wajah Anda secara otomatis saat Presensi Masuk & Pulang. Jika foto lama buram atau ada perubahan penampilan, Anda dapat memindai ulang.
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '20px' }}>
+              <button
+                onClick={() => {
+                  setActiveModal(null);
+                  openFaceRegistration();
+                }}
+                style={{
+                  width: '100%',
+                  padding: '13px',
+                  background: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                  color: 'white',
+                  border: 'none',
+                  borderRadius: '14px',
+                  fontWeight: 700,
+                  fontSize: '0.92rem',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '8px',
+                  boxShadow: '0 4px 16px rgba(16, 185, 129, 0.35)',
+                  transition: 'all 0.2s'
+                }}
+              >
+                <RefreshCw size={17} />
+                Pindai / Perbarui Wajah Ulang
+              </button>
+
+              <button
+                onClick={() => setActiveModal(null)}
+                style={{
+                  width: '100%',
+                  padding: '12px',
+                  background: 'transparent',
+                  border: '1px solid var(--glass-border)',
+                  color: 'var(--text-secondary)',
+                  borderRadius: '14px',
+                  fontWeight: 600,
+                  fontSize: '0.9rem',
+                  cursor: 'pointer'
+                }}
+              >
+                Tutup
               </button>
             </div>
           </div>

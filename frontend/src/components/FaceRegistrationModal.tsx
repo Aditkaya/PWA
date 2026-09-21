@@ -96,6 +96,7 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
       if (session !== sessionRef.current) return;
       if (!response.ok) throw new Error(data.message || 'Gagal mendaftarkan wajah.');
       showToast('Wajah berhasil didaftarkan!', 'success');
+      window.dispatchEvent(new Event('face-registered'));
       stopCamera();
       onSuccess();
     } catch (error) {

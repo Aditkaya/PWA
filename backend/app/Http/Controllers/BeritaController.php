@@ -34,7 +34,7 @@ class BeritaController
             }
 
             $sql = "SELECT b.id, b.judul, b.konten, b.tipe, b.gambar, b.pinned,
-                           b.published_at, b.created_at, u.name AS created_by_name
+                           b.published_at, b.created_at, u.username AS created_by_name
                     FROM beritas b
                     LEFT JOIN users u ON b.created_by = u.id
                     WHERE {$where}
@@ -51,7 +51,7 @@ class BeritaController
             // Fallback: Jika mencari pamflet dan hasilnya kosong, ambil berita apa saja yang memiliki gambar
             if ($tipe === 'pamflet' && empty($beritas)) {
                 $fallbackSql = "SELECT b.id, b.judul, b.konten, b.tipe, b.gambar, b.pinned,
-                                       b.published_at, b.created_at, u.name AS created_by_name
+                                       b.published_at, b.created_at, u.username AS created_by_name
                                 FROM beritas b
                                 LEFT JOIN users u ON b.created_by = u.id
                                 WHERE (b.is_active = 1 OR b.is_active IS NULL)
@@ -95,7 +95,7 @@ class BeritaController
         try {
             $stmt = $this->pdo->prepare(
                 "SELECT b.id, b.judul, b.konten, b.tipe, b.gambar, b.pinned,
-                        b.published_at, b.created_at, u.name AS created_by_name
+                        b.published_at, b.created_at, u.username AS created_by_name
                  FROM beritas b
                  LEFT JOIN users u ON b.created_by = u.id
                  WHERE b.id = :id AND (b.is_active = 1 OR b.is_active IS NULL)

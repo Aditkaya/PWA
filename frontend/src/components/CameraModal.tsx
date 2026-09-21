@@ -4,7 +4,6 @@ import { Camera, X, Loader2, AlertCircle, Zap, RefreshCw, MapPin } from 'lucide-
 import { useLangStore } from '../store/lang.store';
 import { useAuthStore } from '../store/auth.store';
 import { translations } from '../utils/translations';
-import { useToast } from '../contexts/ToastContext';
 import '../styles/cameramodal.css';
 
 const activeAiModel = 'Server';
@@ -38,6 +37,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+  const [validationError, setValidationError] = useState('');
   const [statusMsg, setStatusMsg] = useState('');
   const [logoImage, setLogoImage] = useState<HTMLImageElement | null>(null);
   
@@ -47,7 +47,6 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   const { user } = useAuthStore();
 
   const t = translations[lang];
-  const { showToast } = useToast();
 
   const [currentTime, setCurrentTime] = useState(new Date());
   
@@ -68,6 +67,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   useEffect(() => {
     if (isOpen) {
       setErrorMsg('');
+      setValidationError('');
       setStatusMsg('');
       setIsProcessing(false);
       capturingRef.current = false;
@@ -277,6 +277,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     if (!isOpen || !isCameraReady || !locationCoords || !user?.id || !video || capturingRef.current || errorMsg) return;
     capturingRef.current = true;
     setIsProcessing(true);
+    setValidationError('');
     setStatusMsg('Mengirim foto dan memvalidasi wajah di server...');
     const session = sessionRef.current;
     try {
@@ -294,7 +295,8 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       setIsProcessing(false);
       verifiedFrameRef.current = null;
       setStatusMsg('');
-      showToast(error instanceof Error ? error.message : 'Gagal mengambil foto.', 'error');
+      const message = error instanceof Error ? error.message : 'Gagal memverifikasi wajah.';
+      setValidationError(message);
     }
   };
 
@@ -464,7 +466,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
 
         {/* Top Controls */}
         <div className="camera-top-controls">
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', marginBottom: '12px' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', width: '100%', marginBottom: '8px' }}>
             <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start', flexDirection: 'column' }}>
               <div style={{ display: 'flex', gap: '12px', alignItems: 'flex-start' }}>
                 <button onClick={handleClose} className="close-btn" disabled={isProcessing}>
@@ -478,6 +480,58 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
               <img src="/logo.png" alt="Company Logo" style={{ height: '48px', objectFit: 'contain', filter: 'drop-shadow(0 2px 4px rgba(0,0,0,0.5))' }} />
             </div>
           </div>
+
+          {/* In-Camera Biometric Error Warning Banner */}
+          {validationError && (
+            <div 
+              className="fade-in-down"
+              style={{
+                backgroundColor: 'rgba(220, 38, 38, 0.95)',
+                border: '1.5px solid rgba(254, 202, 202, 0.6)',
+                color: 'white',
+                padding: '12px 14px',
+                borderRadius: '14px',
+                fontSize: '0.85rem',
+                display: 'flex',
+                alignItems: 'flex-start',
+                gap: '10px',
+                backdropFilter: 'blur(12px)',
+                WebkitBackdropFilter: 'blur(12px)',
+                boxShadow: '0 8px 24px rgba(0,0,0,0.5), 0 0 15px rgba(239, 68, 68, 0.5)',
+                animation: 'shake 0.4s ease-in-out',
+                marginBottom: '8px'
+              }}
+            >
+              <AlertCircle size={22} style={{ flexShrink: 0, marginTop: '2px', color: '#fecaca' }} />
+              <div style={{ flex: 1 }}>
+                <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '2px' }}>
+                  Verifikasi Wajah Gagal
+                </div>
+                <div style={{ fontSize: '0.8rem', lineHeight: '1.35', opacity: 0.95 }}>
+                  {validationError}
+                </div>
+              </div>
+              <button
+                onClick={() => setValidationError('')}
+                style={{
+                  background: 'rgba(255, 255, 255, 0.2)',
+                  border: 'none',
+                  color: 'white',
+                  borderRadius: '50%',
+                  width: '24px',
+                  height: '24px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer',
+                  flexShrink: 0
+                }}
+                title="Tutup"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          )}
 
           <div className="location-box">
             <p className="company-name">
@@ -517,7 +571,15 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
           {/* Center Guide */}
           {isCameraReady && (
             <div className="camera-overlay-frame">
-              <div className="face-guide"></div>
+              <div 
+                className="face-guide"
+                style={{
+                  borderColor: validationError ? '#ef4444' : undefined,
+                  boxShadow: validationError 
+                    ? '0 0 0 4000px rgba(0, 0, 0, 0.6), inset 0 0 25px rgba(239, 68, 68, 0.4), 0 0 20px rgba(239, 68, 68, 0.6)' 
+                    : undefined
+                }}
+              ></div>
             </div>
           )}
 
@@ -536,7 +598,11 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
         {/* Bottom Controls */}
         <div className="camera-bottom-controls">
           <div style={{ width: '100%', display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
-            {canTakePhoto ? (
+            {validationError ? (
+              <div style={{ padding: '8px 16px', background: 'rgba(220, 38, 38, 0.95)', color: 'white', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.4)' }}>
+                <AlertCircle size={16} /> Wajah tidak cocok. Silakan arahkan wajah Anda dan foto ulang.
+              </div>
+            ) : canTakePhoto ? (
               <div style={{ padding: '8px 16px', background: 'rgba(34, 197, 94, 0.9)', color: 'white', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
                 <AlertCircle size={16} /> {faceMatchMsg}
               </div>

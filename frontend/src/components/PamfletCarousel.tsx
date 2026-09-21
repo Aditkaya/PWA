@@ -103,31 +103,26 @@ export default function PamfletCarousel() {
         style={{
           position: 'relative',
           width: '100%',
-          aspectRatio: '2.1 / 1',
-          minHeight: 150,
-          maxHeight: 210,
-          borderRadius: 18,
-          background: current.gambar_url ? '#0f172a' : bg,
-          display: 'flex',
-          flexDirection: 'column',
-          justifyContent: 'flex-end',
+          aspectRatio: '2.2 / 1',
+          minHeight: 140,
+          maxHeight: 200,
+          borderRadius: 16,
+          background: current.gambar_url ? '#0b1120' : bg,
           cursor: 'pointer',
           overflow: 'hidden',
-          boxShadow: '0 8px 30px rgba(0,0,0,0.35)',
+          boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
+          border: '1px solid rgba(255, 255, 255, 0.08)',
           userSelect: 'none',
-          transition: 'background 0.4s ease',
+          transition: 'all 0.3s ease',
         }}
       >
         {current.gambar_url ? (
           <>
-            {/* Full-width Pamflet Image */}
+            {/* Clean Full-width Banner Image */}
             <img
               src={current.gambar_url}
               alt={current.judul}
               style={{
-                position: 'absolute',
-                top: 0,
-                left: 0,
                 width: '100%',
                 height: '100%',
                 objectFit: 'cover',
@@ -138,87 +133,29 @@ export default function PamfletCarousel() {
               }}
             />
 
-            {/* Gradient shadow overlay for text legibility */}
-            <div
-              style={{
-                position: 'absolute',
-                inset: 0,
-                background: 'linear-gradient(to top, rgba(10, 15, 29, 0.92) 0%, rgba(10, 15, 29, 0.45) 45%, transparent 75%)',
-                pointerEvents: 'none',
-              }}
-            />
-
-            {/* Bottom content overlay */}
-            <div
-              style={{
-                position: 'relative',
-                zIndex: 2,
-                padding: '12px 16px',
-                display: 'flex',
-                alignItems: 'flex-end',
-                justifyContent: 'space-between',
-                gap: 12,
-              }}
-            >
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <span
-                  style={{
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    gap: 4,
-                    fontSize: '0.66rem',
-                    fontWeight: 700,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.5px',
-                    padding: '2px 8px',
-                    borderRadius: 8,
-                    background: 'rgba(255, 255, 255, 0.2)',
-                    backdropFilter: 'blur(8px)',
-                    WebkitBackdropFilter: 'blur(8px)',
-                    color: '#ffffff',
-                    marginBottom: 5,
-                    border: '1px solid rgba(255, 255, 255, 0.25)',
-                  }}
-                >
-                  🖼️ Pamflet
-                </span>
-                <p
-                  style={{
-                    margin: 0,
-                    fontSize: '0.94rem',
-                    fontWeight: 700,
-                    color: '#ffffff',
-                    lineHeight: 1.3,
-                    textShadow: '0 2px 5px rgba(0,0,0,0.85)',
-                    overflow: 'hidden',
-                    textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
-                  }}
-                >
-                  {current.judul}
-                </p>
-              </div>
-
+            {/* Subtle slide counter pill if multiple pamflets */}
+            {pamflets.length > 1 && (
               <div
                 style={{
-                  flexShrink: 0,
-                  display: 'inline-flex',
-                  alignItems: 'center',
-                  gap: 5,
-                  padding: '6px 12px',
-                  borderRadius: 20,
-                  background: '#fbbf24',
-                  color: '#1a1a1a',
-                  fontSize: '0.74rem',
-                  fontWeight: 700,
-                  boxShadow: '0 2px 10px rgba(0,0,0,0.3)',
-                  whiteSpace: 'nowrap',
+                  position: 'absolute',
+                  bottom: 8,
+                  right: 10,
+                  zIndex: 2,
+                  padding: '2px 8px',
+                  borderRadius: 10,
+                  background: 'rgba(0, 0, 0, 0.5)',
+                  backdropFilter: 'blur(8px)',
+                  WebkitBackdropFilter: 'blur(8px)',
+                  color: 'rgba(255, 255, 255, 0.9)',
+                  fontSize: '0.65rem',
+                  fontWeight: 600,
+                  letterSpacing: '0.5px',
+                  pointerEvents: 'none',
                 }}
               >
-                <ExternalLink size={12} />
-                <span>Lihat</span>
+                {activeIndex + 1} / {pamflets.length}
               </div>
-            </div>
+            )}
           </>
         ) : (
           /* Text-only banner when no image is uploaded */
@@ -227,7 +164,7 @@ export default function PamfletCarousel() {
               position: 'relative',
               width: '100%',
               height: '100%',
-              padding: '18px 20px',
+              padding: '16px 20px',
               display: 'flex',
               flexDirection: 'column',
               justifyContent: 'space-between',
@@ -252,15 +189,15 @@ export default function PamfletCarousel() {
               <span
                 style={{
                   display: 'inline-block',
-                  fontSize: '0.68rem',
-                  fontWeight: 700,
+                  fontSize: '0.66rem',
+                  fontWeight: 600,
                   textTransform: 'uppercase',
                   letterSpacing: '0.5px',
                   padding: '2px 8px',
-                  borderRadius: 8,
-                  background: 'rgba(255, 255, 255, 0.2)',
+                  borderRadius: 6,
+                  background: 'rgba(255, 255, 255, 0.15)',
                   color: '#ffffff',
-                  marginBottom: 8,
+                  marginBottom: 6,
                 }}
               >
                 📢 Informasi
@@ -268,7 +205,7 @@ export default function PamfletCarousel() {
               <p
                 style={{
                   margin: 0,
-                  fontSize: '0.98rem',
+                  fontSize: '0.95rem',
                   fontWeight: 700,
                   color: '#ffffff',
                   lineHeight: 1.35,
@@ -285,54 +222,42 @@ export default function PamfletCarousel() {
             </div>
 
             <div style={{ zIndex: 1 }}>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation()
-                  navigate(current.id ? `/berita/${current.id}` : '/berita')
-                }}
+              <span
                 style={{
-                  padding: '6px 14px',
-                  background: '#fbbf24',
-                  color: '#1a1a1a',
-                  border: 'none',
-                  borderRadius: 20,
-                  fontSize: '0.78rem',
-                  fontWeight: 700,
-                  cursor: 'pointer',
                   display: 'inline-flex',
                   alignItems: 'center',
-                  gap: 5,
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.2)',
-                  whiteSpace: 'nowrap',
+                  gap: 4,
+                  fontSize: '0.74rem',
+                  fontWeight: 600,
+                  color: 'rgba(255, 255, 255, 0.85)',
                 }}
               >
-                <ExternalLink size={12} />
-                Lihat selengkapnya
-              </button>
+                Lihat selengkapnya <ExternalLink size={11} />
+              </span>
             </div>
           </div>
         )}
       </div>
 
-      {/* Dot indicators */}
+      {/* Modern Minimalist Dot indicators */}
       {pamflets.length > 1 && (
         <div style={{
-          display: 'flex', justifyContent: 'center', gap: 6,
-          marginTop: 10,
+          display: 'flex', justifyContent: 'center', gap: 5,
+          marginTop: 8,
         }}>
           {pamflets.map((_, i) => (
             <button
               key={i}
               onClick={() => goTo(i)}
               style={{
-                width: i === activeIndex ? 20 : 7,
-                height: 7,
-                borderRadius: 4,
-                background: i === activeIndex ? 'var(--accent-color)' : 'var(--glass-border)',
+                width: i === activeIndex ? 16 : 5,
+                height: 4,
+                borderRadius: 2,
+                background: i === activeIndex ? 'var(--accent-color)' : 'rgba(255, 255, 255, 0.2)',
                 border: 'none',
                 cursor: 'pointer',
                 padding: 0,
-                transition: 'width 0.3s ease, background 0.3s ease',
+                transition: 'all 0.3s ease',
               }}
             />
           ))}

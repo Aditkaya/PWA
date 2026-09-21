@@ -33,16 +33,47 @@ class GerakVoyageController {
         try {
             $pdo = Database::getConnection();
             $n = strtoupper(trim(str_replace([".", "  "], ["", " "], $nama_kapal)));
-            $sql = "SELECT DISTINCT no_voyage FROM manifests WHERE UPPER(REPLACE(REPLACE(nama_kapal, '.', ''), '  ', ' ')) = ? AND no_voyage IS NOT NULL AND no_voyage != '' ORDER BY no_voyage DESC";
-            $stmt = $pdo->prepare($sql); 
+            // Samakan dengan halaman Gerak Voyage AYPsis: voyage bersumber
+            // dari manifests, lalu dinormalisasi dan diurutkan berdasarkan
+            // dua digit tahun di bagian akhir nomor voyage.
+            $sql = "SELECT DISTINCT no_voyage FROM manifests WHERE UPPER(REPLACE(REPLACE(nama_kapal, '.', ''), '  ', ' ')) = ? AND no_voyage IS NOT NULL AND no_voyage != ''";
+            $stmt = $pdo->prepare($sql);
             $stmt->execute([$n]);
             $voyages = $stmt->fetchAll(PDO::FETCH_COLUMN);
-            if (empty($voyages)) {
-                $sql2 = "SELECT DISTINCT no_voyage FROM naik_kapal WHERE UPPER(REPLACE(REPLACE(nama_kapal, '.', ''), '  ', ' ')) = ? AND no_voyage IS NOT NULL AND no_voyage != '' ORDER BY no_voyage DESC";
-                $s2 = $pdo->prepare($sql2); 
-                $s2->execute([$n]);
-                $voyages = $s2->fetchAll(PDO::FETCH_COLUMN);
+
+            $normalizedVoyages = [];
+            foreach ($voyages as $voyage) {
+                $normalized = strtoupper(trim((string) $voyage));
+                if ($normalized !== '') {
+                    $normalizedVoyages[$normalized] = true;
+                }
             }
+
+            $voyages = array_keys($normalizedVoyages);
+            $dockItems = [];
+            $otherItems = [];
+            foreach ($voyages as $voyage) {
+                if (strtolower(trim($voyage)) === 'dock') {
+                    $dockItems[] = $voyage;
+                } else {
+                    $otherItems[] = $voyage;
+                }
+            }
+
+            usort($otherItems, function ($a, $b) {
+                preg_match('/(\d{2})$/', trim($a), $matchesA);
+                preg_match('/(\d{2})$/', trim($b), $matchesB);
+                $yearA = isset($matchesA[1]) ? (int) $matchesA[1] : 0;
+                $yearB = isset($matchesB[1]) ? (int) $matchesB[1] : 0;
+
+                if ($yearA !== $yearB) {
+                    return $yearB <=> $yearA;
+                }
+
+                return strcmp(strtolower(trim($b)), strtolower(trim($a)));
+            });
+
+            $voyages = array_merge($otherItems, $dockItems);
             http_response_code(200); 
             echo json_encode(["data" => $voyages]);
         } catch (\PDOException $e) { 

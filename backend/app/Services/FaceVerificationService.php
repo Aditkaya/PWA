@@ -84,12 +84,17 @@ class FaceVerificationService {
 
     public function verifyAttendance($pdo, $userId, $dataUrl) {
         $jpeg = $this->decodePhoto($dataUrl);
+
+        // Ambil data foto referensi dari DB — referensi TIDAK berasal dari input browser
         $statement = $pdo->prepare('SELECT face_photo_path, face_verified_at FROM users WHERE id = ?');
         $statement->execute([$userId]);
         $user = $statement->fetch();
+
         if (!$user || !$user['face_verified_at'] || !$user['face_photo_path']) {
             throw new FaceVerificationException('Daftarkan wajah terlebih dahulu sebelum absen.', 422);
         }
+
+        // Resolusi path foto referensi hanya dari direktori terpercaya di server
         $reference = null;
         foreach ([UPLOAD_BASE_DIR, defined('AYPSIS_PUBLIC_DIR') ? AYPSIS_PUBLIC_DIR : UPLOAD_BASE_DIR] as $base) {
             $root = realpath($base . '/uploads/face_verifications');
@@ -99,15 +104,39 @@ class FaceVerificationService {
                 break;
             }
         }
+
         if (!$reference || filesize($reference) > 2 * 1024 * 1024) {
             throw new FaceVerificationException('Foto wajah terdaftar tidak dapat dibaca. Silakan daftar ulang.', 422);
         }
+
         $result = $this->request('/verify', [
-            'image' => base64_encode($jpeg),
+            'image'     => base64_encode($jpeg),
             'reference' => base64_encode($this->jpeg(file_get_contents($reference))),
         ]);
-        if (($result['matched'] ?? false) !== true) {
-            throw new FaceVerificationException('Wajah tidak cocok dengan foto terdaftar. Silakan ambil foto ulang.', 422);
+
+        // Validasi ketat: field 'matched' harus benar-benar boolean TRUE
+        // Menghindari bypass via truthy value (1, "true", dll.)
+        if (($result['matched'] ?? null) !== true) {
+            // Log penolakan untuk audit HRD
+            error_log(sprintf(
+                '[FaceVerif] DITOLAK user_id=%s pada %s — respons AI: %s',
+                $userId,
+                date('Y-m-d H:i:s'),
+                json_encode($result)
+            ));
+            throw new FaceVerificationException(
+                'Wajah tidak cocok dengan foto terdaftar. ' .
+                'Pastikan Anda menghadap kamera langsung dengan pencahayaan yang baik, lalu coba lagi. ' .
+                'Jika masalah berlanjut, hubungi HRD untuk registrasi ulang wajah.',
+                422
+            );
         }
+
+        // Log keberhasilan verifikasi untuk audit trail
+        error_log(sprintf(
+            '[FaceVerif] DITERIMA user_id=%s pada %s',
+            $userId,
+            date('Y-m-d H:i:s')
+        ));
     }
 }

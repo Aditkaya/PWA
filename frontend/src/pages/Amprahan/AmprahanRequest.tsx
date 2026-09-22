@@ -1,6 +1,6 @@
-import React, { useEffect, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Ship, Navigation2, Plus, Trash2, Send, ArrowLeft } from 'lucide-react';
+import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, Trash2, Send, ArrowLeft } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import './AmprahanRequest.css';
 
@@ -13,49 +13,9 @@ interface AmprahanItem {
   keterangan: string;
 }
 
-interface Kapal {
-  id: number;
-  nama_kapal: string;
-}
-
 export default function AmprahanRequest() {
-  const location = useLocation();
   const navigate = useNavigate();
   const { user } = useAuthStore();
-  
-  const state = location.state as {
-    kapalId: string;
-    kapalName: string;
-    nomorVoyage: string;
-  } | null;
-
-  const [kapalList, setKapalList] = useState<Kapal[]>([]);
-  const [voyageList, setVoyageList] = useState<string[]>([]);
-  const [kapalId, setKapalId] = useState(state?.kapalId || '');
-  const [nomorVoyage, setNomorVoyage] = useState(state?.nomorVoyage || '');
-  const [isLoadingKapal, setIsLoadingKapal] = useState(!state);
-  const [isLoadingVoyage, setIsLoadingVoyage] = useState(false);
-
-  useEffect(() => {
-    if (state) return;
-
-    fetch('/api/kapal')
-      .then(res => res.json())
-      .then(data => setKapalList(data.data || []))
-      .catch(error => console.error('Error fetching kapal:', error))
-      .finally(() => setIsLoadingKapal(false));
-  }, [state]);
-
-  useEffect(() => {
-    if (!kapalId || state) return;
-
-    setIsLoadingVoyage(true);
-    fetch(`/api/kapal/voyages?kapal_id=${encodeURIComponent(kapalId)}`)
-      .then(res => res.json())
-      .then(data => setVoyageList(data.data || []))
-      .catch(error => console.error('Error fetching voyages:', error))
-      .finally(() => setIsLoadingVoyage(false));
-  }, [kapalId, state]);
 
   const [keteranganUmum, setKeteranganUmum] = useState('');
   const [items, setItems] = useState<AmprahanItem[]>([
@@ -102,8 +62,6 @@ export default function AmprahanRequest() {
         },
         body: JSON.stringify({
           user_id: user?.id,
-          kapal_id: kapalId,
-          nomor_voyage: nomorVoyage,
           keterangan_umum: keteranganUmum,
           items: items.map(i => ({
             nama_barang: i.nama_barang,
@@ -141,29 +99,6 @@ export default function AmprahanRequest() {
 
         <div className="request-header">
           <h2>Form Permintaan Amprahan</h2>
-          {state ? (
-            <div className="info-chips">
-              <div className="chip"><Ship size={16} /><span>{state.kapalName}</span></div>
-              <div className="chip"><Navigation2 size={16} /><span>Voyage: {state.nomorVoyage}</span></div>
-            </div>
-          ) : (
-            <div className="info-chips">
-              <div className="form-group">
-                <label>Kapal *</label>
-                <select className="form-input" value={kapalId} onChange={e => { setKapalId(e.target.value); setNomorVoyage(''); }} required disabled={isLoadingKapal}>
-                  <option value="">{isLoadingKapal ? 'Loading...' : '-- Pilih Kapal --'}</option>
-                  {kapalList.map(kapal => <option key={kapal.id} value={kapal.id}>{kapal.nama_kapal}</option>)}
-                </select>
-              </div>
-              <div className="form-group">
-                <label>Voyage *</label>
-                <select className="form-input" value={nomorVoyage} onChange={e => setNomorVoyage(e.target.value)} required disabled={!kapalId || isLoadingVoyage}>
-                  <option value="">{!kapalId ? '-- Pilih kapal terlebih dahulu --' : (isLoadingVoyage ? 'Loading...' : '-- Pilih Voyage --')}</option>
-                  {voyageList.map(voyage => <option key={voyage} value={voyage}>{voyage}</option>)}
-                </select>
-              </div>
-            </div>
-          )}
         </div>
 
         <form onSubmit={handleSubmit} className="request-form">

@@ -12,14 +12,12 @@ class AmprahanController {
     
     public function submitRequest($postData) {
         $user_id = $postData['user_id'] ?? null;
-        $kapal_id = $postData['kapal_id'] ?? null;
-        $nomor_voyage = $postData['nomor_voyage'] ?? null;
         $keterangan_umum = $postData['keterangan_umum'] ?? null;
         $items = $postData['items'] ?? [];
 
-        if (!$user_id || !$kapal_id || !$nomor_voyage || empty($items)) {
+        if (!$user_id || empty($items)) {
             http_response_code(400);
-            echo json_encode(['message' => 'Data tidak lengkap (user_id, kapal_id, nomor_voyage, items)']);
+            echo json_encode(['message' => 'Data tidak lengkap (user_id, items)']);
             return;
         }
 
@@ -29,9 +27,9 @@ class AmprahanController {
 
             $stmt = $pdo->prepare("
                 INSERT INTO permohonan_amprahans (user_id, kapal_id, nomor_voyage, keterangan_umum, status)
-                VALUES (?, ?, ?, ?, 'pending')
+                VALUES (?, NULL, NULL, ?, 'pending')
             ");
-            $stmt->execute([$user_id, $kapal_id, $nomor_voyage, $keterangan_umum]);
+            $stmt->execute([$user_id, $keterangan_umum]);
             
             $permohonan_id = $pdo->lastInsertId();
 

@@ -53,6 +53,11 @@ export const translations = {
     attendanceRecorded: "Absen {type} berhasil dicatat!",
     attendanceFailed: "Gagal mencatat absensi",
     systemError: "Terjadi kesalahan sistem",
+    clearAppCache: "Bersihkan Cache Aplikasi",
+    clearingCache: "Membersihkan Cache...",
+    clearCacheConfirm: "Bersihkan cache aplikasi dan muat ulang sekarang? Data login Anda tidak akan dihapus.",
+    cacheCleared: "Cache berhasil dibersihkan. Aplikasi akan dimuat ulang.",
+    cacheClearFailed: "Cache gagal dibersihkan. Silakan coba lagi.",
     
     // Camera Modal
     detectingFace: "Mendeteksi wajah...",
@@ -191,6 +196,11 @@ export const translations = {
     attendanceRecorded: "{type} attendance recorded successfully!",
     attendanceFailed: "Failed to record attendance",
     systemError: "System error occurred",
+    clearAppCache: "Clear App Cache",
+    clearingCache: "Clearing Cache...",
+    clearCacheConfirm: "Clear the app cache and reload now? Your login data will not be removed.",
+    cacheCleared: "Cache cleared successfully. The app will reload.",
+    cacheClearFailed: "Failed to clear the cache. Please try again.",
     
     // Camera Modal
     detectingFace: "Detecting face...",

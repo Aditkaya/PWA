@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useOutletContext, useNavigate } from 'react-router-dom'
-import { Clock, Coffee, LogOut, LogIn, CalendarDays, Sun, Plane, AlertCircle, Info, XCircle, ScanFace, ClipboardCheck, CalendarClock, Shield } from 'lucide-react'
+import { Clock, Coffee, LogOut, LogIn, CalendarDays, Sun, Plane, AlertCircle, Info, XCircle, ScanFace, ClipboardCheck, CalendarClock, Shield, RefreshCw } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import CameraModal from '../../components/CameraModal'
 import IzinModal from '../../components/IzinModal'
@@ -35,6 +35,7 @@ export default function Dashboard() {
   const [userGroup, setUserGroup] = useState<string>('')
   const [userProfile, setUserProfile] = useState<any>(null)
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0)
+  const [isClearingCache, setIsClearingCache] = useState(false)
   
   const { lang } = useLangStore()
   const { isOvertimeMode } = useModeStore()
@@ -254,6 +255,36 @@ export default function Dashboard() {
     }
   }
 
+  const handleClearAppCache = async () => {
+    if (isClearingCache || !window.confirm(t.clearCacheConfirm)) return
+
+    setIsClearingCache(true)
+    try {
+      if ('caches' in window) {
+        const cacheNames = await caches.keys()
+        await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)))
+      }
+
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations()
+        await Promise.all(registrations.map(async registration => {
+          try {
+            await registration.update()
+          } catch {
+            // Cache tetap berhasil dibersihkan saat perangkat sedang offline.
+          }
+        }))
+      }
+
+      showToast(t.cacheCleared, 'success')
+      window.setTimeout(() => window.location.reload(), 700)
+    } catch (error) {
+      console.error('Failed to clear application cache', error)
+      showToast(t.cacheClearFailed, 'error')
+      setIsClearingCache(false)
+    }
+  }
+
   const handleCapture = async (imageSrc: string, locationData?: {address: string, lat: number, lng: number, outOfRangeMessage?: string}) => {
     if (!user?.id) throw new Error('Silakan masuk kembali sebelum absen.')
     const controller = new AbortController()
@@ -339,6 +370,19 @@ export default function Dashboard() {
       >
         <h2>{getGreeting()}, {getFirstName()}!</h2>
         <p>{hasFullDayLeave ? t.statusLeave : (isOvertimeMode ? t.statusOvertime : t.statusActive)}</p>
+      </div>
+
+      <div className="cache-action-row">
+        <button
+          type="button"
+          className="btn-clear-cache"
+          onClick={handleClearAppCache}
+          disabled={isClearingCache}
+          aria-label={t.clearAppCache}
+        >
+          <RefreshCw size={17} className={isClearingCache ? 'cache-icon-spinning' : ''} />
+          <span>{isClearingCache ? t.clearingCache : t.clearAppCache}</span>
+        </button>
       </div>
 
       {userProfile && userProfile.is_face_verified === false && (

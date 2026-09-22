@@ -1,6 +1,6 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth.store'
-import { Home, History, User, LogOut as LogOutIcon, Download, Sun, Moon, Globe, MoreVertical, ClipboardList, Ship, Warehouse, Newspaper, Anchor } from 'lucide-react'
+import { Home, History, User, LogOut as LogOutIcon, Download, Sun, Moon, Globe, MoreVertical, ClipboardList, Ship, Warehouse, Newspaper, Anchor, RefreshCw } from 'lucide-react'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { useState, useEffect, useRef } from 'react'
 import { useLangStore } from '../store/lang.store'
@@ -28,6 +28,7 @@ export default function DashboardLayout() {
   const [, setIsSupervisor] = useState(false)
   const [featurePermissions, setFeaturePermissions] = useState<Record<string, boolean> | null>(null)
   const [showFaceRegistration, setShowFaceRegistration] = useState(false)
+  const [isClearingCache, setIsClearingCache] = useState(false)
   
   const { user } = useAuthStore()
 
@@ -74,6 +75,30 @@ export default function DashboardLayout() {
 
   const toggleTheme = () => {
     setTheme(prev => prev === 'dark' ? 'light' : 'dark')
+  }
+
+  const handleClearAppCache = async () => {
+    if (isClearingCache) return
+    setIsClearingCache(true)
+    setIsMenuOpen(false)
+    try {
+      if ('caches' in window) {
+        const cacheNames = await caches.keys()
+        await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)))
+      }
+      if ('serviceWorker' in navigator) {
+        const registrations = await navigator.serviceWorker.getRegistrations()
+        await Promise.all(registrations.map(async registration => {
+          try { await registration.update() } catch { /* offline OK */ }
+        }))
+      }
+      showToast(t.cacheCleared || 'Cache berhasil dibersihkan', 'success')
+      window.setTimeout(() => window.location.reload(), 700)
+    } catch (error) {
+      console.error('Failed to clear application cache', error)
+      showToast(t.cacheClearFailed || 'Gagal membersihkan cache', 'error')
+      setIsClearingCache(false)
+    }
   }
   
   return (
@@ -226,6 +251,16 @@ export default function DashboardLayout() {
                 )}
 
                 <hr style={{ border: 'none', borderTop: '1px solid rgba(255,255,255,0.1)', margin: '4px 0' }} />
+                <button 
+                  onClick={handleClearAppCache}
+                  disabled={isClearingCache}
+                  style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: isClearingCache ? 'wait' : 'pointer', borderRadius: '8px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 500, opacity: isClearingCache ? 0.6 : 1 }}
+                  onMouseEnter={(e) => e.currentTarget.style.background = 'var(--glass-bg)'}
+                  onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                >
+                  <RefreshCw size={18} className={isClearingCache ? 'cache-icon-spinning' : ''} />
+                  <span>{isClearingCache ? (t.clearingCache || 'Membersihkan...') : (t.clearAppCache || 'Bersihkan Cache')}</span>
+                </button>
                 <button 
                   onClick={() => { logout(); setIsMenuOpen(false); }}
                   style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: '#ef4444', cursor: 'pointer', borderRadius: '8px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 500 }}

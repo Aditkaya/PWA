@@ -203,8 +203,8 @@ body {
 .dashboard {
   display: flex;
   flex-direction: column;
-  gap: 20px;
-  flex: 1; /* Isi sisa ruang di main-content */
+  gap: 14px;
+  flex: 1;
 }
 
 .glass-panel {
@@ -232,23 +232,25 @@ body {
 }
 
 .greeting-card {
-  padding: 14px 18px;
+  padding: 12px 16px 6px;
   text-align: center;
+  border-radius: 18px;
+  margin-bottom: -6px;
 }
 
 .greeting-card h2 {
-  font-size: 1.15rem;
-  margin-bottom: 4px;
+  font-size: 1.05rem;
+  margin-bottom: 2px;
   font-weight: 600;
 }
 .greeting-card p {
   color: var(--text-secondary);
-  font-size: 0.85rem;
+  font-size: 0.8rem;
 }
 
 .clock-section {
   text-align: center;
-  margin: 16px 0;
+  margin: 8px 0;
   position: relative;
 }
 
@@ -258,17 +260,17 @@ body {
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
-  width: 150px;
-  height: 150px;
+  width: 120px;
+  height: 120px;
   background: var(--clock-glow);
-  filter: blur(40px);
+  filter: blur(35px);
   border-radius: 50%;
   z-index: 0;
 }
 
 .clock-section .time {
   font-family: 'Outfit', sans-serif;
-  font-size: 2.5rem;
+  font-size: 2.25rem;
   font-weight: 700;
   letter-spacing: -1px;
   background: linear-gradient(to bottom right, #ffffff, #94a3b8);
@@ -289,15 +291,15 @@ body {
 
 .clock-section .date {
   color: var(--text-secondary);
-  font-size: 0.85rem;
-  margin-top: 4px;
+  font-size: 0.8rem;
+  margin-top: 2px;
   font-weight: 500;
 }
 
 .action-section {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
-  gap: 12px;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
 }
 
 .btn-attendance {
@@ -306,15 +308,15 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
-  padding: 22px 10px;
-  border-radius: 20px;
+  gap: 8px;
+  padding: 16px 6px;
+  border-radius: 14px;
   border: 1px solid var(--glass-border);
   background: var(--glass-bg);
   color: var(--text-primary);
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   font-weight: 600;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
   font-family: 'Inter', sans-serif;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
@@ -322,7 +324,7 @@ body {
   overflow: hidden;
   backdrop-filter: blur(12px);
   -webkit-backdrop-filter: blur(12px);
-  box-shadow: 0 4px 15px rgba(0,0,0,0.1), inset 0 1px 0 var(--glass-highlight);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.08), inset 0 1px 0 var(--glass-highlight);
 }
 
 .btn-attendance::before {
@@ -342,9 +344,9 @@ body {
 }
 
 .btn-attendance:hover:not(:disabled) {
-  transform: translateY(-4px);
-  box-shadow: 0 12px 35px var(--shadow-dark), inset 0 1px 0 var(--glass-highlight);
-  border-color: rgba(255, 255, 255, 0.3);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px var(--shadow-dark), inset 0 1px 0 var(--glass-highlight);
+  border-color: rgba(255, 255, 255, 0.2);
 }
 
 :root[data-theme="light"] .btn-attendance:hover:not(:disabled) {
@@ -435,14 +437,14 @@ body {
 }
 
 .leave-section {
-  padding: 20px;
-  border-radius: 20px;
+  padding: 16px;
+  border-radius: 16px;
 }
 
 .section-title {
-  font-size: 1.1rem;
+  font-size: 1rem;
   font-family: 'Outfit', sans-serif;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
   color: var(--text-primary);
   text-align: left;
 }
@@ -450,23 +452,23 @@ body {
 .leave-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
+  gap: 10px;
 }
 
 .btn-leave {
   background: var(--glass-bg);
   border: 1px solid var(--glass-border);
-  border-radius: 20px;
-  padding: 22px 10px;
+  border-radius: 14px;
+  padding: 16px 8px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 12px;
+  gap: 8px;
   color: var(--text-secondary);
-  font-size: 0.85rem;
+  font-size: 0.78rem;
   font-weight: 500;
-  letter-spacing: 0.5px;
+  letter-spacing: 0.3px;
   cursor: pointer;
   transition: all 0.3s cubic-bezier(0.25, 0.8, 0.25, 1);
   backdrop-filter: blur(12px);
@@ -477,9 +479,9 @@ body {
 .btn-leave:hover {
   background: rgba(255, 255, 255, 0.08);
   color: var(--text-primary);
-  border-color: rgba(255, 255, 255, 0.25);
-  transform: translateY(-4px);
-  box-shadow: 0 12px 35px var(--shadow-dark), inset 0 1px 0 var(--glass-highlight);
+  border-color: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px var(--shadow-dark), inset 0 1px 0 var(--glass-highlight);
 }
 
 :root[data-theme="light"] .btn-leave:hover {
@@ -489,11 +491,11 @@ body {
 
 .btn-leave svg {
   color: var(--accent-color);
-  margin-bottom: 4px;
+  margin-bottom: 2px;
   transition: transform 0.3s ease;
 }
 .btn-leave:hover svg {
-  transform: scale(1.1);
+  transform: scale(1.05);
 }
 
 .copyright-footer {
@@ -501,20 +503,18 @@ body {
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  gap: 4px;
+  gap: 2px;
   color: var(--text-secondary);
-  font-size: 0.8rem;
-  background: var(--glass-bg);
-  padding: 12px 20px;
-  border-radius: 20px;
-  border: 1px solid var(--glass-border);
-  margin-top: -4px;
+  font-size: 0.7rem;
+  padding: 8px 16px;
+  margin-top: 0;
+  opacity: 0.7;
 }
 
 .copyright-footer .app-name {
   color: var(--accent-color);
   font-weight: 600;
-  font-size: 0.75rem;
+  font-size: 0.65rem;
 }
 
 .fade-in {

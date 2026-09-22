@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useOutletContext, useNavigate } from 'react-router-dom'
-import { Clock, Coffee, LogOut, LogIn, CalendarDays, Sun, Plane, AlertCircle, Info, XCircle, ScanFace, ClipboardCheck, CalendarClock, Shield, RefreshCw } from 'lucide-react'
+import { Clock, Coffee, LogOut, LogIn, CalendarDays, Sun, Plane, AlertCircle, Info, XCircle, ScanFace, ClipboardCheck, CalendarClock, Shield } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import CameraModal from '../../components/CameraModal'
 import IzinModal from '../../components/IzinModal'
@@ -35,7 +35,6 @@ export default function Dashboard() {
   const [userGroup, setUserGroup] = useState<string>('')
   const [userProfile, setUserProfile] = useState<any>(null)
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0)
-  const [isClearingCache, setIsClearingCache] = useState(false)
   
   const { lang } = useLangStore()
   const { isOvertimeMode } = useModeStore()
@@ -255,35 +254,7 @@ export default function Dashboard() {
     }
   }
 
-  const handleClearAppCache = async () => {
-    if (isClearingCache || !window.confirm(t.clearCacheConfirm)) return
 
-    setIsClearingCache(true)
-    try {
-      if ('caches' in window) {
-        const cacheNames = await caches.keys()
-        await Promise.all(cacheNames.map(cacheName => caches.delete(cacheName)))
-      }
-
-      if ('serviceWorker' in navigator) {
-        const registrations = await navigator.serviceWorker.getRegistrations()
-        await Promise.all(registrations.map(async registration => {
-          try {
-            await registration.update()
-          } catch {
-            // Cache tetap berhasil dibersihkan saat perangkat sedang offline.
-          }
-        }))
-      }
-
-      showToast(t.cacheCleared, 'success')
-      window.setTimeout(() => window.location.reload(), 700)
-    } catch (error) {
-      console.error('Failed to clear application cache', error)
-      showToast(t.cacheClearFailed, 'error')
-      setIsClearingCache(false)
-    }
-  }
 
   const handleCapture = async (imageSrc: string, locationData?: {address: string, lat: number, lng: number, outOfRangeMessage?: string}) => {
     if (!user?.id) throw new Error('Silakan masuk kembali sebelum absen.')
@@ -377,18 +348,7 @@ export default function Dashboard() {
         <p>{hasFullDayLeave ? t.statusLeave : (isOvertimeMode ? t.statusOvertime : t.statusActive)}</p>
       </div>
 
-      <div className="cache-action-row">
-        <button
-          type="button"
-          className="btn-clear-cache"
-          onClick={handleClearAppCache}
-          disabled={isClearingCache}
-          aria-label={t.clearAppCache}
-        >
-          <RefreshCw size={17} className={isClearingCache ? 'cache-icon-spinning' : ''} />
-          <span>{isClearingCache ? t.clearingCache : t.clearAppCache}</span>
-        </button>
-      </div>
+
 
       {userProfile && userProfile.is_face_verified === false && (
         <div className="warning-banner glass-panel" style={{ borderLeft: '4px solid #ef4444', padding: '12px 16px', marginBottom: '16px', display: 'flex', flexDirection: 'column', gap: '12px' }}>
@@ -423,7 +383,7 @@ export default function Dashboard() {
               disabled={hasFullDayLeave || !!todayOvertimeIn || (userProfile && userProfile.is_face_verified === false)}
               onClick={() => handleAttendanceClick('Mulai Lembur')}
             >
-              <Clock size={24} strokeWidth={1.25} />
+              <Clock size={20} strokeWidth={1.5} />
               <span>
                 {todayOvertimeIn
                   ? hasActiveOvernightSession
@@ -438,7 +398,7 @@ export default function Dashboard() {
               disabled={hasFullDayLeave || !isOvertimeStarted || !!todayOvertimeOut || (userProfile && userProfile.is_face_verified === false)}
               onClick={() => handleAttendanceClick('Selesai Lembur')}
             >
-              <Clock size={24} strokeWidth={1.25} />
+              <Clock size={20} strokeWidth={1.5} />
               <span>{todayOvertimeOut ? `${t.endOvertime}: ${todayOvertimeOut.time}` : t.endOvertime}</span>
             </button>
           </>
@@ -449,7 +409,7 @@ export default function Dashboard() {
               disabled={hasFullDayLeave || !!todayCheckIn || (userProfile && userProfile.is_face_verified === false)}
               onClick={() => handleAttendanceClick('Masuk')}
             >
-              <Clock size={24} strokeWidth={1.25} />
+              <Clock size={20} strokeWidth={1.5} />
               <span>{todayCheckIn ? `${t.masuk}: ${todayCheckIn.time}` : t.checkIn}</span>
             </button>
             <button 
@@ -457,7 +417,7 @@ export default function Dashboard() {
               disabled={hasFullDayLeave || !todayCheckIn || !!todayCheckOut || (userProfile && userProfile.is_face_verified === false)}
               onClick={() => handleAttendanceClick('Pulang')}
             >
-              <Clock size={24} strokeWidth={1.25} />
+              <Clock size={20} strokeWidth={1.5} />
               <span>{todayCheckOut ? `${t.pulang}: ${todayCheckOut.time}` : t.checkOut}</span>
             </button>
             <button 
@@ -465,7 +425,7 @@ export default function Dashboard() {
               disabled={hasFullDayLeave || !todayCheckIn || !!todayBreakOut || !!todayBreakIn || !!todayCheckOut || (userProfile && userProfile.is_face_verified === false)}
               onClick={() => handleAttendanceClick('Istirahat Keluar')}
             >
-              <Coffee size={24} strokeWidth={1.25} />
+              <Coffee size={20} strokeWidth={1.5} />
               <span>{todayBreakOut ? `${t.istirahat}: ${todayBreakOut.time}` : t.breakOut}</span>
             </button>
             <button 
@@ -473,7 +433,7 @@ export default function Dashboard() {
               disabled={hasFullDayLeave || !todayBreakOut || !!todayBreakIn || (userProfile && userProfile.is_face_verified === false)}
               onClick={() => handleAttendanceClick('Istirahat Masuk')}
             >
-              <Coffee size={24} strokeWidth={1.25} />
+              <Coffee size={20} strokeWidth={1.5} />
               <span>{todayBreakIn ? `${t.kembali}: ${todayBreakIn.time}` : t.breakIn}</span>
             </button>
             <button 
@@ -481,7 +441,7 @@ export default function Dashboard() {
               disabled={hasFullDayLeave || !todayCheckIn || isCurrentlyOnPermit || !!todayCheckOut || (userProfile && userProfile.is_face_verified === false)}
               onClick={() => handleAttendanceClick('Izin Keluar')}
             >
-              <LogOut size={24} strokeWidth={1.25} />
+              <LogOut size={20} strokeWidth={1.5} />
               <span>{lastPermitOut ? `${t.keluar}: ${lastPermitOut.time}` : t.permitOut}</span>
             </button>
             <button 
@@ -489,7 +449,7 @@ export default function Dashboard() {
               disabled={hasFullDayLeave || !isCurrentlyOnPermit || (userProfile && userProfile.is_face_verified === false)}
               onClick={() => handleAttendanceClick('Izin Masuk')}
             >
-              <LogIn size={24} strokeWidth={1.25} />
+              <LogIn size={20} strokeWidth={1.5} />
               <span>{lastPermitIn ? `${t.kembali}: ${lastPermitIn.time}` : t.permitIn}</span>
             </button>
           </>
@@ -524,7 +484,7 @@ export default function Dashboard() {
                       setIzinModalType('Izin Sakit')
                       setIsIzinModalOpen(true)
                     }}>
-                      <CalendarDays size={24} strokeWidth={1.25} />
+                      <CalendarDays size={20} strokeWidth={1.5} />
                       <span>{t.fullDayPermit}</span>
                     </button>
                   )}
@@ -533,7 +493,7 @@ export default function Dashboard() {
                       setIzinModalType('Izin 1/2 Hari')
                       setIsIzinModalOpen(true)
                     }}>
-                      <Sun size={24} strokeWidth={1.25} />
+                      <Sun size={20} strokeWidth={1.5} />
                       <span>{t.halfDayPermit}</span>
                     </button>
                   )}
@@ -548,19 +508,19 @@ export default function Dashboard() {
                         }
                       }}
                     >
-                      <Plane size={24} strokeWidth={1.25} />
+                      <Plane size={20} strokeWidth={1.5} />
                       <span>{t.annualLeave}</span>
                     </button>
                   )}
                   {fp('lupa_absen') && (
                     <button className="btn-leave" onClick={() => setIsLupaAbsenModalOpen(true)}>
-                      <Clock size={24} strokeWidth={1.25} />
+                      <Clock size={20} strokeWidth={1.5} />
                       <span>Lupa Absen</span>
                     </button>
                   )}
                   {isHrdOrSpv && fp('perencanaan_lembur') && (
                     <button className="btn-leave" onClick={() => setIsPerencanaanModalOpen(true)}>
-                      <CalendarClock size={24} strokeWidth={1.25} />
+                      <CalendarClock size={20} strokeWidth={1.5} />
                       <span>Perencanaan Lembur</span>
                     </button>
                   )}
@@ -582,7 +542,7 @@ export default function Dashboard() {
                           {pendingApprovalCount}
                         </div>
                       )}
-                      <ClipboardCheck size={24} strokeWidth={1.25} />
+                      <ClipboardCheck size={20} strokeWidth={1.5} />
                       <span>Approval Karyawan</span>
                     </button>
                   )}
@@ -593,7 +553,7 @@ export default function Dashboard() {
                       onClick={() => navigate('/it/admin')}
                       style={{ background: 'linear-gradient(135deg, rgba(99,102,241,0.15), rgba(139,92,246,0.1))', borderColor: 'rgba(99,102,241,0.3)' }}
                     >
-                      <Shield size={24} strokeWidth={1.25} color="#6366f1" />
+                      <Shield size={20} strokeWidth={1.5} color="#6366f1" />
                       <span style={{ color: '#6366f1' }}>IT Admin</span>
                     </button>
                   )}

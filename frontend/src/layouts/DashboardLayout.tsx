@@ -24,7 +24,6 @@ export default function DashboardLayout() {
   const [isMenuOpen, setIsMenuOpen] = useState(false)
   const menuRef = useRef<HTMLDivElement>(null)
   const [userGroup, setUserGroup] = useState('')
-  const [userDivisi, setUserDivisi] = useState('')
   const [, setUserPekerjaan] = useState('')
   const [, setIsSupervisor] = useState(false)
   const [featurePermissions, setFeaturePermissions] = useState<Record<string, boolean> | null>(null)
@@ -39,7 +38,6 @@ export default function DashboardLayout() {
         .then(data => {
           if (data.data) {
             setUserGroup(data.data.grup || '')
-            setUserDivisi(data.data.divisi || '')
             setUserPekerjaan(data.data.pekerjaan || '')
             setIsSupervisor(data.data.is_supervisor || false)
             setFeaturePermissions(data.data.feature_permissions || {})
@@ -204,7 +202,7 @@ export default function DashboardLayout() {
                   </button>
                 )}
 
-                {(!featurePermissions || featurePermissions['amprahan'] !== false) && userDivisi.toUpperCase().includes('ABK') && (
+                {(!featurePermissions || featurePermissions['amprahan'] !== false) && (
                   <>
                     <button 
                       onClick={() => { navigate('/amprahan'); setIsMenuOpen(false); }}

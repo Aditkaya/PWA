@@ -83,7 +83,8 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   // Fetch Allowed Locations once & preload logo
   useEffect(() => {
     if (isOpen) {
-      fetch('/api/lokasi')
+      const url = user?.id ? `/api/lokasi?user_id=${user.id}` : '/api/lokasi';
+      fetch(url)
         .then(res => res.json())
         .then(data => {
           if (data.data) setAllowedLocations(data.data);
@@ -94,7 +95,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       img.src = '/logo.png';
       img.onload = () => setLogoImage(img);
     }
-  }, [isOpen]);
+  }, [isOpen, user?.id]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -196,9 +197,13 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       : 0;
 
     let minDistance = Infinity;
+    let targetLocName = '';
     for (const loc of allowedLocations) {
       const dist = getDistanceFromLatLonInM(lat, lng, parseFloat(loc.latitude), parseFloat(loc.longitude));
-      if (dist < minDistance) minDistance = dist;
+      if (dist < minDistance) {
+        minDistance = dist;
+        targetLocName = loc.nama_lokasi || '';
+      }
       // Bandingkan jarak efektif (dikurangi toleransi GPS) terhadap radius lokasi
       if (dist - accuracyTolerance <= parseFloat(loc.radius)) {
         minDistance = -1; // Valid location found
@@ -206,7 +211,9 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       }
     }
     if (minDistance > 0 && minDistance !== Infinity) {
-      return `${t.outOfRange}: ${Math.round(minDistance)}m`;
+      return targetLocName
+        ? `${t.outOfRange} ${targetLocName}: ${Math.round(minDistance)}m`
+        : `${t.outOfRange}: ${Math.round(minDistance)}m`;
     }
     return '';
   }, [locationCoords, gpsAccuracy, allowedLocations, t.outOfRange]);

@@ -318,8 +318,13 @@ export default function Dashboard() {
       })
 
       if (response.ok) {
-        showToast(t.attendanceRecorded.replace('{type}', attendanceType), 'success')
-        fetchHistoryAndProfile() // Refresh data
+        const data = await response.json().catch(() => ({}));
+        if (data.status === 'Persetujuan' || data.is_approval) {
+          showToast(data.message || 'Absensi di luar radius lokasi wajib dan memerlukan persetujuan.', 'info');
+        } else {
+          showToast(data.message || t.attendanceRecorded.replace('{type}', attendanceType), 'success');
+        }
+        fetchHistoryAndProfile(); // Refresh data
       } else {
         const data = await response.json().catch(() => ({}))
         throw new Error(data.message || t.attendanceFailed)

@@ -105,9 +105,95 @@ class AttendanceController {
                 $db_photo_path = null;
             }
 
+            // Validasi Lokasi Absensi Wajib & Radius Geofence (Opsi B: Status Persetujuan jika di luar radius)
+            $statusAbsensi = 'Selesai';
+            $finalDetailLokasi = $detail_lokasi;
+
+            // 1. Ambil lokasi penugasan khusus karyawan
+            $stmtSpecialLoc = $pdo->prepare("
+                SELECT la.id, la.latitude, la.longitude, la.radius, la.nama_lokasi, la.tipe_penugasan
+                FROM lokasi_absensis la
+                INNER JOIN lokasi_absensi_karyawan lak ON la.id = lak.lokasi_absensi_id
+                WHERE lak.karyawan_id = ? AND la.is_active = 1
+            ");
+            $stmtSpecialLoc->execute([$karyawan_id]);
+            $assignedLocations = $stmtSpecialLoc->fetchAll();
+            $hasSpecialAssignment = !empty($assignedLocations);
+
+            // 2. Jika tidak ada penugasan khusus, ambil lokasi bertipe 'semua'
+            if (empty($assignedLocations)) {
+                $stmtSemuaLoc = $pdo->query("
+                    SELECT id, latitude, longitude, radius, nama_lokasi, tipe_penugasan
+                    FROM lokasi_absensis
+                    WHERE is_active = 1 AND (tipe_penugasan = 'semua' OR tipe_penugasan IS NULL)
+                ");
+                $assignedLocations = $stmtSemuaLoc->fetchAll();
+            }
+
+            // 3. Fallback jika masih kosong
+            if (empty($assignedLocations)) {
+                $stmtFallbackLoc = $pdo->query("
+                    SELECT id, latitude, longitude, radius, nama_lokasi, tipe_penugasan
+                    FROM lokasi_absensis
+                    WHERE is_active = 1
+                ");
+                $assignedLocations = $stmtFallbackLoc->fetchAll();
+            }
+
+            $nearestLoc = null;
+            $nearestDistance = null;
+            $isInRadius = false;
+
+            if ($latitude !== null && $longitude !== null && !empty($assignedLocations)) {
+                $lat1 = deg2rad((float)$latitude);
+                $lon1 = deg2rad((float)$longitude);
+
+                foreach ($assignedLocations as $loc) {
+                    if (!is_numeric($loc['latitude']) || !is_numeric($loc['longitude'])) {
+                        continue;
+                    }
+                    $lat2 = deg2rad((float)$loc['latitude']);
+                    $lon2 = deg2rad((float)$loc['longitude']);
+                    $dLat = $lat2 - $lat1;
+                    $dLon = $lon2 - $lon1;
+                    $a = sin($dLat / 2) ** 2 + cos($lat1) * cos($lat2) * sin($dLon / 2) ** 2;
+                    $dist = 6371000 * 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+                    if ($nearestDistance === null || $dist < $nearestDistance) {
+                        $nearestDistance = $dist;
+                        $nearestLoc = $loc;
+                    }
+
+                    if ($dist <= (int)$loc['radius']) {
+                        $isInRadius = true;
+                        $nearestDistance = $dist;
+                        $nearestLoc = $loc;
+                        break;
+                    }
+                }
+
+                if ($nearestLoc) {
+                    $distRound = round($nearestDistance);
+                    if ($isInRadius) {
+                        $statusAbsensi = 'Selesai';
+                        $locNote = "{$nearestLoc['nama_lokasi']} (Jarak: {$distRound}m)";
+                        $finalDetailLokasi = $detail_lokasi ? ($detail_lokasi . " - " . $locNote) : $locNote;
+                    } else {
+                        // Di luar radius lokasi wajib -> Status Persetujuan
+                        $statusAbsensi = 'Persetujuan';
+                        $locNote = "Di luar radius {$nearestLoc['nama_lokasi']} (Jarak: {$distRound}m, Radius: {$nearestLoc['radius']}m)";
+                        $finalDetailLokasi = $detail_lokasi ? ($detail_lokasi . " | " . $locNote) : $locNote;
+                    }
+                }
+            } elseif ($hasSpecialAssignment && ($latitude === null || $longitude === null)) {
+                // Karyawan punya lokasi khusus tetapi tidak ada koordinat GPS
+                $statusAbsensi = 'Persetujuan';
+                $finalDetailLokasi = ($detail_lokasi ? $detail_lokasi . " | " : "") . "Koordinat GPS tidak terdeteksi pada lokasi wajib";
+            }
+
             // Insert into absensis
-            $stmt = $pdo->prepare("INSERT INTO absensis (karyawan_id, nik, waktu, tipe, status, foto, latitude, longitude, detail_lokasi, keterangan) VALUES (?, ?, NOW(), ?, 'Selesai', ?, ?, ?, ?, ?)");
-            $stmt->execute([$karyawan_id, $nik, $tipe, $db_photo_path, $latitude, $longitude, $detail_lokasi, $keterangan]);
+            $stmt = $pdo->prepare("INSERT INTO absensis (karyawan_id, nik, waktu, tipe, status, foto, latitude, longitude, detail_lokasi, keterangan) VALUES (?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?)");
+            $stmt->execute([$karyawan_id, $nik, $tipe, $statusAbsensi, $db_photo_path, $latitude, $longitude, $finalDetailLokasi, $keterangan]);
 
             $normalizedTipe = strtolower(str_replace('_', ' ', $tipe));
             if (in_array($normalizedTipe, ['lembur pulang', 'selesai lembur', 'lembur keluar'])) {
@@ -124,8 +210,16 @@ class AttendanceController {
                 \App\Helpers\OvertimeValidator::checkAndCreateApproval($karyawan_id, $tanggalSesiLembur);
             }
 
+            $successMsg = ($statusAbsensi === 'Persetujuan' && $nearestLoc)
+                ? "Absensi {$tipe} tercatat di luar radius lokasi wajib ({$nearestLoc['nama_lokasi']}) dan memerlukan persetujuan."
+                : 'Absensi berhasil';
+
             http_response_code(200);
-            echo json_encode(['message' => 'Absensi berhasil']);
+            echo json_encode([
+                'message' => $successMsg,
+                'status' => $statusAbsensi,
+                'is_approval' => ($statusAbsensi === 'Persetujuan')
+            ]);
         } catch (\App\Services\FaceVerificationException $e) {
             http_response_code($e->getCode());
             echo json_encode(['message' => $e->getMessage()]);

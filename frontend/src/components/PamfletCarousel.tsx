@@ -10,6 +10,13 @@ interface PamfletItem {
   published_at: string | null
 }
 
+// Track image load failures to fall back to text card
+function useImageStatus(url: string | null) {
+  const [failed, setFailed] = useState(false)
+  useEffect(() => { setFailed(false) }, [url])
+  return { failed, onError: () => setFailed(true) }
+}
+
 // Warna background per-slide (berulang jika lebih dari palette)
 const SLIDE_COLORS = [
   'linear-gradient(135deg, #c0392b 0%, #96281b 100%)',
@@ -35,9 +42,13 @@ export default function PamfletCarousel() {
     fetch('/api/berita?tipe=pamflet&limit=10')
       .then(r => r.json())
       .then(json => {
-        if (json.success) setPamflets(json.data ?? [])
+        if (json.success) {
+          setPamflets(json.data ?? [])
+        } else {
+          console.error('[PamfletCarousel] API returned success=false', json)
+        }
       })
-      .catch(() => {})
+      .catch(err => console.error('[PamfletCarousel] fetch error:', err))
       .finally(() => setLoading(false))
   }, [])
 
@@ -49,6 +60,10 @@ export default function PamfletCarousel() {
     }, 5000)
     return () => clearInterval(timer)
   }, [pamflets.length])
+
+  // Track image load status — must be called unconditionally (Rules of Hooks)
+  // We pass null when no pamflet is active yet; the hook handles null gracefully
+  const imgStatus = useImageStatus(pamflets[activeIndex]?.gambar_url ?? null)
 
   const goTo = (index: number) => setActiveIndex(index)
 
@@ -91,6 +106,7 @@ export default function PamfletCarousel() {
 
   const current = pamflets[activeIndex]
   const bg = SLIDE_COLORS[activeIndex % SLIDE_COLORS.length]
+  const showImage = !!current.gambar_url && !imgStatus.failed
 
   return (
     <div style={{ paddingBottom: 4 }}>
@@ -107,7 +123,7 @@ export default function PamfletCarousel() {
           minHeight: 140,
           maxHeight: 200,
           borderRadius: 16,
-          background: current.gambar_url ? '#0b1120' : bg,
+          background: showImage ? '#0b1120' : bg,
           cursor: 'pointer',
           overflow: 'hidden',
           boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)',
@@ -116,11 +132,11 @@ export default function PamfletCarousel() {
           transition: 'all 0.3s ease',
         }}
       >
-        {current.gambar_url ? (
+        {showImage ? (
           <>
             {/* Clean Full-width Banner Image */}
             <img
-              src={current.gambar_url}
+              src={current.gambar_url!}
               alt={current.judul}
               style={{
                 width: '100%',
@@ -128,8 +144,9 @@ export default function PamfletCarousel() {
                 objectFit: 'cover',
                 display: 'block',
               }}
-              onError={(e) => {
-                (e.target as HTMLImageElement).style.display = 'none'
+              onError={() => {
+                console.error('[PamfletCarousel] Gagal memuat gambar:', current.gambar_url)
+                imgStatus.onError()
               }}
             />
 

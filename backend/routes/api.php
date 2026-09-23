@@ -429,6 +429,13 @@ if ($uri === '/api/it/feature-permissions/bulk' && $method === 'PUT') {
     exit();
 }
 
+if ($uri === '/api/it/feature-permissions/all' && ($method === 'POST' || $method === 'PUT')) {
+    require_once __DIR__ . '/../app/Http/Controllers/FeaturePermissionController.php';
+    $controller = new \App\Http\Controllers\FeaturePermissionController();
+    $controller->bulkUpdateAllUsers(is_array($requestData) ? $requestData : []);
+    exit();
+}
+
 
 // =====================================================================
 // Berita & Pamflet – Konten PWA

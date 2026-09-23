@@ -20,7 +20,9 @@ import {
   SlidersHorizontal,
   Users,
   Navigation,
-  ScanFace
+  ScanFace,
+  ShieldCheck,
+  RotateCcw,
 } from "lucide-react";
 import { useAuthStore } from "../../store/auth.store";
 import { useToast } from "../../contexts/ToastContext";
@@ -101,10 +103,17 @@ export default function ItAdmin() {
   const [cabangs, setCabangs] = useState<string[]>([]);
   const [selectedCabang, setSelectedCabang] = useState<string>("ALL");
   const [totalUsersCount, setTotalUsersCount] = useState<number | null>(null);
+  const [serverStats, setServerStats] = useState<{ total: number; full_count: number; standard_count: number } | null>(null);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [expandedId, setExpandedId] = useState<number | null>(null);
   const [savingKey, setSavingKey] = useState<string | null>(null);
+
+  // State untuk modal aksi massal seluruh karyawan
+  const [bulkModalOpen, setBulkModalOpen] = useState(false);
+  const [bulkActionType, setBulkActionType] = useState<"grant_all" | "set_default">("grant_all");
+  const [bulkTargetCabang, setBulkTargetCabang] = useState<string>("ALL");
+  const [isSubmittingBulkAll, setIsSubmittingBulkAll] = useState(false);
 
   // ---- Fetch users ----
   const fetchUsers = useCallback(async (q: string, cabang: string = selectedCabang) => {
@@ -122,6 +131,9 @@ export default function ItAdmin() {
         }
         if (typeof data.total_users === "number") {
           setTotalUsersCount(data.total_users);
+        }
+        if (data.stats) {
+          setServerStats(data.stats);
         }
       } else {
         showToast(data.message || "Gagal mengambil data", "error");
@@ -257,12 +269,57 @@ export default function ItAdmin() {
 
   // Summary statistics
   const stats = useMemo(() => {
+    if (serverStats) {
+      return {
+        total: serverStats.total,
+        standardCount: serverStats.standard_count,
+        fullCount: serverStats.full_count,
+        customCount: Math.max(0, serverStats.total - serverStats.standard_count - serverStats.full_count),
+      };
+    }
     const total = totalUsersCount ?? users.length;
     const standardCount = users.filter(u => u.active_feature_count === DEFAULT_FEATURES.length).length;
     const fullCount = users.filter(u => u.active_feature_count === TOTAL_FEATURES).length;
     const customCount = total - standardCount - fullCount;
     return { total, standardCount, fullCount, customCount };
-  }, [users, totalUsersCount]);
+  }, [users, totalUsersCount, serverStats]);
+
+  // Open modal
+  const openBulkAllModal = (action: "grant_all" | "set_default" = "grant_all") => {
+    setBulkActionType(action);
+    setBulkTargetCabang(selectedCabang);
+    setBulkModalOpen(true);
+  };
+
+  // Submit bulk all update to backend
+  const handleBulkAllSubmit = async () => {
+    if (!user?.id) return;
+    setIsSubmittingBulkAll(true);
+    try {
+      const res = await fetch("/api/it/feature-permissions/all", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          requester_id: user.id,
+          cabang: bulkTargetCabang,
+          action: bulkActionType,
+        }),
+      });
+      const data = await res.json();
+      if (res.ok && data.success) {
+        showToast(data.message || "Hak akses massal berhasil diperbarui", "success");
+        setBulkModalOpen(false);
+        // Refresh users and stats from server
+        await fetchUsers(search, selectedCabang);
+      } else {
+        showToast(data.message || "Gagal menerapkan hak akses massal", "error");
+      }
+    } catch {
+      showToast("Gagal terhubung ke server", "error");
+    } finally {
+      setIsSubmittingBulkAll(false);
+    }
+  };
 
   return (
     <div className="it-admin">
@@ -349,9 +406,50 @@ export default function ItAdmin() {
           <div className="it-admin-stat-card">
             <div className="it-admin-stat-header">
               <CheckCircle size={13} className="stat-icon stat-icon-emerald" />
-              <span className="it-admin-stat-label">Akses Penuh (9)</span>
+              <span className="it-admin-stat-label">Akses Penuh ({TOTAL_FEATURES})</span>
             </div>
             <div className="it-admin-stat-value">{stats.fullCount}</div>
+          </div>
+        </div>
+      )}
+
+      {/* Global Bulk Action Banner */}
+      {!loading && (
+        <div className="it-admin-bulk-banner-wrapper">
+          <div className="it-admin-bulk-banner">
+            <div className="it-admin-bulk-banner-left">
+              <div className="it-admin-bulk-banner-badge">
+                <ShieldCheck size={14} />
+                <span>AKSI MASSAL OTORISASI</span>
+              </div>
+              <div className="it-admin-bulk-banner-title">
+                Pemberian Akses Cepat Seluruh Karyawan
+              </div>
+              <div className="it-admin-bulk-banner-sub">
+                Terapkan izin fitur serentak ke {stats.total} karyawan tanpa perlu mengatur satu per satu.
+              </div>
+            </div>
+            <div className="it-admin-bulk-banner-buttons">
+              <button
+                type="button"
+                className="btn-bulk-banner-primary"
+                onClick={() => openBulkAllModal("grant_all")}
+                disabled={loading}
+              >
+                <Sparkles size={15} />
+                <span>Beri Full Akses ke Semua Karyawan</span>
+              </button>
+              <button
+                type="button"
+                className="btn-bulk-banner-secondary"
+                onClick={() => openBulkAllModal("set_default")}
+                disabled={loading}
+                title="Terapkan 4 fitur standar default ke seluruh karyawan"
+              >
+                <RotateCcw size={14} />
+                <span>Reset Standar Semua</span>
+              </button>
+            </div>
           </div>
         </div>
       )}
@@ -526,6 +624,163 @@ export default function ItAdmin() {
           </div>
         )}
       </div>
+
+      {/* Modal Dialog Konfirmasi Massal */}
+      {bulkModalOpen && (
+        <div
+          className="it-admin-modal-overlay"
+          onClick={() => !isSubmittingBulkAll && setBulkModalOpen(false)}
+        >
+          <div className="it-admin-modal" onClick={e => e.stopPropagation()}>
+            <div className="it-admin-modal-header">
+              <div className={`it-admin-modal-header-icon ${bulkActionType === "grant_all" ? "icon-grant" : "icon-reset"}`}>
+                {bulkActionType === "grant_all" ? <ShieldCheck size={22} /> : <RotateCcw size={22} />}
+              </div>
+              <div className="it-admin-modal-header-text">
+                <h3>
+                  {bulkActionType === "grant_all"
+                    ? "Konfirmasi Full Akses Karyawan"
+                    : "Konfirmasi Reset Standar Fitur"}
+                </h3>
+                <p>
+                  {bulkActionType === "grant_all"
+                    ? "Berikan 11 fitur lengkap ke seluruh karyawan sekaligus."
+                    : "Kembalikan perizinan ke 4 fitur standar default."}
+                </p>
+              </div>
+              <button
+                type="button"
+                className="it-admin-modal-close"
+                onClick={() => !isSubmittingBulkAll && setBulkModalOpen(false)}
+                disabled={isSubmittingBulkAll}
+                title="Tutup dialog"
+              >
+                <X size={18} />
+              </button>
+            </div>
+
+            <div className="it-admin-modal-body">
+              {/* Scope Selection */}
+              <div className="it-admin-modal-section">
+                <label className="it-admin-modal-label">Pilih Sasaran Karyawan:</label>
+                <div className="it-admin-scope-options">
+                  <label className={`it-admin-scope-card ${bulkTargetCabang === "ALL" ? "selected" : ""}`}>
+                    <input
+                      type="radio"
+                      name="bulkCabang"
+                      value="ALL"
+                      checked={bulkTargetCabang === "ALL"}
+                      onChange={() => setBulkTargetCabang("ALL")}
+                      disabled={isSubmittingBulkAll}
+                    />
+                    <div className="scope-card-content">
+                      <div className="scope-title">
+                        <Users size={15} />
+                        <span>Semua Karyawan (Seluruh Cabang)</span>
+                      </div>
+                      <div className="scope-desc">
+                        Total <strong>{stats.total}</strong> karyawan terdaftar di sistem akan diperbarui serentak
+                      </div>
+                    </div>
+                  </label>
+
+                  {selectedCabang !== "ALL" && (
+                    <label className={`it-admin-scope-card ${bulkTargetCabang === selectedCabang ? "selected" : ""}`}>
+                      <input
+                        type="radio"
+                        name="bulkCabang"
+                        value={selectedCabang}
+                        checked={bulkTargetCabang === selectedCabang}
+                        onChange={() => setBulkTargetCabang(selectedCabang)}
+                        disabled={isSubmittingBulkAll}
+                      />
+                      <div className="scope-card-content">
+                        <div className="scope-title">
+                          <MapPin size={15} />
+                          <span>Hanya Cabang {selectedCabang}</span>
+                        </div>
+                        <div className="scope-desc">
+                          Hanya karyawan di cabang <strong>{selectedCabang}</strong> yang akan diperbarui
+                        </div>
+                      </div>
+                    </label>
+                  )}
+                </div>
+              </div>
+
+              {/* Features summary badge grid */}
+              <div className="it-admin-modal-section">
+                <label className="it-admin-modal-label">
+                  {bulkActionType === "grant_all"
+                    ? `Daftar Fitur yang Diaktifkan Penuh (${TOTAL_FEATURES} Fitur):`
+                    : `Daftar Fitur Standar Default (${DEFAULT_FEATURES.length} Fitur):`}
+                </label>
+                <div className="it-admin-modal-feature-chips">
+                  {FEATURES.map(f => {
+                    const isIncluded =
+                      bulkActionType === "grant_all" || DEFAULT_FEATURES.includes(f.key);
+                    return (
+                      <div
+                        key={f.key}
+                        className={`it-modal-chip ${isIncluded ? "active" : "inactive"}`}
+                      >
+                        <span className="chip-icon">{f.icon}</span>
+                        <span className="chip-label">{f.label}</span>
+                        {isIncluded ? (
+                          <Check size={13} className="chip-check" />
+                        ) : (
+                          <X size={13} className="chip-x" />
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Notice / Alert */}
+              <div className="it-admin-modal-notice">
+                <Shield size={16} className="notice-icon" />
+                <div className="notice-text">
+                  Hak akses akan langsung disimpan ke database server dan aktif saat karyawan membuka aplikasi PWA.
+                </div>
+              </div>
+            </div>
+
+            <div className="it-admin-modal-footer">
+              <button
+                type="button"
+                className="btn-modal-cancel"
+                onClick={() => setBulkModalOpen(false)}
+                disabled={isSubmittingBulkAll}
+              >
+                Batal
+              </button>
+              <button
+                type="button"
+                className={`btn-modal-submit ${bulkActionType === "grant_all" ? "grant-all" : "set-default"}`}
+                onClick={handleBulkAllSubmit}
+                disabled={isSubmittingBulkAll}
+              >
+                {isSubmittingBulkAll ? (
+                  <>
+                    <span className="it-modal-spinner" />
+                    <span>Menerapkan ke Database...</span>
+                  </>
+                ) : (
+                  <>
+                    {bulkActionType === "grant_all" ? <Sparkles size={16} /> : <RotateCcw size={16} />}
+                    <span>
+                      {bulkActionType === "grant_all"
+                        ? "Ya, Berikan Full Akses Sekarang"
+                        : "Ya, Reset ke Standar"}
+                    </span>
+                  </>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

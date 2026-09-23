@@ -127,19 +127,39 @@ class BeritaController
         if (empty($path)) {
             return '';
         }
+
+        // URL lengkap (http/https) → langsung pakai
         if (preg_match('#^https?://#i', $path)) {
             return $path;
         }
 
-        // Standardize path: remove leading slashes
+        // Hapus leading slashes
         $cleanPath = ltrim($path, '/');
 
-        // If path doesn't begin with storage/ or uploads/, prepend storage/
-        // (Filament/Laravel default storage path in storage/app/public/)
-        if (!str_starts_with($cleanPath, 'storage/') && !str_starts_with($cleanPath, 'uploads/')) {
-            $cleanPath = 'storage/' . $cleanPath;
+        // Jika path sudah ada prefix uploads/ atau storage/, pakai apa adanya
+        if (str_starts_with($cleanPath, 'uploads/') || str_starts_with($cleanPath, 'storage/')) {
+            return '/' . $cleanPath;
         }
 
-        return '/' . $cleanPath;
+        // Jika path hanya nama file atau subfolder tanpa prefix,
+        // coba uploads/berita/ terlebih dahulu (konvensi upload manual AYPSIS)
+        // lalu fallback ke storage/ (konvensi Filament/Laravel)
+        $candidates = [
+            'uploads/berita/' . $cleanPath,
+            'uploads/' . $cleanPath,
+            'storage/' . $cleanPath,
+        ];
+
+        $publicDir = defined('AYPSIS_PUBLIC_DIR') ? rtrim(AYPSIS_PUBLIC_DIR, '/') : '/var/www/aypsis/public';
+        foreach ($candidates as $candidate) {
+            $fullPath = $publicDir . '/' . $candidate;
+            if (file_exists($fullPath)) {
+                return '/' . $candidate;
+            }
+        }
+
+        // Tidak ditemukan di filesystem → fallback ke uploads/berita/ agar URL tetap terbentuk
+        // (browser akan mendapat 404, tapi tidak crash)
+        return '/uploads/berita/' . $cleanPath;
     }
 }

@@ -5,6 +5,7 @@ import History from './pages/History/History'
 import Profile from './pages/Profile/Profile'
 import Login from './pages/Login/Login'
 import HrdApproval from './pages/HrdApproval/HrdApproval'
+import Amprahan from './pages/Amprahan/Amprahan'
 import AmprahanRequest from './pages/Amprahan/AmprahanRequest'
 import TandaTerima from './pages/Amprahan/TandaTerima'
 import TandaTerimaDetail from './pages/Amprahan/TandaTerimaDetail'
@@ -34,7 +35,7 @@ function App() {
             <Route path="stowage-plan" element={<StowagePlan />} />
             <Route path="denah-gudang" element={<DenahGudang />} />
             <Route path="hrd/approval" element={<HrdApproval />} />
-            <Route path="amprahan" element={<AmprahanRequest />} />
+            <Route path="amprahan" element={<Amprahan />} />
             <Route path="amprahan/request" element={<AmprahanRequest />} />
             <Route path="amprahan/tanda-terima" element={<TandaTerima />} />
             <Route path="amprahan/tanda-terima/detail" element={<TandaTerimaDetail />} />

@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { Plus, Trash2, Send, ArrowLeft, PackagePlus, ChevronDown, LoaderCircle } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import './AmprahanRequest.css';
@@ -15,7 +15,9 @@ interface AmprahanItem {
 
 export default function AmprahanRequest() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { user } = useAuthStore();
+  const jenisAmprahan = (location.state as { jenisAmprahan?: string } | null)?.jenisAmprahan;
 
   const [keteranganUmum, setKeteranganUmum] = useState('');
   const [items, setItems] = useState<AmprahanItem[]>([
@@ -92,7 +94,7 @@ export default function AmprahanRequest() {
   return (
     <div className="amprahan-request-page">
       <div className="amprahan-request-container fade-in">
-        <button type="button" className="btn-back" onClick={() => navigate('/')}>
+        <button type="button" className="btn-back" onClick={() => navigate('/amprahan')}>
           <ArrowLeft size={18} />
           <span>Kembali</span>
         </button>
@@ -103,7 +105,7 @@ export default function AmprahanRequest() {
           </div>
           <div>
             <h2>Permintaan Amprahan</h2>
-            <p>Isi barang yang dibutuhkan. Kolom bertanda * wajib diisi.</p>
+            <p>{jenisAmprahan ? `Kebutuhan ${jenisAmprahan.replace('_', ' ')}. ` : ''}Isi barang yang dibutuhkan. Kolom bertanda * wajib diisi.</p>
           </div>
         </div>
 

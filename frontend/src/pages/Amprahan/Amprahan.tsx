@@ -1,13 +1,21 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-// unused
-import { Ship, Navigation2, ArrowRight } from 'lucide-react';
+import { Ship, Car, HardHat, Package, Navigation2, ArrowRight, Check } from 'lucide-react';
 import './Amprahan.css';
 
 interface Kapal {
   id: number;
   nama_kapal: string;
 }
+
+type JenisAmprahan = 'kapal' | 'kendaraan' | 'alat_berat' | 'lainnya';
+
+const jenisPilihan: Array<{ value: JenisAmprahan; label: string; description: string; icon: typeof Ship }> = [
+  { value: 'kapal', label: 'Kapal', description: 'Kebutuhan operasional kapal', icon: Ship },
+  { value: 'kendaraan', label: 'Kendaraan', description: 'Kebutuhan kendaraan', icon: Car },
+  { value: 'alat_berat', label: 'Alat Berat', description: 'Kebutuhan alat berat', icon: HardHat },
+  { value: 'lainnya', label: 'Lainnya', description: 'Kebutuhan umum lainnya', icon: Package },
+];
 
 export default function Amprahan() {
   const navigate = useNavigate();
@@ -18,8 +26,12 @@ export default function Amprahan() {
   const [nomorVoyage, setNomorVoyage] = useState('');
   const [isLoadingKapal, setIsLoadingKapal] = useState(true);
   const [isLoadingVoyage, setIsLoadingVoyage] = useState(false);
+  const [jenisAmprahan, setJenisAmprahan] = useState<JenisAmprahan | null>(null);
 
   useEffect(() => {
+    if (jenisAmprahan !== 'kapal') return;
+
+    setIsLoadingKapal(true);
     fetch('/api/kapal')
       .then(res => res.json())
       .then(data => {
@@ -32,7 +44,7 @@ export default function Amprahan() {
         console.error('Error fetching kapal:', err);
         setIsLoadingKapal(false);
       });
-  }, []);
+  }, [jenisAmprahan]);
 
   const handleKapalChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     const selectedId = e.target.value;
@@ -60,13 +72,19 @@ export default function Amprahan() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    if (jenisAmprahan !== 'kapal') {
+      navigate('/amprahan/request', { state: { jenisAmprahan } });
+      return;
+    }
+
     if (kapalId && nomorVoyage) {
       const selectedKapal = kapalList.find(k => k.id.toString() === kapalId);
       navigate('/amprahan/request', { 
         state: { 
           kapalId: kapalId, 
           kapalName: selectedKapal?.nama_kapal, 
-          nomorVoyage: nomorVoyage 
+          nomorVoyage: nomorVoyage,
+          jenisAmprahan
         } 
       });
     }
@@ -77,10 +95,33 @@ export default function Amprahan() {
       <div className="amprahan-container fade-in">
         <div className="amprahan-header">
           <h2>Permintaan Amprahan</h2>
-          <p>Silakan isi informasi operasional kapal</p>
+          <p>Pilih tujuan permintaan amprahan</p>
         </div>
 
-        <form onSubmit={handleSubmit} className="amprahan-form">
+        <div className="amprahan-type-grid">
+          {jenisPilihan.map(({ value, label, description, icon: Icon }) => (
+            <button
+              key={value}
+              type="button"
+              className={`amprahan-type-card ${jenisAmprahan === value ? 'selected' : ''}`}
+              onClick={() => {
+                setJenisAmprahan(value);
+                if (value !== 'kapal') {
+                  setKapalId('');
+                  setNomorVoyage('');
+                  setVoyageList([]);
+                }
+              }}
+            >
+              <span className="amprahan-type-icon"><Icon size={25} /></span>
+              <span className="amprahan-type-label">{label}</span>
+              <span className="amprahan-type-description">{description}</span>
+              {jenisAmprahan === value && <Check className="amprahan-type-check" size={18} />}
+            </button>
+          ))}
+        </div>
+
+        {jenisAmprahan === 'kapal' && <form onSubmit={handleSubmit} className="amprahan-form">
           <div className="form-group">
             <label>Nomor Kapal</label>
             <div className="input-wrapper select-wrapper">
@@ -132,7 +173,16 @@ export default function Amprahan() {
           >
             Lanjutkan <ArrowRight size={18} />
           </button>
-        </form>
+        </form>}
+
+        {jenisAmprahan && jenisAmprahan !== 'kapal' && (
+          <form onSubmit={handleSubmit} className="amprahan-form amprahan-continue-form">
+            <p className="amprahan-selection-note">Kategori <strong>{jenisPilihan.find(item => item.value === jenisAmprahan)?.label}</strong> dipilih.</p>
+            <button type="submit" className="btn-submit">
+              Lanjutkan <ArrowRight size={18} />
+            </button>
+          </form>
+        )}
       </div>
     </div>
   );

@@ -17,7 +17,11 @@ export default function AmprahanRequest() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuthStore();
-  const jenisAmprahan = (location.state as { jenisAmprahan?: string } | null)?.jenisAmprahan;
+  const requestContext = location.state as {
+    jenisAmprahan?: 'kapal' | 'kendaraan' | 'alat_berat' | 'lainnya';
+    kapalId?: string;
+  } | null;
+  const jenisAmprahan = requestContext?.jenisAmprahan;
 
   const [keteranganUmum, setKeteranganUmum] = useState('');
   const [items, setItems] = useState<AmprahanItem[]>([
@@ -64,6 +68,9 @@ export default function AmprahanRequest() {
         },
         body: JSON.stringify({
           user_id: user?.id,
+          jenis_amprahan: jenisAmprahan || 'lainnya',
+          kapal_id: requestContext?.kapalId || null,
+          nomor_voyage: null,
           keterangan_umum: keteranganUmum,
           items: items.map(i => ({
             nama_barang: i.nama_barang,

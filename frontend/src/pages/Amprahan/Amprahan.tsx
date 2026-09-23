@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Ship, Car, HardHat, Package, Navigation2, ArrowRight, Check } from 'lucide-react';
+import { Ship, Car, HardHat, Package, ArrowRight, Check } from 'lucide-react';
 import './Amprahan.css';
 
 interface Kapal {
@@ -20,12 +20,8 @@ const jenisPilihan: Array<{ value: JenisAmprahan; label: string; description: st
 export default function Amprahan() {
   const navigate = useNavigate();
   const [kapalList, setKapalList] = useState<Kapal[]>([]);
-  const [voyageList, setVoyageList] = useState<string[]>([]);
-  
   const [kapalId, setKapalId] = useState('');
-  const [nomorVoyage, setNomorVoyage] = useState('');
   const [isLoadingKapal, setIsLoadingKapal] = useState(true);
-  const [isLoadingVoyage, setIsLoadingVoyage] = useState(false);
   const [jenisAmprahan, setJenisAmprahan] = useState<JenisAmprahan | null>(null);
 
   useEffect(() => {
@@ -46,30 +42,6 @@ export default function Amprahan() {
       });
   }, [jenisAmprahan]);
 
-  const handleKapalChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
-    const selectedId = e.target.value;
-    setKapalId(selectedId);
-    setNomorVoyage('');
-    
-    if (selectedId) {
-      setIsLoadingVoyage(true);
-      fetch(`/api/kapal/voyages?kapal_id=${encodeURIComponent(selectedId)}`)
-        .then(res => res.json())
-        .then(data => {
-          if (data.data) {
-            setVoyageList(data.data);
-          }
-          setIsLoadingVoyage(false);
-        })
-        .catch(err => {
-          console.error('Error fetching voyages:', err);
-          setIsLoadingVoyage(false);
-        });
-    } else {
-      setVoyageList([]);
-    }
-  };
-
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (jenisAmprahan !== 'kapal') {
@@ -77,13 +49,12 @@ export default function Amprahan() {
       return;
     }
 
-    if (kapalId && nomorVoyage) {
+    if (kapalId) {
       const selectedKapal = kapalList.find(k => k.id.toString() === kapalId);
       navigate('/amprahan/request', { 
         state: { 
           kapalId: kapalId, 
           kapalName: selectedKapal?.nama_kapal, 
-          nomorVoyage: nomorVoyage,
           jenisAmprahan
         } 
       });
@@ -108,8 +79,6 @@ export default function Amprahan() {
                 setJenisAmprahan(value);
                 if (value !== 'kapal') {
                   setKapalId('');
-                  setNomorVoyage('');
-                  setVoyageList([]);
                 }
               }}
             >
@@ -123,12 +92,12 @@ export default function Amprahan() {
 
         {jenisAmprahan === 'kapal' && <form onSubmit={handleSubmit} className="amprahan-form">
           <div className="form-group">
-            <label>Nomor Kapal</label>
+            <label>Pilih Kapal</label>
             <div className="input-wrapper select-wrapper">
               <Ship className="input-icon" size={20} />
               <select
                 value={kapalId}
-                onChange={handleKapalChange}
+                onChange={e => setKapalId(e.target.value)}
                 className="form-input"
                 required
                 disabled={isLoadingKapal}
@@ -143,33 +112,10 @@ export default function Amprahan() {
             </div>
           </div>
 
-          <div className="form-group">
-            <label>Nomor Voyage</label>
-            <div className="input-wrapper select-wrapper">
-              <Navigation2 className="input-icon" size={20} />
-              <select
-                value={nomorVoyage}
-                onChange={(e) => setNomorVoyage(e.target.value)}
-                className="form-input"
-                required
-                disabled={!kapalId || isLoadingVoyage}
-              >
-                <option value="">
-                  {!kapalId ? '-PILIH KAPAL TERLEBIH DAHULU-' : (isLoadingVoyage ? 'Loading...' : '--Pilih Voyage--')}
-                </option>
-                {voyageList.map(v => (
-                  <option key={v} value={v}>
-                    {v}
-                  </option>
-                ))}
-              </select>
-            </div>
-          </div>
-
           <button 
             type="submit" 
             className="btn-submit"
-            disabled={!kapalId || !nomorVoyage}
+            disabled={!kapalId}
           >
             Lanjutkan <ArrowRight size={18} />
           </button>

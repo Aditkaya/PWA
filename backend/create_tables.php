@@ -8,6 +8,7 @@ $sql1 = "
 CREATE TABLE IF NOT EXISTS permohonan_amprahans (
     id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
     user_id BIGINT UNSIGNED NOT NULL,
+    jenis_amprahan VARCHAR(30) NULL,
     kapal_id BIGINT UNSIGNED NULL,
     nomor_voyage VARCHAR(255) NULL,
     status VARCHAR(50) DEFAULT 'pending',

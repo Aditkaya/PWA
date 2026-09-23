@@ -12,8 +12,12 @@ class AmprahanController {
     
     public function submitRequest($postData) {
         $user_id = $postData['user_id'] ?? null;
+        $jenis_amprahan = strtolower(trim((string) ($postData['jenis_amprahan'] ?? 'lainnya')));
+        $kapal_id = $postData['kapal_id'] ?? null;
+        $nomor_voyage = $postData['nomor_voyage'] ?? null;
         $keterangan_umum = $postData['keterangan_umum'] ?? null;
         $items = $postData['items'] ?? [];
+        $jenisValid = ['kapal', 'kendaraan', 'alat_berat', 'lainnya'];
 
         if (!$user_id || empty($items)) {
             http_response_code(400);
@@ -21,15 +25,42 @@ class AmprahanController {
             return;
         }
 
+        if (!in_array($jenis_amprahan, $jenisValid, true)) {
+            http_response_code(400);
+            echo json_encode(['message' => 'Jenis amprahan tidak valid']);
+            return;
+        }
+
+        if ($jenis_amprahan === 'kapal') {
+            if (!$kapal_id || !filter_var($kapal_id, FILTER_VALIDATE_INT)) {
+                http_response_code(400);
+                echo json_encode(['message' => 'Kapal wajib dipilih']);
+                return;
+            }
+        } else {
+            $kapal_id = null;
+            $nomor_voyage = null;
+        }
+
         try {
             $pdo = Database::getConnection();
+
+            if ($jenis_amprahan === 'kapal') {
+                $kapalStmt = $pdo->prepare("SELECT id FROM master_kapals WHERE id = ? AND status = 'aktif'");
+                $kapalStmt->execute([$kapal_id]);
+                if (!$kapalStmt->fetch(PDO::FETCH_ASSOC)) {
+                    throw new Exception('Kapal tidak ditemukan atau tidak aktif');
+                }
+            }
+
             $pdo->beginTransaction();
 
             $stmt = $pdo->prepare("
-                INSERT INTO permohonan_amprahans (user_id, kapal_id, nomor_voyage, keterangan_umum, status)
-                VALUES (?, NULL, NULL, ?, 'pending')
+                INSERT INTO permohonan_amprahans
+                    (user_id, jenis_amprahan, kapal_id, nomor_voyage, keterangan_umum, status)
+                VALUES (?, ?, ?, ?, ?, 'pending')
             ");
-            $stmt->execute([$user_id, $keterangan_umum]);
+            $stmt->execute([$user_id, $jenis_amprahan, $kapal_id, $nomor_voyage, $keterangan_umum]);
             
             $permohonan_id = $pdo->lastInsertId();
 

@@ -10,6 +10,7 @@ CREATE TABLE IF NOT EXISTS permohonan_amprahans (
     user_id BIGINT UNSIGNED NOT NULL,
     jenis_amprahan VARCHAR(30) NULL,
     kapal_id BIGINT UNSIGNED NULL,
+    mobil_id BIGINT UNSIGNED NULL,
     nomor_voyage VARCHAR(255) NULL,
     status VARCHAR(50) DEFAULT 'pending',
     keterangan_umum TEXT NULL,

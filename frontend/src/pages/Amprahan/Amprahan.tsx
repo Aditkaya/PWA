@@ -8,6 +8,13 @@ interface Kapal {
   nama_kapal: string;
 }
 
+interface Mobil {
+  id: number;
+  kode_no?: string | null;
+  nomor_polisi?: string | null;
+  jenis?: string | null;
+}
+
 type JenisAmprahan = 'kapal' | 'kendaraan' | 'alat_berat' | 'lainnya';
 
 const jenisPilihan: Array<{ value: JenisAmprahan; label: string; description: string; icon: typeof Ship }> = [
@@ -22,6 +29,9 @@ export default function Amprahan() {
   const [kapalList, setKapalList] = useState<Kapal[]>([]);
   const [kapalId, setKapalId] = useState('');
   const [isLoadingKapal, setIsLoadingKapal] = useState(true);
+  const [mobilList, setMobilList] = useState<Mobil[]>([]);
+  const [mobilId, setMobilId] = useState('');
+  const [isLoadingMobil, setIsLoadingMobil] = useState(false);
   const [jenisAmprahan, setJenisAmprahan] = useState<JenisAmprahan | null>(null);
 
   useEffect(() => {
@@ -42,10 +52,26 @@ export default function Amprahan() {
       });
   }, [jenisAmprahan]);
 
+  useEffect(() => {
+    if (jenisAmprahan !== 'kendaraan') return;
+
+    setIsLoadingMobil(true);
+    fetch('/api/amprahan/mobils')
+      .then(res => res.json())
+      .then(data => setMobilList(data.data || []))
+      .catch(err => console.error('Error fetching kendaraan:', err))
+      .finally(() => setIsLoadingMobil(false));
+  }, [jenisAmprahan]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (jenisAmprahan !== 'kapal') {
-      navigate('/amprahan/request', { state: { jenisAmprahan } });
+      const selectedMobil = mobilList.find(m => m.id.toString() === mobilId);
+      navigate('/amprahan/request', { state: {
+        jenisAmprahan,
+        mobilId: jenisAmprahan === 'kendaraan' ? mobilId : undefined,
+        mobilName: selectedMobil?.nomor_polisi || selectedMobil?.kode_no,
+      } });
       return;
     }
 
@@ -80,6 +106,7 @@ export default function Amprahan() {
                 if (value !== 'kapal') {
                   setKapalId('');
                 }
+                if (value !== 'kendaraan') setMobilId('');
               }}
             >
               <span className="amprahan-type-icon"><Icon size={25} /></span>
@@ -124,7 +151,29 @@ export default function Amprahan() {
         {jenisAmprahan && jenisAmprahan !== 'kapal' && (
           <form onSubmit={handleSubmit} className="amprahan-form amprahan-continue-form">
             <p className="amprahan-selection-note">Kategori <strong>{jenisPilihan.find(item => item.value === jenisAmprahan)?.label}</strong> dipilih.</p>
-            <button type="submit" className="btn-submit">
+            {jenisAmprahan === 'kendaraan' && (
+              <div className="form-group">
+                <label>Pilih Kendaraan</label>
+                <div className="input-wrapper select-wrapper">
+                  <Car className="input-icon" size={20} />
+                  <select
+                    value={mobilId}
+                    onChange={e => setMobilId(e.target.value)}
+                    className="form-input"
+                    required
+                    disabled={isLoadingMobil}
+                  >
+                    <option value="">{isLoadingMobil ? 'Loading...' : '--Pilih Kendaraan--'}</option>
+                    {mobilList.map(mobil => (
+                      <option key={mobil.id} value={mobil.id}>
+                        {mobil.nomor_polisi || mobil.kode_no || `Kendaraan #${mobil.id}`}{mobil.jenis ? ` - ${mobil.jenis}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+            <button type="submit" className="btn-submit" disabled={jenisAmprahan === 'kendaraan' && !mobilId}>
               Lanjutkan <ArrowRight size={18} />
             </button>
           </form>

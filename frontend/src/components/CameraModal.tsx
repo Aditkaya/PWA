@@ -53,7 +53,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   // Location States
   const [locationCoords, setLocationCoords] = useState<{lat: number, lng: number} | null>(null);
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null); // dalam meter
-  const bestAccuracyRef = useRef<number>(Infinity); // Best accuracy tracker
+  const bestAccuracyRef = useRef<number>(Infinity); // Best accuracy seen in this session
   const [address, setAddress] = useState(t.findingLocation);
 
   const [allowedLocations, setAllowedLocations] = useState<any[]>([]);
@@ -117,14 +117,14 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
         const lng = position.coords.longitude;
         const accuracy = position.coords.accuracy; // dalam meter
 
-        // Best-accuracy filter: hanya update koordinat jika sinyal lebih baik dari sebelumnya
-        // atau jika belum ada koordinat sama sekali.
-        // Toleransi 5m: terima update baru jika akurasi lebih baik min 5m dari yang tersimpan.
+        // Browser dapat mengoreksi koordinat tanpa banyak mengubah angka accuracy.
+        // Tetap terima pembacaan dengan kualitas yang sebanding agar first fix yang
+        // meleset tidak terkunci, tetapi abaikan pembacaan yang jauh lebih buruk.
         const isFirstFix = bestAccuracyRef.current === Infinity;
-        const isBetter = accuracy < bestAccuracyRef.current - 5;
-        if (!isFirstFix && !isBetter) return;
+        const isComparable = accuracy <= bestAccuracyRef.current + 10;
+        if (!isFirstFix && !isComparable) return;
 
-        bestAccuracyRef.current = accuracy;
+        bestAccuracyRef.current = Math.min(bestAccuracyRef.current, accuracy);
         setGpsAccuracy(accuracy);
         setLocationCoords({ lat, lng });
 
@@ -181,9 +181,8 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     };
   }, [isOpen, t.findingLocation, t.translatingAddress, t.gpsFailed, t.gpsNotSupported]);
 
-  // GPS accuracy tolerance:
-  // Jika accuracy HP bagus (≤20m) → tidak ada toleransi tambahan.
-  // Jika accuracy HP buruk (>20m) → toleransi maksimal 20m agar tidak salah menghukum karyawan.
+  // Gunakan radius ketidakpastian perangkat sebagai toleransi. Batasi nilainya
+  // agar GPS yang sangat lemah tidak melonggarkan geofence berlebihan.
   const GPS_TOLERANCE_MAX = 20; // meter
 
   // Calculate radius synchronously during render — guaranteed no race condition
@@ -193,7 +192,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     const { lat, lng } = locationCoords;
     // Hitung toleransi berdasarkan akurasi GPS perangkat
     const accuracyTolerance = gpsAccuracy !== null
-      ? Math.min(gpsAccuracy * 0.5, GPS_TOLERANCE_MAX)
+      ? Math.min(gpsAccuracy, GPS_TOLERANCE_MAX)
       : 0;
 
     let minDistance = Infinity;

@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react'
-import { Check, X, Loader2, FileText, ChevronDown, ChevronUp, AlertTriangle, Search, Filter, Clock, CheckCircle, XCircle, Trash2 } from 'lucide-react'
+import { Check, X, Loader2, FileText, ChevronDown, ChevronUp, AlertTriangle, Search, Filter, Clock, CheckCircle, XCircle, Trash2, MapPin } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import './HrdApproval.css'
 import { useToast } from '../../contexts/ToastContext'
@@ -24,6 +24,8 @@ interface PermohonanItem {
   nama_hrd?: string | null
   keterangan_rencana?: string | null
   keterangan_karyawan?: string | null
+  latitude?: string | null
+  longitude?: string | null
 }
 
 export default function HrdApproval() {
@@ -108,8 +110,8 @@ export default function HrdApproval() {
 
   const stats = useMemo(() => {
     return {
-      pending: data.filter(d => d.status.toLowerCase().includes('pending')).length,
-      approved: data.filter(d => d.status.toLowerCase() === 'disetujui' || d.status.toLowerCase() === 'approved').length,
+      pending: data.filter(d => d.status.toLowerCase().includes('pending') || d.status === 'Persetujuan').length,
+      approved: data.filter(d => d.status.toLowerCase() === 'disetujui' || d.status.toLowerCase() === 'approved' || d.status === 'Selesai').length,
       rejected: data.filter(d => d.status.toLowerCase() === 'ditolak' || d.status.toLowerCase() === 'rejected').length,
       total: data.length
     }
@@ -122,8 +124,8 @@ export default function HrdApproval() {
     )
     
     const statusMatch = statusFilter === 'Semua' ? true : 
-      (statusFilter === 'Pending' && item.status.toLowerCase().includes('pending')) ||
-      (statusFilter === 'Disetujui' && (item.status.toLowerCase() === 'disetujui' || item.status.toLowerCase() === 'approved')) ||
+      (statusFilter === 'Pending' && (item.status.toLowerCase().includes('pending') || item.status === 'Persetujuan')) ||
+      (statusFilter === 'Disetujui' && (item.status.toLowerCase() === 'disetujui' || item.status.toLowerCase() === 'approved' || item.status === 'Selesai')) ||
       (statusFilter === 'Ditolak' && (item.status.toLowerCase() === 'ditolak' || item.status.toLowerCase() === 'rejected'))
 
     const typeMatch = typeFilter === 'Semua' ? true :
@@ -197,6 +199,7 @@ export default function HrdApproval() {
     if (t.includes('izin')) return 'var(--warning-color)'
     if (t.includes('lupa')) return '#8b5cf6' // purple
     if (t.includes('lembur')) return '#fb923c' // orange
+    if (t.includes('radius') || t.includes('absensi')) return '#ef4444' // red
     return 'var(--text-secondary)'
   }
 
@@ -281,6 +284,7 @@ export default function HrdApproval() {
               <option value="Cuti">Cuti</option>
               <option value="Lembur">Lembur</option>
               <option value="Lupa Absen">Lupa Absen</option>
+              <option value="Absensi Luar Radius">Absensi Luar Radius</option>
             </select>
           </div>
         </div>
@@ -316,6 +320,8 @@ export default function HrdApproval() {
             if (isPendingSpv && isSupervisor && !isHRD) {
               canAction = true;
             } else if (isHRD && (isPendingHrd || isPendingSpv)) {
+              canAction = true;
+            } else if (isHRD && item.status === 'Persetujuan') {
               canAction = true;
             }
 
@@ -420,7 +426,29 @@ export default function HrdApproval() {
                       <div className="detail-group full-width">
                         <span className="detail-label">Keterangan / Alasan</span>
                         <div className="reason-box">
-                          {item.tipe !== 'Lembur' && (item.keterangan || 'Tidak ada keterangan')}
+                          {item.tipe !== 'Lembur' && item.tipe !== 'Absensi Luar Radius' && (item.keterangan || 'Tidak ada keterangan')}
+                          {item.tipe === 'Absensi Luar Radius' && (
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                              <div style={{ display: 'flex', alignItems: 'flex-start', gap: '8px' }}>
+                                <MapPin size={14} style={{ flexShrink: 0, marginTop: '2px', color: '#ef4444' }} />
+                                <span>{item.keterangan || 'Tidak ada keterangan lokasi'}</span>
+                              </div>
+                              {(item.latitude && item.longitude) && (
+                                <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginLeft: '22px' }}>
+                                  Koordinat: {item.latitude}, {item.longitude}
+                                  {' '}
+                                  <a
+                                    href={`https://www.google.com/maps?q=${item.latitude},${item.longitude}`}
+                                    target="_blank"
+                                    rel="noopener noreferrer"
+                                    style={{ color: 'var(--accent-color)', textDecoration: 'none', fontWeight: 600 }}
+                                  >
+                                    Lihat di Maps ↗
+                                  </a>
+                                </div>
+                              )}
+                            </div>
+                          )}
                           {item.tipe === 'Lembur' && (
                             <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
                               {item.keterangan_rencana && (

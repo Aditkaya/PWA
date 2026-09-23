@@ -127,7 +127,33 @@ class ApprovalController {
             $stmtLembur->execute($params);
             $lembur = $stmtLembur->fetchAll();
 
-            $allData = array_merge($izin, $cuti, $lupa, $lembur);
+            // Absensi di luar radius yang membutuhkan persetujuan HRD
+            $whereAbsensi = $isSupervisor && !$isHRD
+                ? "WHERE a.status = 'Persetujuan' AND (kr.nik_supervisor = ? OR kr.supervisor = ?)"
+                : "WHERE a.status = 'Persetujuan'";
+            $paramsAbsensi = $isSupervisor && !$isHRD ? $params : [];
+
+            $stmtAbsensiLuarRadius = $pdo->prepare("
+                SELECT a.id, a.karyawan_id, kr.nama_lengkap as pengaju, kr.nik, kr.pekerjaan,
+                       CONCAT('/uploads/avatars/avatar_', u.id, '.jpg') as foto_profil,
+                       'Absensi Luar Radius' as tipe,
+                       a.tipe as jenis,
+                       DATE(a.waktu) as tanggal_mulai, DATE(a.waktu) as tanggal_selesai,
+                       TIME_FORMAT(a.waktu, '%H:%i') as waktu,
+                       a.detail_lokasi as keterangan, a.status, a.created_at,
+                       a.foto as lampiran, NULL as nama_spv, NULL as nama_hrd,
+                       NULL as keterangan_rencana, NULL as keterangan_karyawan,
+                       a.latitude, a.longitude
+                FROM absensis a
+                LEFT JOIN karyawans kr ON a.karyawan_id = kr.id
+                LEFT JOIN users u ON u.karyawan_id = kr.id
+                $whereAbsensi
+                ORDER BY a.waktu DESC
+            ");
+            $stmtAbsensiLuarRadius->execute($paramsAbsensi);
+            $absensiLuarRadius = $stmtAbsensiLuarRadius->fetchAll();
+
+            $allData = array_merge($izin, $cuti, $lupa, $lembur, $absensiLuarRadius);
             usort($allData, function($a, $b) {
                 return strtotime($b['created_at']) - strtotime($a['created_at']);
             });
@@ -159,10 +185,11 @@ class ApprovalController {
         }
 
         $tableMap = [
-            'Izin'       => 'permohonan_izins',
-            'Cuti'       => 'cutis',
-            'Lupa Absen' => 'persetujuan_absensi_lupas',
-            'Lembur'     => 'persetujuan_absensi_lemburs',
+            'Izin'                => 'permohonan_izins',
+            'Cuti'                => 'cutis',
+            'Lupa Absen'          => 'persetujuan_absensi_lupas',
+            'Lembur'              => 'persetujuan_absensi_lemburs',
+            'Absensi Luar Radius' => 'absensis',
         ];
 
         if (!isset($tableMap[$tipe])) {
@@ -203,6 +230,34 @@ class ApprovalController {
             }
 
             $tableName = $tableMap[$tipe];
+
+            // Absensi Luar Radius — langsung update status di tabel absensis
+            $isAbsensiLuarRadius = ($tipe === 'Absensi Luar Radius');
+            if ($isAbsensiLuarRadius) {
+                if (!$isHRD) {
+                    http_response_code(403);
+                    echo json_encode(['message' => 'Hanya HRD yang dapat menyetujui absensi luar radius.']);
+                    return;
+                }
+                $stmtCheck = $pdo->prepare("SELECT status FROM absensis WHERE id = ? AND status = 'Persetujuan'");
+                $stmtCheck->execute([$id]);
+                if (!$stmtCheck->fetch()) {
+                    http_response_code(404);
+                    echo json_encode(['message' => 'Data absensi tidak ditemukan atau sudah diproses.']);
+                    return;
+                }
+                $newAbsensiStatus = ($status === 'Disetujui') ? 'Selesai' : 'Ditolak';
+                $stmtUpdate = $pdo->prepare("UPDATE absensis SET status = ?, approved_by = ? WHERE id = ?");
+                // Check if approved_by column exists
+                $colCheck = $pdo->query("SHOW COLUMNS FROM absensis LIKE 'approved_by'");
+                if ($colCheck->fetch()) {
+                    $stmtUpdate->execute([$newAbsensiStatus, $user_id, $id]);
+                } else {
+                    $pdo->prepare("UPDATE absensis SET status = ? WHERE id = ?")->execute([$newAbsensiStatus, $id]);
+                }
+                echo json_encode(['message' => 'Status absensi berhasil diperbarui']);
+                return;
+            }
             
             // Map status correctly for tables using english enum (Lembur and Lupa Absen)
             $isLembur = ($tableName === 'persetujuan_absensi_lemburs');
@@ -387,10 +442,11 @@ class ApprovalController {
         $tipe = $params['tipe'] ?? '';
         
         $tableMap = [
-            'Izin' => 'permohonan_izins',
-            'Cuti' => 'cutis',
-            'Lupa Absen' => 'persetujuan_absensi_lupas',
-            'Lembur' => 'persetujuan_absensi_lemburs'
+            'Izin'                => 'permohonan_izins',
+            'Cuti'                => 'cutis',
+            'Lupa Absen'          => 'persetujuan_absensi_lupas',
+            'Lembur'              => 'persetujuan_absensi_lemburs',
+            'Absensi Luar Radius' => 'absensis',
         ];
         
         if (!isset($tableMap[$tipe])) {

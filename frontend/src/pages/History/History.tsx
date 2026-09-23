@@ -351,8 +351,16 @@ export default function History() {
                           </span>
                         </div>
                         <div className="history-card-header-status">
-                          <span className={`status-text ${item.status === 'Tepat Waktu' || item.status === 'Disetujui' ? 'status-ok' : 'status-warn'}`}>
-                            {item.status}
+                          <span className={`status-text ${
+                            item.status === 'Tepat Waktu' || item.status === 'Disetujui' || item.status === 'Selesai'
+                              ? 'status-ok'
+                              : item.status === 'Persetujuan'
+                                ? 'status-pending-radius'
+                                : item.status === 'Ditolak'
+                                  ? 'status-rejected'
+                                  : 'status-warn'
+                          }`}>
+                            {item.status === 'Persetujuan' ? '⏳ Menunggu Persetujuan' : item.status === 'Ditolak' ? '✗ Ditolak' : item.status}
                           </span>
                           {expandedItems.includes(item.id) ? <ChevronUp size={20} color="var(--text-secondary)" /> : <ChevronDown size={20} color="var(--text-secondary)" />}
                         </div>

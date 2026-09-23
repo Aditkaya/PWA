@@ -309,3 +309,28 @@
   background: rgba(239,68,68,0.4);
   cursor: not-allowed;
 }
+
+/* Status badge untuk absensi di luar radius */
+.status-pending-radius {
+  color: #f97316;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.status-rejected {
+  color: #ef4444;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.status-ok {
+  color: #4ade80;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
+.status-warn {
+  color: #facc15;
+  font-weight: 600;
+  font-size: 0.8rem;
+}

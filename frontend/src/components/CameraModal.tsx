@@ -53,7 +53,6 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   // Location States
   const [locationCoords, setLocationCoords] = useState<{lat: number, lng: number} | null>(null);
   const [gpsAccuracy, setGpsAccuracy] = useState<number | null>(null); // dalam meter
-  const bestAccuracyRef = useRef<number>(Infinity); // Best accuracy seen in this session
   const [address, setAddress] = useState(t.findingLocation);
 
   const [allowedLocations, setAllowedLocations] = useState<any[]>([]);
@@ -75,7 +74,6 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       setIsCameraReady(false);
       setLocationCoords(null);
       setGpsAccuracy(null);
-      bestAccuracyRef.current = Infinity;
       setAddress(t.findingLocation);
     }
   }, [isOpen, t.findingLocation]);
@@ -103,7 +101,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     return () => clearInterval(timer);
   }, [isOpen]);
 
-  // Watch Location Real-time (only sets coords + geocoding, NO radius check here)
+  // Watch Location Real-time (selalu gunakan fix GPS terbaru)
   useEffect(() => {
     if (!isOpen) return;
 
@@ -115,16 +113,10 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
         if (cancelled) return;
         const lat = position.coords.latitude;
         const lng = position.coords.longitude;
-        const accuracy = position.coords.accuracy; // dalam meter
+        const rawAccuracy = position.coords.accuracy;
+        const accuracy = typeof rawAccuracy === 'number' && Number.isFinite(rawAccuracy) ? rawAccuracy : null;
 
-        // Browser dapat mengoreksi koordinat tanpa banyak mengubah angka accuracy.
-        // Tetap terima pembacaan dengan kualitas yang sebanding agar first fix yang
-        // meleset tidak terkunci, tetapi abaikan pembacaan yang jauh lebih buruk.
-        const isFirstFix = bestAccuracyRef.current === Infinity;
-        const isComparable = accuracy <= bestAccuracyRef.current + 10;
-        if (!isFirstFix && !isComparable) return;
-
-        bestAccuracyRef.current = Math.min(bestAccuracyRef.current, accuracy);
+        // GPS selalu menggunakan fix terbaru tanpa filter selisih 5 meter
         setGpsAccuracy(accuracy);
         setLocationCoords({ lat, lng });
 
@@ -145,30 +137,27 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
         });
       };
 
+      // Selalu gunakan enableHighAccuracy: true tanpa fallback ke low accuracy
       watchId = navigator.geolocation.watchPosition(
         handleSuccess,
         (error) => {
           if (cancelled) return;
-          console.warn("High accuracy geolocation failed. Retrying with low accuracy...", error);
-          if (error.code === 2 || error.code === 3) {
-            // POSITION_UNAVAILABLE (2) or TIMEOUT (3)
-            navigator.geolocation.clearWatch(watchId);
-            watchId = navigator.geolocation.watchPosition(
-              handleSuccess,
-              (fallbackError) => {
-                if (cancelled) return;
-                setErrorMsg(t.gpsFailed);
-                console.error("Fallback geolocation error", fallbackError);
-                setAddress(t.gpsFailed);
-              },
-              { enableHighAccuracy: false, timeout: 30000, maximumAge: 10000 }
-            );
+          console.warn("GPS error:", error);
+          if (error.code === 1) {
+            setErrorMsg(t.gpsFailed || 'Izin akses lokasi ditolak. Silakan aktifkan izin lokasi.');
+            setAddress(t.gpsFailed || 'Izin lokasi ditolak');
+          } else if (error.code === 2) {
+            setErrorMsg('Sinyal GPS tidak tersedia. Pastikan GPS aktif dan berada di area terbuka.');
+            setAddress('Sinyal GPS tidak tersedia');
+          } else if (error.code === 3) {
+            setErrorMsg('Waktu pencarian GPS habis. Mohon pastikan sinyal GPS aktif.');
+            setAddress('Pencarian GPS timeout');
           } else {
             setErrorMsg(t.gpsFailed);
             setAddress(t.gpsFailed);
           }
         },
-        { enableHighAccuracy: true, timeout: 15000, maximumAge: 0 }
+        { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
       );
     } else {
       setErrorMsg(t.gpsNotSupported);
@@ -181,41 +170,54 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     };
   }, [isOpen, t.findingLocation, t.translatingAddress, t.gpsFailed, t.gpsNotSupported]);
 
-  // Gunakan radius ketidakpastian perangkat sebagai toleransi. Batasi nilainya
-  // agar GPS yang sangat lemah tidak melonggarkan geofence berlebihan.
-  const GPS_TOLERANCE_MAX = 20; // meter
-
   // Calculate radius synchronously during render — guaranteed no race condition
+  // Accuracy dijadikan quality gate terpisah, bukan otomatis ditambahkan ke radius
   const outOfRangeMessage = useMemo(() => {
-    if (!locationCoords || allowedLocations.length === 0) return '';
+    if (!locationCoords || !Array.isArray(allowedLocations) || allowedLocations.length === 0) return '';
 
     const { lat, lng } = locationCoords;
-    // Hitung toleransi berdasarkan akurasi GPS perangkat
-    const accuracyTolerance = gpsAccuracy !== null
-      ? Math.min(gpsAccuracy, GPS_TOLERANCE_MAX)
-      : 0;
+    if (!Number.isFinite(lat) || !Number.isFinite(lng)) return '';
 
     let minDistance = Infinity;
     let targetLocName = '';
+    let hasValidLocation = false;
+
     for (const loc of allowedLocations) {
-      const dist = getDistanceFromLatLonInM(lat, lng, parseFloat(loc.latitude), parseFloat(loc.longitude));
+      if (!loc) continue;
+      const locLat = parseFloat(loc.latitude);
+      const locLng = parseFloat(loc.longitude);
+      const locRadius = parseFloat(loc.radius);
+
+      // Validasi koordinat dan radius kantor agar aman terhadap data invalid
+      if (!Number.isFinite(locLat) || !Number.isFinite(locLng) || !Number.isFinite(locRadius) || locRadius <= 0) {
+        continue;
+      }
+
+      hasValidLocation = true;
+      const dist = getDistanceFromLatLonInM(lat, lng, locLat, locLng);
+      if (!Number.isFinite(dist)) continue;
+
       if (dist < minDistance) {
         minDistance = dist;
         targetLocName = loc.nama_lokasi || '';
       }
-      // Bandingkan jarak efektif (dikurangi toleransi GPS) terhadap radius lokasi
-      if (dist - accuracyTolerance <= parseFloat(loc.radius)) {
-        minDistance = -1; // Valid location found
+
+      // Bandingkan jarak langsung terhadap radius lokasi kantor (murni tanpa penambahan toleransi)
+      if (dist <= locRadius) {
+        minDistance = -1; // Berada di dalam radius lokasi
         break;
       }
     }
+
+    if (!hasValidLocation) return '';
+
     if (minDistance > 0 && minDistance !== Infinity) {
       return targetLocName
         ? `${t.outOfRange} ${targetLocName}: ${Math.round(minDistance)}m`
         : `${t.outOfRange}: ${Math.round(minDistance)}m`;
     }
     return '';
-  }, [locationCoords, gpsAccuracy, allowedLocations, t.outOfRange]);
+  }, [locationCoords, allowedLocations, t.outOfRange]);
 
   // Stop even a late camera permission response after closing the modal.
   useEffect(() => {
@@ -432,20 +434,24 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     stopCamera();
   };
 
-  const canTakePhoto = isCameraReady && !!locationCoords && !errorMsg && !isProcessing;
+  // Quality gate: jika akurasi GPS > 50 meter, tombol absensi tidak bisa digunakan
+  const isAccuracyAcceptable = gpsAccuracy === null || gpsAccuracy <= 50;
+  const canTakePhoto = isCameraReady && !!locationCoords && isAccuracyAcceptable && !errorMsg && !isProcessing;
 
   // Label kualitas sinyal GPS untuk ditampilkan di UI
   const gpsQualityLabel = gpsAccuracy === null
     ? null
-    : gpsAccuracy <= 10
-      ? { label: `GPS Akurat (±${Math.round(gpsAccuracy)}m)`, color: '#4ade80' }   // hijau
-      : gpsAccuracy <= 30
-        ? { label: `GPS Cukup (±${Math.round(gpsAccuracy)}m)`, color: '#facc15' }  // kuning
-        : { label: `GPS Lemah (±${Math.round(gpsAccuracy)}m) — Tunggu sebentar`, color: '#f97316' }; // oranye
+    : gpsAccuracy <= 15
+      ? { label: `GPS Sangat Akurat (±${Math.round(gpsAccuracy)}m)`, color: '#4ade80' }   // hijau (<= 15m)
+      : gpsAccuracy <= 50
+        ? { label: `GPS Cukup Akurat (±${Math.round(gpsAccuracy)}m)`, color: '#facc15' }  // kuning (16m - 50m)
+        : { label: `GPS Kurang Akurat (±${Math.round(gpsAccuracy)}m) — Tunggu GPS lebih presisi`, color: '#ef4444' }; // merah (> 50m)
 
   const faceMatchMsg = !isCameraReady ? 'Menyiapkan kamera...' : !locationCoords
     ? 'Menunggu koordinat GPS...'
-    : 'Posisikan wajah, lalu klik foto. Wajah diperiksa di server.';
+    : !isAccuracyAcceptable && gpsAccuracy !== null
+      ? `Akurasi GPS belum memadai (±${Math.round(gpsAccuracy)}m). Mohon tunggu GPS lebih akurat (maks 50m)...`
+      : 'Posisikan wajah, lalu klik foto. Wajah diperiksa di server.';
 
   if (!isOpen) return null;
 
@@ -639,7 +645,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
                 <AlertCircle size={16} /> {faceMatchMsg}
               </div>
             ) : (
-              <div style={{ padding: '8px 16px', background: 'rgba(234, 179, 8, 0.9)', color: 'white', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
+              <div style={{ padding: '8px 16px', background: !isAccuracyAcceptable ? 'rgba(239, 68, 68, 0.95)' : 'rgba(234, 179, 8, 0.9)', color: 'white', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>
                 <AlertCircle size={16} /> {faceMatchMsg}
               </div>
             )}

@@ -98,13 +98,11 @@ export default function Amprahan() {
     if (jenisAmprahan !== 'kapal') {
       const selectedMobil = mobilList.find(m => m.id.toString() === mobilId);
       const selectedAlatBerat = alatBeratList.find(a => a.id.toString() === alatBeratId);
-      const alatBeratName = selectedAlatBerat?.nama_alat_berat
-        || selectedAlatBerat?.nama_alat
-        || selectedAlatBerat?.nama
-        || selectedAlatBerat?.kode_alat
-        || selectedAlatBerat?.kode
-        || selectedAlatBerat?.jenis
-        || `Alat Berat #${selectedAlatBerat?.id}`;
+      const alatBeratName = selectedAlatBerat
+        ? [selectedAlatBerat.kode_alat || selectedAlatBerat.kode, selectedAlatBerat.jenis, selectedAlatBerat.lokasi, selectedAlatBerat.warna]
+          .filter(Boolean)
+          .join(' - ') || selectedAlatBerat.nama_alat_berat || selectedAlatBerat.nama_alat || selectedAlatBerat.nama || `Alat Berat #${selectedAlatBerat.id}`
+        : undefined;
       navigate('/amprahan/request', { state: {
         jenisAmprahan,
         mobilId: jenisAmprahan === 'kendaraan' ? mobilId : undefined,
@@ -230,15 +228,15 @@ export default function Amprahan() {
                   >
                     <option value="">{isLoadingAlatBerat ? 'Loading...' : '--Pilih Alat Berat--'}</option>
                     {alatBeratList.map(alat => {
-                      const label = alat.nama_alat_berat || alat.nama_alat || alat.nama || alat.jenis || `Alat Berat #${alat.id}`;
-                      const detail = [
+                      const label = [
                         alat.kode_alat || alat.kode,
+                        alat.jenis,
                         alat.lokasi,
                         alat.warna,
-                      ].filter(Boolean).join(' - ');
+                      ].filter(Boolean).join(' - ') || alat.nama_alat_berat || alat.nama_alat || alat.nama || `Alat Berat #${alat.id}`;
                       return (
                         <option key={alat.id} value={alat.id}>
-                          {label}{detail ? ` - ${detail}` : ''}
+                          {label}
                         </option>
                       );
                     })}

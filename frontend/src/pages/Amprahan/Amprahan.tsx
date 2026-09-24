@@ -16,6 +16,18 @@ interface Mobil {
   jenis?: string | null;
 }
 
+interface AlatBerat {
+  id: number;
+  nama_alat_berat?: string | null;
+  nama_alat?: string | null;
+  nama?: string | null;
+  kode_alat?: string | null;
+  kode?: string | null;
+  jenis?: string | null;
+  merk?: string | null;
+  model?: string | null;
+}
+
 type JenisAmprahan = 'kapal' | 'kendaraan' | 'alat_berat' | 'lainnya';
 
 const jenisPilihan: Array<{ value: JenisAmprahan; label: string; description: string; icon: typeof Ship }> = [
@@ -33,6 +45,9 @@ export default function Amprahan() {
   const [mobilList, setMobilList] = useState<Mobil[]>([]);
   const [mobilId, setMobilId] = useState('');
   const [isLoadingMobil, setIsLoadingMobil] = useState(false);
+  const [alatBeratList, setAlatBeratList] = useState<AlatBerat[]>([]);
+  const [alatBeratId, setAlatBeratId] = useState('');
+  const [isLoadingAlatBerat, setIsLoadingAlatBerat] = useState(false);
   const [jenisAmprahan, setJenisAmprahan] = useState<JenisAmprahan | null>(null);
 
   useEffect(() => {
@@ -54,6 +69,17 @@ export default function Amprahan() {
   }, [jenisAmprahan]);
 
   useEffect(() => {
+    if (jenisAmprahan !== 'alat_berat') return;
+
+    setIsLoadingAlatBerat(true);
+    fetch('/api/amprahan/alat-berats')
+      .then(res => res.json())
+      .then(data => setAlatBeratList(data.data || []))
+      .catch(err => console.error('Error fetching alat berat:', err))
+      .finally(() => setIsLoadingAlatBerat(false));
+  }, [jenisAmprahan]);
+
+  useEffect(() => {
     if (jenisAmprahan !== 'kendaraan') return;
 
     setIsLoadingMobil(true);
@@ -68,10 +94,20 @@ export default function Amprahan() {
     e.preventDefault();
     if (jenisAmprahan !== 'kapal') {
       const selectedMobil = mobilList.find(m => m.id.toString() === mobilId);
+      const selectedAlatBerat = alatBeratList.find(a => a.id.toString() === alatBeratId);
+      const alatBeratName = selectedAlatBerat?.nama_alat_berat
+        || selectedAlatBerat?.nama_alat
+        || selectedAlatBerat?.nama
+        || selectedAlatBerat?.kode_alat
+        || selectedAlatBerat?.kode
+        || selectedAlatBerat?.jenis
+        || `Alat Berat #${selectedAlatBerat?.id}`;
       navigate('/amprahan/request', { state: {
         jenisAmprahan,
         mobilId: jenisAmprahan === 'kendaraan' ? mobilId : undefined,
+        alatBeratId: jenisAmprahan === 'alat_berat' ? alatBeratId : undefined,
         mobilName: selectedMobil?.nomor_polisi || selectedMobil?.nomor_kir || selectedMobil?.kode_no,
+        alatBeratName: jenisAmprahan === 'alat_berat' ? alatBeratName : undefined,
       } });
       return;
     }
@@ -108,6 +144,7 @@ export default function Amprahan() {
                   setKapalId('');
                 }
                 if (value !== 'kendaraan') setMobilId('');
+                if (value !== 'alat_berat') setAlatBeratId('');
               }}
             >
               <span className="amprahan-type-icon"><Icon size={25} /></span>
@@ -174,7 +211,33 @@ export default function Amprahan() {
                 </div>
               </div>
             )}
-            <button type="submit" className="btn-submit" disabled={jenisAmprahan === 'kendaraan' && !mobilId}>
+            {jenisAmprahan === 'alat_berat' && (
+              <div className="form-group">
+                <label>Pilih Alat Berat</label>
+                <div className="input-wrapper select-wrapper">
+                  <HardHat className="input-icon" size={20} />
+                  <select
+                    value={alatBeratId}
+                    onChange={e => setAlatBeratId(e.target.value)}
+                    className="form-input"
+                    required
+                    disabled={isLoadingAlatBerat}
+                  >
+                    <option value="">{isLoadingAlatBerat ? 'Loading...' : '--Pilih Alat Berat--'}</option>
+                    {alatBeratList.map(alat => {
+                      const label = alat.nama_alat_berat || alat.nama_alat || alat.nama || alat.kode_alat || alat.kode || alat.jenis || `Alat Berat #${alat.id}`;
+                      const detail = alat.merk || alat.model;
+                      return (
+                        <option key={alat.id} value={alat.id}>
+                          {label}{detail ? ` - ${detail}` : ''}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              </div>
+            )}
+            <button type="submit" className="btn-submit" disabled={(jenisAmprahan === 'kendaraan' && !mobilId) || (jenisAmprahan === 'alat_berat' && !alatBeratId)}>
               Lanjutkan <ArrowRight size={18} />
             </button>
           </form>

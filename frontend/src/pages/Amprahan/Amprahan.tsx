@@ -23,6 +23,8 @@ interface AlatBerat {
   nama?: string | null;
   kode_alat?: string | null;
   kode?: string | null;
+  lokasi?: string | null;
+  warna?: string | null;
   jenis?: string | null;
   merk?: string | null;
   model?: string | null;
@@ -225,8 +227,12 @@ export default function Amprahan() {
                   >
                     <option value="">{isLoadingAlatBerat ? 'Loading...' : '--Pilih Alat Berat--'}</option>
                     {alatBeratList.map(alat => {
-                      const label = alat.nama_alat_berat || alat.nama_alat || alat.nama || alat.kode_alat || alat.kode || alat.jenis || `Alat Berat #${alat.id}`;
-                      const detail = alat.merk || alat.model;
+                      const label = alat.nama_alat_berat || alat.nama_alat || alat.nama || alat.jenis || `Alat Berat #${alat.id}`;
+                      const detail = [
+                        alat.kode_alat || alat.kode,
+                        alat.lokasi,
+                        alat.warna,
+                      ].filter(Boolean).join(' - ');
                       return (
                         <option key={alat.id} value={alat.id}>
                           {label}{detail ? ` - ${detail}` : ''}

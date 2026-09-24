@@ -12,6 +12,7 @@ interface Mobil {
   id: number;
   kode_no?: string | null;
   nomor_polisi?: string | null;
+  nomor_kir?: string | null;
   jenis?: string | null;
 }
 
@@ -70,7 +71,7 @@ export default function Amprahan() {
       navigate('/amprahan/request', { state: {
         jenisAmprahan,
         mobilId: jenisAmprahan === 'kendaraan' ? mobilId : undefined,
-        mobilName: selectedMobil?.nomor_polisi || selectedMobil?.kode_no,
+        mobilName: selectedMobil?.nomor_polisi || selectedMobil?.nomor_kir || selectedMobil?.kode_no,
       } });
       return;
     }
@@ -166,7 +167,7 @@ export default function Amprahan() {
                     <option value="">{isLoadingMobil ? 'Loading...' : '--Pilih Kendaraan--'}</option>
                     {mobilList.map(mobil => (
                       <option key={mobil.id} value={mobil.id}>
-                        {mobil.nomor_polisi || mobil.kode_no || `Kendaraan #${mobil.id}`}{mobil.jenis ? ` - ${mobil.jenis}` : ''}
+                        {mobil.nomor_polisi || mobil.nomor_kir || mobil.kode_no || `Kendaraan #${mobil.id}`}{mobil.jenis ? ` - ${mobil.jenis}` : ''}
                       </option>
                     ))}
                   </select>

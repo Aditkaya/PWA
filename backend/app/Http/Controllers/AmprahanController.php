@@ -129,7 +129,7 @@ class AmprahanController {
     public function getMobils() {
         try {
             $pdo = Database::getConnection();
-            $stmt = $pdo->query("SELECT id, kode_no, nomor_polisi, jenis FROM mobils ORDER BY nomor_polisi ASC, kode_no ASC");
+            $stmt = $pdo->query("SELECT id, kode_no, nomor_polisi, nomor_kir, jenis FROM mobils ORDER BY nomor_polisi ASC, nomor_kir ASC, kode_no ASC");
             http_response_code(200);
             echo json_encode(['data' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
         } catch (\PDOException $e) {

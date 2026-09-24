@@ -36,7 +36,8 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   const mapTileRef = useRef<HTMLImageElement | null>(null);
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
+  const [cameraError, setCameraError] = useState('');
+  const [gpsError, setGpsError] = useState('');
   const [validationError, setValidationError] = useState('');
   const [statusMsg, setStatusMsg] = useState('');
   const [logoImage, setLogoImage] = useState<HTMLImageElement | null>(null);
@@ -65,7 +66,8 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   // Reset states when opened
   useEffect(() => {
     if (isOpen) {
-      setErrorMsg('');
+      setCameraError('');
+      setGpsError('');
       setValidationError('');
       setStatusMsg('');
       setIsProcessing(false);
@@ -108,7 +110,9 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     let watchId: number;
     let cancelled = false;
 
-    if (navigator.geolocation) {
+    if (!window.isSecureContext) {
+      setGpsError('GPS membutuhkan koneksi HTTPS atau localhost.');
+    } else if (navigator.geolocation) {
       const handleSuccess = (position: GeolocationPosition) => {
         if (cancelled) return;
         const lat = position.coords.latitude;
@@ -116,6 +120,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
         const rawAccuracy = position.coords.accuracy;
         const accuracy = typeof rawAccuracy === 'number' && Number.isFinite(rawAccuracy) ? rawAccuracy : null;
 
+        setGpsError('');
         // GPS selalu menggunakan fix terbaru tanpa filter selisih 5 meter
         setGpsAccuracy(accuracy);
         setLocationCoords({ lat, lng });
@@ -144,23 +149,23 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
           if (cancelled) return;
           console.warn("GPS error:", error);
           if (error.code === 1) {
-            setErrorMsg(t.gpsFailed || 'Izin akses lokasi ditolak. Silakan aktifkan izin lokasi.');
+            setGpsError(t.gpsFailed || 'Izin akses lokasi ditolak. Silakan aktifkan izin lokasi.');
             setAddress(t.gpsFailed || 'Izin lokasi ditolak');
           } else if (error.code === 2) {
-            setErrorMsg('Sinyal GPS tidak tersedia. Pastikan GPS aktif dan berada di area terbuka.');
+            setGpsError('Sinyal GPS tidak tersedia. Pastikan GPS aktif dan berada di area terbuka.');
             setAddress('Sinyal GPS tidak tersedia');
           } else if (error.code === 3) {
-            setErrorMsg('Waktu pencarian GPS habis. Mohon pastikan sinyal GPS aktif.');
+            setGpsError('Waktu pencarian GPS habis. Mohon pastikan sinyal GPS aktif.');
             setAddress('Pencarian GPS timeout');
           } else {
-            setErrorMsg(t.gpsFailed);
+            setGpsError(t.gpsFailed);
             setAddress(t.gpsFailed);
           }
         },
         { enableHighAccuracy: true, timeout: 20000, maximumAge: 0 }
       );
     } else {
-      setErrorMsg(t.gpsNotSupported);
+      setGpsError(t.gpsNotSupported);
       setAddress(t.gpsNotSupported);
     }
 
@@ -221,12 +226,16 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
 
   // Stop even a late camera permission response after closing the modal.
   useEffect(() => {
-    if (!isOpen || errorMsg) return;
+    if (!isOpen || cameraError) return;
     let cancelled = false;
     let stream: MediaStream | undefined;
     const video = videoRef.current;
+    if (!window.isSecureContext) {
+      setCameraError('Kamera membutuhkan koneksi HTTPS atau localhost.');
+      return;
+    }
     if (!navigator.mediaDevices?.getUserMedia) {
-      setErrorMsg(t.cameraDenied);
+      setCameraError('Browser atau perangkat ini tidak mendukung akses kamera.');
       return;
     }
     navigator.mediaDevices.getUserMedia({
@@ -241,8 +250,18 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
         if (!cancelled) setIsCameraReady(true);
       };
       video.srcObject = result;
-    }).catch(() => {
-      if (!cancelled) setErrorMsg(t.cameraDenied);
+    }).catch((error: unknown) => {
+      if (cancelled) return;
+      const errorName = error instanceof DOMException ? error.name : '';
+      if (errorName === 'NotFoundError') {
+        setCameraError('Kamera tidak ditemukan pada perangkat ini.');
+      } else if (errorName === 'NotReadableError') {
+        setCameraError('Kamera sedang digunakan aplikasi lain. Tutup aplikasi tersebut lalu coba lagi.');
+      } else if (errorName === 'SecurityError' || errorName === 'NotAllowedError') {
+        setCameraError('Akses kamera ditolak. Periksa izin kamera untuk alamat situs ini.');
+      } else {
+        setCameraError(t.cameraDenied);
+      }
     });
     return () => {
       cancelled = true;
@@ -252,7 +271,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
         video.srcObject = null;
       }
     };
-  }, [isOpen, errorMsg, t.cameraDenied]);
+  }, [isOpen, cameraError, t.cameraDenied]);
 
   const stopCamera = () => {
     const stream = videoRef.current?.srcObject as MediaStream | null;
@@ -282,7 +301,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
 
   const handleTakePhoto = async () => {
     const video = videoRef.current;
-    if (!isOpen || !isCameraReady || !locationCoords || !user?.id || !video || capturingRef.current || errorMsg) return;
+    if (!isOpen || !isCameraReady || !locationCoords || !user?.id || !video || capturingRef.current || cameraError || gpsError) return;
     capturingRef.current = true;
     setIsProcessing(true);
     setValidationError('');
@@ -436,6 +455,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
 
   // Quality gate: jika akurasi GPS > 50 meter, tombol absensi tidak bisa digunakan
   const isAccuracyAcceptable = gpsAccuracy === null || gpsAccuracy <= 50;
+  const errorMsg = cameraError || gpsError;
   const canTakePhoto = isCameraReady && !!locationCoords && isAccuracyAcceptable && !errorMsg && !isProcessing;
 
   // Label kualitas sinyal GPS untuk ditampilkan di UI
@@ -461,7 +481,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
         
         {/* Fullscreen Video */}
         <div className="video-container">
-          {!isCameraReady && !errorMsg && (
+          {!isCameraReady && !cameraError && (
             <div style={{ color: 'white' }}>
               <Loader2 size={40} className="animate-spin" />
             </div>

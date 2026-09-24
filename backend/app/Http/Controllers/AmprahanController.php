@@ -129,7 +129,23 @@ class AmprahanController {
     public function getMobils() {
         try {
             $pdo = Database::getConnection();
-            $stmt = $pdo->query("SELECT id, kode_no, nomor_polisi, nomor_kir, jenis FROM mobils ORDER BY nomor_polisi ASC, nomor_kir ASC, kode_no ASC");
+
+            // Nama kolom KIR dapat berbeda antar database lama/baru.
+            $columnsStmt = $pdo->query("SHOW COLUMNS FROM mobils");
+            $columns = array_column($columnsStmt->fetchAll(PDO::FETCH_ASSOC), 'Field');
+            $kirColumn = null;
+            foreach (['nomor_kir', 'no_kir', 'kir'] as $candidate) {
+                if (in_array($candidate, $columns, true)) {
+                    $kirColumn = $candidate;
+                    break;
+                }
+            }
+
+            $kirSelect = $kirColumn
+                ? "`$kirColumn` AS nomor_kir"
+                : "NULL AS nomor_kir";
+            $kirOrder = $kirColumn ? "`$kirColumn` ASC, " : '';
+            $stmt = $pdo->query("SELECT id, kode_no, nomor_polisi, $kirSelect, jenis FROM mobils ORDER BY nomor_polisi ASC, $kirOrder kode_no ASC");
             http_response_code(200);
             echo json_encode(['data' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
         } catch (\PDOException $e) {

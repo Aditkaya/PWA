@@ -11,6 +11,7 @@ import PerencanaanLemburModal from '../../components/PerencanaanLemburModal'
 import PamfletCarousel from '../../components/PamfletCarousel'
 import { useLangStore } from '../../store/lang.store'
 import { useModeStore } from '../../store/mode.store'
+import LocationStatus from '../../components/LocationStatus'
 import { translations } from '../../utils/translations'
 import { useToast } from '../../contexts/ToastContext'
 import './dashboard.css'
@@ -367,6 +368,9 @@ export default function Dashboard() {
           </button>
         </div>
       )}
+
+      {/* Status Izin Lokasi Perangkat */}
+      <LocationStatus />
 
       <div className="clock-section">
         <div className="time">

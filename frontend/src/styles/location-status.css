@@ -1,0 +1,225 @@
+.location-status-container {
+  margin: 12px 0 16px 0;
+  width: 100%;
+  border-radius: 14px;
+  padding: 14px 16px;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.04);
+  font-family: inherit;
+  box-sizing: border-box;
+}
+
+/* State 1: Granted / Hijau */
+.location-status-container.status-granted {
+  background: rgba(16, 185, 129, 0.08);
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+/* State 2: Prompt / Kuning */
+.location-status-container.status-prompt,
+.location-status-container.status-loading {
+  background: rgba(245, 158, 11, 0.08);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+/* State 3: Denied / Merah */
+.location-status-container.status-denied,
+.location-status-container.status-error {
+  background: rgba(239, 68, 68, 0.08);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+}
+
+.location-status-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.location-status-main {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex: 1;
+}
+
+.location-status-icon-wrapper {
+  width: 40px;
+  height: 40px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+.status-granted .location-status-icon-wrapper {
+  background: #10b981;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(16, 185, 129, 0.3);
+}
+
+.status-prompt .location-status-icon-wrapper,
+.status-loading .location-status-icon-wrapper {
+  background: #f59e0b;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(245, 158, 11, 0.3);
+}
+
+.status-denied .location-status-icon-wrapper,
+.status-error .location-status-icon-wrapper {
+  background: #ef4444;
+  color: #ffffff;
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.3);
+}
+
+.location-status-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.location-status-title-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.location-status-title {
+  font-weight: 700;
+  font-size: 0.95rem;
+  margin: 0;
+  color: var(--text-h, #1e293b);
+}
+
+.location-status-badge {
+  font-size: 0.7rem;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 999px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+}
+
+.status-granted .location-status-badge {
+  background: rgba(16, 185, 129, 0.2);
+  color: #047857;
+}
+
+.status-prompt .location-status-badge,
+.status-loading .location-status-badge {
+  background: rgba(245, 158, 11, 0.2);
+  color: #b45309;
+}
+
+.status-denied .location-status-badge,
+.status-error .location-status-badge {
+  background: rgba(239, 68, 68, 0.2);
+  color: #b91c1c;
+}
+
+.location-status-subtitle {
+  font-size: 0.8rem;
+  color: var(--text, #64748b);
+  margin: 0;
+  line-height: 1.35;
+}
+
+.location-status-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.btn-loc-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 14px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.btn-loc-action.btn-loc-primary {
+  background: #3b82f6;
+  color: white;
+  box-shadow: 0 2px 6px rgba(59, 130, 246, 0.3);
+}
+
+.btn-loc-action.btn-loc-primary:hover {
+  background: #2563eb;
+  transform: translateY(-1px);
+}
+
+.btn-loc-action.btn-loc-danger {
+  background: #ef4444;
+  color: white;
+  box-shadow: 0 2px 6px rgba(239, 68, 68, 0.3);
+}
+
+.btn-loc-action.btn-loc-danger:hover {
+  background: #dc2626;
+  transform: translateY(-1px);
+}
+
+.btn-loc-action.btn-loc-ghost {
+  background: transparent;
+  color: var(--text, #64748b);
+  padding: 6px 8px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+}
+
+.btn-loc-action.btn-loc-ghost:hover {
+  background: rgba(148, 163, 184, 0.1);
+  color: var(--text-h, #1e293b);
+}
+
+/* Detail Panduan Accordion */
+.location-guide-box {
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px dashed rgba(148, 163, 184, 0.3);
+  font-size: 0.8rem;
+  color: var(--text, #475569);
+  line-height: 1.5;
+  animation: fadeIn 0.3s ease-out;
+}
+
+.location-guide-box ol {
+  margin: 6px 0 0 18px;
+  padding: 0;
+}
+
+.location-guide-box li {
+  margin-bottom: 4px;
+}
+
+.location-guide-box strong {
+  color: var(--text-h, #0f172a);
+}
+
+.spin-icon {
+  animation: loc-spin 1s linear infinite;
+}
+
+@keyframes loc-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@media (max-width: 640px) {
+  .location-status-header {
+    flex-direction: column;
+    align-items: stretch;
+  }
+  .location-status-actions {
+    margin-top: 8px;
+    justify-content: flex-end;
+  }
+}

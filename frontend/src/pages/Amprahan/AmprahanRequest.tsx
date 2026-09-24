@@ -22,6 +22,7 @@ export default function AmprahanRequest() {
     kapalId?: string;
     mobilId?: string;
     alatBeratId?: string;
+    tujuanPermintaan?: string;
   } | null;
   const jenisAmprahan = requestContext?.jenisAmprahan;
 
@@ -74,6 +75,7 @@ export default function AmprahanRequest() {
           kapal_id: requestContext?.kapalId || null,
           mobil_id: requestContext?.mobilId || null,
           alat_berat_id: requestContext?.alatBeratId || null,
+          tujuan_permintaan: requestContext?.tujuanPermintaan || null,
           nomor_voyage: null,
           keterangan_umum: keteranganUmum,
           items: items.map(i => ({

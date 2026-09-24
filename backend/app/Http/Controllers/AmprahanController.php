@@ -16,6 +16,7 @@ class AmprahanController {
         $kapal_id = $postData['kapal_id'] ?? null;
         $mobil_id = $postData['mobil_id'] ?? null;
         $alat_berat_id = $postData['alat_berat_id'] ?? null;
+        $tujuan_permintaan = trim((string) ($postData['tujuan_permintaan'] ?? ''));
         $nomor_voyage = $postData['nomor_voyage'] ?? null;
         $keterangan_umum = $postData['keterangan_umum'] ?? null;
         $items = $postData['items'] ?? [];
@@ -56,10 +57,21 @@ class AmprahanController {
             $kapal_id = null;
             $mobil_id = null;
             $nomor_voyage = null;
+        } elseif ($jenis_amprahan === 'lainnya') {
+            if ($tujuan_permintaan === '') {
+                http_response_code(400);
+                echo json_encode(['message' => 'Tujuan permintaan wajib diisi']);
+                return;
+            }
+            $kapal_id = null;
+            $mobil_id = null;
+            $alat_berat_id = null;
+            $nomor_voyage = null;
         } else {
             $kapal_id = null;
             $mobil_id = null;
             $alat_berat_id = null;
+            $tujuan_permintaan = '';
             $nomor_voyage = null;
         }
 
@@ -94,10 +106,10 @@ class AmprahanController {
 
             $stmt = $pdo->prepare("
                 INSERT INTO permohonan_amprahans
-                    (user_id, jenis_amprahan, kapal_id, mobil_id, alat_berat_id, nomor_voyage, keterangan_umum, status)
-                VALUES (?, ?, ?, ?, ?, ?, ?, 'pending')
+                    (user_id, jenis_amprahan, kapal_id, mobil_id, alat_berat_id, nomor_voyage, tujuan_permintaan, keterangan_umum, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')
             ");
-            $stmt->execute([$user_id, $jenis_amprahan, $kapal_id, $mobil_id, $alat_berat_id, $nomor_voyage, $keterangan_umum]);
+            $stmt->execute([$user_id, $jenis_amprahan, $kapal_id, $mobil_id, $alat_berat_id, $nomor_voyage, $tujuan_permintaan !== '' ? $tujuan_permintaan : null, $keterangan_umum]);
             
             $permohonan_id = $pdo->lastInsertId();
 

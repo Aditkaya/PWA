@@ -50,6 +50,7 @@ export default function Amprahan() {
   const [alatBeratList, setAlatBeratList] = useState<AlatBerat[]>([]);
   const [alatBeratId, setAlatBeratId] = useState('');
   const [isLoadingAlatBerat, setIsLoadingAlatBerat] = useState(false);
+  const [tujuanPermintaan, setTujuanPermintaan] = useState('');
   const [jenisAmprahan, setJenisAmprahan] = useState<JenisAmprahan | null>(null);
 
   useEffect(() => {
@@ -108,6 +109,7 @@ export default function Amprahan() {
         jenisAmprahan,
         mobilId: jenisAmprahan === 'kendaraan' ? mobilId : undefined,
         alatBeratId: jenisAmprahan === 'alat_berat' ? alatBeratId : undefined,
+        tujuanPermintaan: jenisAmprahan === 'lainnya' ? tujuanPermintaan.trim() : undefined,
         mobilName: selectedMobil?.nomor_polisi || selectedMobil?.nomor_kir || selectedMobil?.kode_no,
         alatBeratName: jenisAmprahan === 'alat_berat' ? alatBeratName : undefined,
       } });
@@ -147,6 +149,7 @@ export default function Amprahan() {
                 }
                 if (value !== 'kendaraan') setMobilId('');
                 if (value !== 'alat_berat') setAlatBeratId('');
+                if (value !== 'lainnya') setTujuanPermintaan('');
               }}
             >
               <span className="amprahan-type-icon"><Icon size={25} /></span>
@@ -243,7 +246,21 @@ export default function Amprahan() {
                 </div>
               </div>
             )}
-            <button type="submit" className="btn-submit" disabled={(jenisAmprahan === 'kendaraan' && !mobilId) || (jenisAmprahan === 'alat_berat' && !alatBeratId)}>
+            {jenisAmprahan === 'lainnya' && (
+              <div className="form-group">
+                <label htmlFor="tujuan-permintaan">Tujuan Permintaan</label>
+                <input
+                  id="tujuan-permintaan"
+                  type="text"
+                  className="form-input"
+                  placeholder="Contoh: Kebutuhan kantor atau operasional umum"
+                  value={tujuanPermintaan}
+                  onChange={e => setTujuanPermintaan(e.target.value)}
+                  required
+                />
+              </div>
+            )}
+            <button type="submit" className="btn-submit" disabled={(jenisAmprahan === 'kendaraan' && !mobilId) || (jenisAmprahan === 'alat_berat' && !alatBeratId) || (jenisAmprahan === 'lainnya' && !tujuanPermintaan.trim())}>
               Lanjutkan <ArrowRight size={18} />
             </button>
           </form>

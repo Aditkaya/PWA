@@ -376,6 +376,20 @@ if ($uri === '/api/amprahan/request' && $method === 'POST') {
     exit();
 }
 
+if ($uri === '/api/amprahan/mobils' && $method === 'GET') {
+    require_once __DIR__ . '/../app/Http/Controllers/AmprahanController.php';
+    $controller = new \App\Http\Controllers\AmprahanController();
+    $controller->getMobils();
+    exit();
+}
+
+if ($uri === '/api/amprahan/alat-berats' && $method === 'GET') {
+    require_once __DIR__ . '/../app/Http/Controllers/AmprahanController.php';
+    $controller = new \App\Http\Controllers\AmprahanController();
+    $controller->getAlatBerats();
+    exit();
+}
+
 if ($uri === '/api/amprahan/approved' && $method === 'GET') {
     require_once __DIR__ . '/../app/Http/Controllers/AmprahanController.php';
     $controller = new \App\Http\Controllers\AmprahanController();

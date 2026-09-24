@@ -8,6 +8,28 @@ interface Kapal {
   nama_kapal: string;
 }
 
+interface Mobil {
+  id: number;
+  kode_no?: string | null;
+  nomor_polisi?: string | null;
+  nomor_kir?: string | null;
+  jenis?: string | null;
+}
+
+interface AlatBerat {
+  id: number;
+  nama_alat_berat?: string | null;
+  nama_alat?: string | null;
+  nama?: string | null;
+  kode_alat?: string | null;
+  kode?: string | null;
+  lokasi?: string | null;
+  warna?: string | null;
+  jenis?: string | null;
+  merk?: string | null;
+  model?: string | null;
+}
+
 type JenisAmprahan = 'kapal' | 'kendaraan' | 'alat_berat' | 'lainnya';
 
 const jenisPilihan: Array<{ value: JenisAmprahan; label: string; description: string; icon: typeof Ship }> = [
@@ -22,6 +44,13 @@ export default function Amprahan() {
   const [kapalList, setKapalList] = useState<Kapal[]>([]);
   const [kapalId, setKapalId] = useState('');
   const [isLoadingKapal, setIsLoadingKapal] = useState(true);
+  const [mobilList, setMobilList] = useState<Mobil[]>([]);
+  const [mobilId, setMobilId] = useState('');
+  const [isLoadingMobil, setIsLoadingMobil] = useState(false);
+  const [alatBeratList, setAlatBeratList] = useState<AlatBerat[]>([]);
+  const [alatBeratId, setAlatBeratId] = useState('');
+  const [isLoadingAlatBerat, setIsLoadingAlatBerat] = useState(false);
+  const [tujuanPermintaan, setTujuanPermintaan] = useState('');
   const [jenisAmprahan, setJenisAmprahan] = useState<JenisAmprahan | null>(null);
 
   useEffect(() => {
@@ -42,10 +71,46 @@ export default function Amprahan() {
       });
   }, [jenisAmprahan]);
 
+  useEffect(() => {
+    if (jenisAmprahan !== 'alat_berat') return;
+
+    setIsLoadingAlatBerat(true);
+    fetch('/api/amprahan/alat-berats')
+      .then(res => res.json())
+      .then(data => setAlatBeratList(data.data || []))
+      .catch(err => console.error('Error fetching alat berat:', err))
+      .finally(() => setIsLoadingAlatBerat(false));
+  }, [jenisAmprahan]);
+
+  useEffect(() => {
+    if (jenisAmprahan !== 'kendaraan') return;
+
+    setIsLoadingMobil(true);
+    fetch('/api/amprahan/mobils')
+      .then(res => res.json())
+      .then(data => setMobilList(data.data || []))
+      .catch(err => console.error('Error fetching kendaraan:', err))
+      .finally(() => setIsLoadingMobil(false));
+  }, [jenisAmprahan]);
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (jenisAmprahan !== 'kapal') {
-      navigate('/amprahan/request', { state: { jenisAmprahan } });
+      const selectedMobil = mobilList.find(m => m.id.toString() === mobilId);
+      const selectedAlatBerat = alatBeratList.find(a => a.id.toString() === alatBeratId);
+      const alatBeratName = selectedAlatBerat
+        ? [selectedAlatBerat.kode_alat || selectedAlatBerat.kode, selectedAlatBerat.jenis, selectedAlatBerat.lokasi, selectedAlatBerat.warna]
+          .filter(Boolean)
+          .join(' - ') || selectedAlatBerat.nama_alat_berat || selectedAlatBerat.nama_alat || selectedAlatBerat.nama || `Alat Berat #${selectedAlatBerat.id}`
+        : undefined;
+      navigate('/amprahan/request', { state: {
+        jenisAmprahan,
+        mobilId: jenisAmprahan === 'kendaraan' ? mobilId : undefined,
+        alatBeratId: jenisAmprahan === 'alat_berat' ? alatBeratId : undefined,
+        tujuanPermintaan: jenisAmprahan === 'lainnya' ? tujuanPermintaan.trim() : undefined,
+        mobilName: selectedMobil?.nomor_polisi || selectedMobil?.nomor_kir || selectedMobil?.kode_no,
+        alatBeratName: jenisAmprahan === 'alat_berat' ? alatBeratName : undefined,
+      } });
       return;
     }
 
@@ -80,6 +145,9 @@ export default function Amprahan() {
                 if (value !== 'kapal') {
                   setKapalId('');
                 }
+                if (value !== 'kendaraan') setMobilId('');
+                if (value !== 'alat_berat') setAlatBeratId('');
+                if (value !== 'lainnya') setTujuanPermintaan('');
               }}
             >
               <span className="amprahan-type-icon"><Icon size={25} /></span>
@@ -124,7 +192,73 @@ export default function Amprahan() {
         {jenisAmprahan && jenisAmprahan !== 'kapal' && (
           <form onSubmit={handleSubmit} className="amprahan-form amprahan-continue-form">
             <p className="amprahan-selection-note">Kategori <strong>{jenisPilihan.find(item => item.value === jenisAmprahan)?.label}</strong> dipilih.</p>
-            <button type="submit" className="btn-submit">
+            {jenisAmprahan === 'kendaraan' && (
+              <div className="form-group">
+                <label>Pilih Kendaraan</label>
+                <div className="input-wrapper select-wrapper">
+                  <Car className="input-icon" size={20} />
+                  <select
+                    value={mobilId}
+                    onChange={e => setMobilId(e.target.value)}
+                    className="form-input"
+                    required
+                    disabled={isLoadingMobil}
+                  >
+                    <option value="">{isLoadingMobil ? 'Loading...' : '--Pilih Kendaraan--'}</option>
+                    {mobilList.map(mobil => (
+                      <option key={mobil.id} value={mobil.id}>
+                        {mobil.nomor_polisi || mobil.nomor_kir || mobil.kode_no || `Kendaraan #${mobil.id}`}{mobil.jenis ? ` - ${mobil.jenis}` : ''}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+            )}
+            {jenisAmprahan === 'alat_berat' && (
+              <div className="form-group">
+                <label>Pilih Alat Berat</label>
+                <div className="input-wrapper select-wrapper">
+                  <HardHat className="input-icon" size={20} />
+                  <select
+                    value={alatBeratId}
+                    onChange={e => setAlatBeratId(e.target.value)}
+                    className="form-input"
+                    required
+                    disabled={isLoadingAlatBerat}
+                  >
+                    <option value="">{isLoadingAlatBerat ? 'Loading...' : '--Pilih Alat Berat--'}</option>
+                    {alatBeratList.map(alat => {
+                      const label = [
+                        alat.kode_alat || alat.kode,
+                        alat.jenis,
+                        alat.lokasi,
+                        alat.warna,
+                      ].filter(Boolean).join(' - ') || alat.nama_alat_berat || alat.nama_alat || alat.nama || `Alat Berat #${alat.id}`;
+                      return (
+                        <option key={alat.id} value={alat.id}>
+                          {label}
+                        </option>
+                      );
+                    })}
+                  </select>
+                </div>
+              </div>
+            )}
+            {jenisAmprahan === 'lainnya' && (
+              <div className="form-group">
+                <label htmlFor="tujuan-permintaan">Tujuan Permintaan</label>
+                <input
+                  id="tujuan-permintaan"
+                  type="text"
+                  className="form-input"
+                  placeholder="Contoh: Kebutuhan kantor atau operasional umum"
+                  value={tujuanPermintaan}
+                  onChange={e => setTujuanPermintaan(e.target.value)}
+                  required
+                />
+              </div>
+            )}
+            <button type="submit" className="btn-submit" disabled={(jenisAmprahan === 'kendaraan' && !mobilId) || (jenisAmprahan === 'alat_berat' && !alatBeratId) || (jenisAmprahan === 'lainnya' && !tujuanPermintaan.trim())}>
               Lanjutkan <ArrowRight size={18} />
             </button>
           </form>

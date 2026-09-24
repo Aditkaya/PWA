@@ -14,6 +14,9 @@ class AmprahanController {
         $user_id = $postData['user_id'] ?? null;
         $jenis_amprahan = strtolower(trim((string) ($postData['jenis_amprahan'] ?? 'lainnya')));
         $kapal_id = $postData['kapal_id'] ?? null;
+        $mobil_id = $postData['mobil_id'] ?? null;
+        $alat_berat_id = $postData['alat_berat_id'] ?? null;
+        $tujuan_permintaan = trim((string) ($postData['tujuan_permintaan'] ?? ''));
         $nomor_voyage = $postData['nomor_voyage'] ?? null;
         $keterangan_umum = $postData['keterangan_umum'] ?? null;
         $items = $postData['items'] ?? [];
@@ -37,8 +40,38 @@ class AmprahanController {
                 echo json_encode(['message' => 'Kapal wajib dipilih']);
                 return;
             }
+        } elseif ($jenis_amprahan === 'kendaraan') {
+            if (!$mobil_id || !filter_var($mobil_id, FILTER_VALIDATE_INT)) {
+                http_response_code(400);
+                echo json_encode(['message' => 'Kendaraan wajib dipilih']);
+                return;
+            }
+            $kapal_id = null;
+            $nomor_voyage = null;
+        } elseif ($jenis_amprahan === 'alat_berat') {
+            if (!$alat_berat_id || !filter_var($alat_berat_id, FILTER_VALIDATE_INT)) {
+                http_response_code(400);
+                echo json_encode(['message' => 'Alat berat wajib dipilih']);
+                return;
+            }
+            $kapal_id = null;
+            $mobil_id = null;
+            $nomor_voyage = null;
+        } elseif ($jenis_amprahan === 'lainnya') {
+            if ($tujuan_permintaan === '') {
+                http_response_code(400);
+                echo json_encode(['message' => 'Tujuan permintaan wajib diisi']);
+                return;
+            }
+            $kapal_id = null;
+            $mobil_id = null;
+            $alat_berat_id = null;
+            $nomor_voyage = null;
         } else {
             $kapal_id = null;
+            $mobil_id = null;
+            $alat_berat_id = null;
+            $tujuan_permintaan = '';
             $nomor_voyage = null;
         }
 
@@ -53,14 +86,30 @@ class AmprahanController {
                 }
             }
 
+            if ($jenis_amprahan === 'kendaraan') {
+                $mobilStmt = $pdo->prepare("SELECT id FROM mobils WHERE id = ?");
+                $mobilStmt->execute([$mobil_id]);
+                if (!$mobilStmt->fetch(PDO::FETCH_ASSOC)) {
+                    throw new Exception('Kendaraan tidak ditemukan');
+                }
+            }
+
+            if ($jenis_amprahan === 'alat_berat') {
+                $alatBeratStmt = $pdo->prepare("SELECT id FROM alat_berats WHERE id = ?");
+                $alatBeratStmt->execute([$alat_berat_id]);
+                if (!$alatBeratStmt->fetch(PDO::FETCH_ASSOC)) {
+                    throw new Exception('Alat berat tidak ditemukan');
+                }
+            }
+
             $pdo->beginTransaction();
 
             $stmt = $pdo->prepare("
                 INSERT INTO permohonan_amprahans
-                    (user_id, jenis_amprahan, kapal_id, nomor_voyage, keterangan_umum, status)
-                VALUES (?, ?, ?, ?, ?, 'pending')
+                    (user_id, jenis_amprahan, kapal_id, mobil_id, alat_berat_id, nomor_voyage, tujuan_permintaan, keterangan_umum, status)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'pending')
             ");
-            $stmt->execute([$user_id, $jenis_amprahan, $kapal_id, $nomor_voyage, $keterangan_umum]);
+            $stmt->execute([$user_id, $jenis_amprahan, $kapal_id, $mobil_id, $alat_berat_id, $nomor_voyage, $tujuan_permintaan !== '' ? $tujuan_permintaan : null, $keterangan_umum]);
             
             $permohonan_id = $pdo->lastInsertId();
 
@@ -105,6 +154,48 @@ class AmprahanController {
             }
             http_response_code(400);
             echo json_encode(['message' => $e->getMessage()]);
+        }
+    }
+
+    public function getMobils() {
+        try {
+            $pdo = Database::getConnection();
+
+            // Nama kolom KIR dapat berbeda antar database lama/baru.
+            $columnsStmt = $pdo->query("SHOW COLUMNS FROM mobils");
+            $columns = array_column($columnsStmt->fetchAll(PDO::FETCH_ASSOC), 'Field');
+            $kirColumn = null;
+            foreach (['nomor_kir', 'no_kir', 'kir'] as $candidate) {
+                if (in_array($candidate, $columns, true)) {
+                    $kirColumn = $candidate;
+                    break;
+                }
+            }
+
+            $kirSelect = $kirColumn
+                ? "`$kirColumn` AS nomor_kir"
+                : "NULL AS nomor_kir";
+            $kirOrder = $kirColumn ? "`$kirColumn` ASC, " : '';
+            $stmt = $pdo->query("SELECT id, kode_no, nomor_polisi, $kirSelect, jenis FROM mobils ORDER BY nomor_polisi ASC, $kirOrder kode_no ASC");
+            http_response_code(200);
+            echo json_encode(['data' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+        } catch (\PDOException $e) {
+            http_response_code(500);
+            error_log('Database error: ' . $e->getMessage());
+            echo json_encode(['message' => 'Gagal memuat data kendaraan']);
+        }
+    }
+
+    public function getAlatBerats() {
+        try {
+            $pdo = Database::getConnection();
+            $stmt = $pdo->query("SELECT * FROM alat_berats ORDER BY id ASC");
+            http_response_code(200);
+            echo json_encode(['data' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+        } catch (\PDOException $e) {
+            http_response_code(500);
+            error_log('Database error: ' . $e->getMessage());
+            echo json_encode(['message' => 'Gagal memuat data alat berat']);
         }
     }
 

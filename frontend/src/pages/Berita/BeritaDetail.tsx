@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { ChevronLeft, Calendar, User } from 'lucide-react';
+import { useNavigate, useParams, useOutletContext } from 'react-router-dom';
+import { ChevronLeft, Calendar, User, Lock } from 'lucide-react';
 import './berita.css';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
@@ -31,12 +31,15 @@ function formatTanggal(dateStr: string | null): string {
 export default function BeritaDetail() {
   const navigate       = useNavigate();
   const { id }         = useParams<{ id: string }>();
+  const outlet = useOutletContext<{ featurePermissions?: Record<string, boolean> | null }>();
+  const isDenied = outlet?.featurePermissions !== undefined && outlet?.featurePermissions !== null && outlet.featurePermissions['berita'] !== true;
+
   const [data, setData]       = useState<BeritaDetail | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError]     = useState<string | null>(null);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || isDenied) return;
     setLoading(true);
     fetch(`${API_BASE}/api/berita/${id}`)
       .then(r => r.json())
@@ -49,7 +52,29 @@ export default function BeritaDetail() {
       })
       .catch(() => setError('Tidak dapat terhubung ke server'))
       .finally(() => setLoading(false));
-  }, [id]);
+  }, [id, isDenied]);
+
+  if (isDenied) {
+    return (
+      <div className="berita-detail-page">
+        <div style={{ textAlign: 'center', padding: '60px 20px', maxWidth: '420px', margin: '40px auto' }}>
+          <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <Lock size={32} />
+          </div>
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: '0 0 8px', color: 'var(--text-primary)' }}>Akses Berita Dibatasi</h2>
+          <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 24px' }}>
+            Anda tidak memiliki izin untuk melihat berita ini. Silakan hubungi tim IT untuk mendapatkan akses.
+          </p>
+          <button 
+            onClick={() => navigate('/')}
+            style={{ padding: '10px 24px', borderRadius: '12px', background: 'var(--accent-color, #38bdf8)', color: '#000', fontWeight: 600, border: 'none', cursor: 'pointer' }}
+          >
+            Kembali ke Beranda
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (loading) {
     return (

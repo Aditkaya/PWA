@@ -22,6 +22,7 @@ class FeaturePermissionController
         'amprahan',
         'gerak_voyage',
         'perbarui_wajah',
+        'berita',
     ];
 
     /** Fitur standar (default) untuk karyawan biasa */
@@ -154,8 +155,8 @@ class FeaturePermissionController
                 $uid = $u['user_id'];
                 $features = [];
                 foreach (self::VALID_FEATURES as $fk) {
-                    // Default: perbarui_wajah harus dibuka izinnya oleh IT (default false), lainnya aktif
-                    $defaultVal = ($fk === 'perbarui_wajah') ? false : true;
+                    // Default: perbarui_wajah & berita harus dibuka izinnya oleh IT (default false), lainnya aktif
+                    $defaultVal = ($fk === 'perbarui_wajah' || $fk === 'berita') ? false : true;
                     $features[$fk] = isset($permsMap[$uid][$fk]) ? (bool)$permsMap[$uid][$fk] : $defaultVal;
                 }
                 $u['feature_permissions'] = $features;
@@ -191,7 +192,7 @@ class FeaturePermissionController
                 $activeCount = 0;
                 $userPerms = $permsMap[$uid] ?? [];
                 foreach (self::VALID_FEATURES as $fk) {
-                    $defaultVal = ($fk === 'perbarui_wajah') ? false : true;
+                    $defaultVal = ($fk === 'perbarui_wajah' || $fk === 'berita') ? false : true;
                     $val = isset($userPerms[$fk]) ? (bool)$userPerms[$fk] : $defaultVal;
                     if ($val) $activeCount++;
                 }
@@ -426,7 +427,7 @@ class FeaturePermissionController
 
             $result = [];
             foreach (self::VALID_FEATURES as $fk) {
-                $result[$fk] = ($fk === 'perbarui_wajah') ? false : true;
+                $result[$fk] = ($fk === 'perbarui_wajah' || $fk === 'berita') ? false : true;
             }
             foreach ($rows as $row) {
                 $result[$row['feature_key']] = (bool)$row['is_enabled'];
@@ -436,7 +437,7 @@ class FeaturePermissionController
             // Fallback aman jika tabel belum dimigrasi di server
             $result = [];
             foreach (self::VALID_FEATURES as $fk) {
-                $result[$fk] = ($fk === 'perbarui_wajah') ? false : true;
+                $result[$fk] = ($fk === 'perbarui_wajah' || $fk === 'berita') ? false : true;
             }
             return $result;
         }

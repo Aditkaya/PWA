@@ -280,7 +280,7 @@ export default function DashboardLayout() {
         </div>
       </header>
       <main className="main-content page-enter" key={location.pathname}>
-        <Outlet context={{ openFaceRegistration: () => setShowFaceRegistration(true) }} />
+        <Outlet context={{ openFaceRegistration: () => setShowFaceRegistration(true), featurePermissions }} />
       </main>
       <nav className="bottom-nav">
         <button 
@@ -304,13 +304,15 @@ export default function DashboardLayout() {
           <User size={22} />
           <span>{t.profile}</span>
         </button>
-        <button 
-          className={`nav-item ${location.pathname.startsWith('/berita') ? 'active' : ''}`}
-          onClick={() => navigate('/berita')}
-        >
-          <Newspaper size={22} />
-          <span>Berita</span>
-        </button>
+        {featurePermissions?.['berita'] === true && (
+          <button 
+            className={`nav-item ${location.pathname.startsWith('/berita') ? 'active' : ''}`}
+            onClick={() => navigate('/berita')}
+          >
+            <Newspaper size={22} />
+            <span>Berita</span>
+          </button>
+        )}
       </nav>
 
       {/* Mandatory Face Registration Modal */}

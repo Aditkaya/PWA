@@ -23,6 +23,7 @@ import {
   ScanFace,
   ShieldCheck,
   RotateCcw,
+  Newspaper,
 } from "lucide-react";
 import { useAuthStore } from "../../store/auth.store";
 import { useToast } from "../../contexts/ToastContext";
@@ -42,7 +43,8 @@ type FeatureKey =
   | "denah_gudang"
   | "amprahan"
   | "gerak_voyage"
-  | "perbarui_wajah";
+  | "perbarui_wajah"
+  | "berita";
 
 interface FeaturePermissions {
   [key: string]: boolean;
@@ -81,6 +83,7 @@ const FEATURES: {
   { key: "amprahan",           label: "Amprahan",             desc: "Pengajuan & penerimaan barang amprahan",   icon: <Package size={18} />,        color: "#d946ef" },
   { key: "gerak_voyage",       label: "Tanggal Gerak Voyage", desc: "Akses tanggal pergerakan kapal & voyage",  icon: <Navigation size={18} />,     color: "#38bdf8" },
   { key: "perbarui_wajah",     label: "Perbarui Wajah Ulang", desc: "Izin memindai ulang biometrik wajah",      icon: <ScanFace size={18} />,       color: "#10b981" },
+  { key: "berita",             label: "Menu Berita",          desc: "Akses membaca berita internal & pamflet",  icon: <Newspaper size={18} />,      color: "#0ea5e9" },
 ];
 
 const TOTAL_FEATURES = FEATURES.length;
@@ -579,7 +582,9 @@ export default function ItAdmin() {
                       {/* Feature Grid */}
                       <div className="it-admin-feature-grid">
                         {FEATURES.map(f => {
-                          const enabled = u.feature_permissions[f.key] !== false;
+                          const enabled = (f.key === "perbarui_wajah" || f.key === "berita")
+                            ? Boolean(u.feature_permissions[f.key])
+                            : u.feature_permissions[f.key] !== false;
                           const isLoading = savingKey === `${u.user_id}:${f.key}`;
 
                           return (

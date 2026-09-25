@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
-import { useNavigate } from 'react-router-dom';
-import { Newspaper, Image as ImageIcon, ArrowLeft } from 'lucide-react';
+import { useNavigate, useOutletContext } from 'react-router-dom';
+import { Newspaper, Image as ImageIcon, ArrowLeft, Lock } from 'lucide-react';
 import './berita.css';
 
 const API_BASE = import.meta.env.VITE_API_URL ?? '';
@@ -46,6 +46,9 @@ function SkeletonCard() {
 
 export default function Berita() {
   const navigate = useNavigate();
+  const outlet = useOutletContext<{ featurePermissions?: Record<string, boolean> | null }>();
+  const isDenied = outlet?.featurePermissions !== undefined && outlet?.featurePermissions !== null && outlet.featurePermissions['berita'] !== true;
+
   const [filter, setFilter]       = useState<FilterTipe>('semua');
   const [beritas, setBeritas]     = useState<BeritaItem[]>([]);
   const [loading, setLoading]     = useState(true);
@@ -72,7 +75,33 @@ export default function Berita() {
     }
   }, []);
 
-  useEffect(() => { fetchBeritas(filter); }, [filter, fetchBeritas]);
+  useEffect(() => { 
+    if (!isDenied) {
+      fetchBeritas(filter); 
+    }
+  }, [filter, fetchBeritas, isDenied]);
+
+  if (isDenied) {
+    return (
+      <div className="berita-page">
+        <div style={{ textAlign: 'center', padding: '60px 20px', maxWidth: '420px', margin: '40px auto' }}>
+          <div style={{ width: '64px', height: '64px', borderRadius: '50%', background: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 16px' }}>
+            <Lock size={32} />
+          </div>
+          <h2 style={{ fontSize: '1.2rem', fontWeight: 700, margin: '0 0 8px', color: 'var(--text-primary)' }}>Akses Berita Dibatasi</h2>
+          <p style={{ fontSize: '0.88rem', color: 'var(--text-secondary)', lineHeight: 1.5, margin: '0 0 24px' }}>
+            Anda tidak memiliki izin untuk melihat menu Berita. Silakan hubungi tim IT jika Anda memerlukan akses ke fitur ini.
+          </p>
+          <button 
+            onClick={() => navigate('/')}
+            style={{ padding: '10px 24px', borderRadius: '12px', background: 'var(--accent-color, #38bdf8)', color: '#000', fontWeight: 600, border: 'none', cursor: 'pointer' }}
+          >
+            Kembali ke Beranda
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="berita-page">

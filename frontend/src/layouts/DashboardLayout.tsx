@@ -8,6 +8,7 @@ import { useModeStore } from '../store/mode.store'
 import { translations } from '../utils/translations'
 import { useToast } from '../contexts/ToastContext'
 import FaceRegistrationModal from '../components/FaceRegistrationModal'
+import LocationStatus from '../components/LocationStatus'
 
 export default function DashboardLayout() {
   const { logout } = useAuthStore()
@@ -135,6 +136,9 @@ export default function DashboardLayout() {
               <Download size={14} /> Install
             </button>
           )}
+
+          {/* Icon Status Lokasi Perangkat */}
+          <LocationStatus />
 
           <div style={{ position: 'relative' }} ref={menuRef}>
             <button 

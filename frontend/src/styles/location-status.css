@@ -328,3 +328,295 @@
     margin-top: 4px;
   }
 }
+
+/* ===================================================
+   Header Location Button & Modal Styles
+   =================================================== */
+
+.header-location-btn {
+  position: relative;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  border: 1px solid transparent;
+  flex-shrink: 0;
+  outline: none;
+  background: rgba(255, 255, 255, 0.05);
+}
+
+.header-location-btn:hover {
+  transform: scale(1.06);
+}
+
+.header-location-btn:active {
+  transform: scale(0.96);
+}
+
+/* Button Status Colors */
+.header-location-btn.loc-status-granted {
+  background: rgba(16, 185, 129, 0.15);
+  border-color: rgba(16, 185, 129, 0.35);
+  color: #34d399;
+}
+
+.header-location-btn.loc-status-granted:hover {
+  background: rgba(16, 185, 129, 0.25);
+  box-shadow: 0 0 14px rgba(16, 185, 129, 0.35);
+}
+
+.header-location-btn.loc-status-prompt,
+.header-location-btn.loc-status-loading {
+  background: rgba(245, 158, 11, 0.15);
+  border-color: rgba(245, 158, 11, 0.35);
+  color: #fbbf24;
+}
+
+.header-location-btn.loc-status-prompt:hover,
+.header-location-btn.loc-status-loading:hover {
+  background: rgba(245, 158, 11, 0.25);
+  box-shadow: 0 0 14px rgba(245, 158, 11, 0.35);
+}
+
+.header-location-btn.loc-status-denied,
+.header-location-btn.loc-status-gps_off,
+.header-location-btn.loc-status-timeout,
+.header-location-btn.loc-status-unsupported,
+.header-location-btn.loc-status-error {
+  background: rgba(239, 68, 68, 0.15);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #f87171;
+}
+
+.header-location-btn.loc-status-denied:hover,
+.header-location-btn.loc-status-gps_off:hover,
+.header-location-btn.loc-status-timeout:hover,
+.header-location-btn.loc-status-unsupported:hover,
+.header-location-btn.loc-status-error:hover {
+  background: rgba(239, 68, 68, 0.25);
+  box-shadow: 0 0 14px rgba(239, 68, 68, 0.35);
+}
+
+/* Status Indicator Dot on Button */
+.loc-status-dot {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+  border: 1.5px solid var(--panel-bg, #0f172a);
+}
+
+.loc-status-granted .loc-status-dot {
+  background: #10b981;
+  box-shadow: 0 0 6px rgba(16, 185, 129, 0.8);
+}
+
+.loc-status-prompt .loc-status-dot,
+.loc-status-loading .loc-status-dot {
+  background: #f59e0b;
+  box-shadow: 0 0 6px rgba(245, 158, 11, 0.8);
+  animation: loc-dot-pulse 1.8s infinite;
+}
+
+.loc-status-denied .loc-status-dot,
+.loc-status-gps_off .loc-status-dot,
+.loc-status-timeout .loc-status-dot,
+.loc-status-unsupported .loc-status-dot,
+.loc-status-error .loc-status-dot {
+  background: #ef4444;
+  box-shadow: 0 0 6px rgba(239, 68, 68, 0.8);
+  animation: loc-dot-pulse 1.4s infinite;
+}
+
+@keyframes loc-dot-pulse {
+  0% { transform: scale(0.9); opacity: 0.7; }
+  50% { transform: scale(1.25); opacity: 1; }
+  100% { transform: scale(0.9); opacity: 0.7; }
+}
+
+/* ===================================================
+   Location Modal Dialog Overlay & Content
+   =================================================== */
+
+.loc-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  z-index: 1200;
+  animation: locModalFadeIn 0.2s ease-out;
+}
+
+.loc-modal-dialog {
+  background: var(--panel-bg, #111827);
+  border: 1px solid var(--glass-border, rgba(255, 255, 255, 0.12));
+  border-radius: 20px;
+  width: 100%;
+  max-width: 480px;
+  box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.6), 0 0 0 1px rgba(255, 255, 255, 0.05);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  animation: locModalScaleIn 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+.loc-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.loc-modal-header-text h3 {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 700;
+  color: var(--text-primary, #f8fafc);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.loc-modal-header-text p {
+  margin: 3px 0 0 0;
+  font-size: 0.78rem;
+  color: var(--text-secondary, #94a3b8);
+}
+
+.loc-modal-close-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: none;
+  color: var(--text-secondary, #94a3b8);
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.loc-modal-close-btn:hover {
+  background: rgba(255, 255, 255, 0.16);
+  color: var(--text-primary, #ffffff);
+  transform: scale(1.05);
+}
+
+.loc-modal-body {
+  padding: 18px 20px;
+  max-height: 75vh;
+  overflow-y: auto;
+}
+
+.loc-modal-footer {
+  padding: 12px 20px 16px;
+  display: flex;
+  justify-content: flex-end;
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.loc-modal-btn-close {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  color: var(--text-primary, #f1f5f9);
+  padding: 8px 20px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.loc-modal-btn-close:hover {
+  background: rgba(255, 255, 255, 0.14);
+}
+
+@keyframes locModalFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes locModalScaleIn {
+  from { opacity: 0; transform: scale(0.94) translateY(8px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* Light Theme Overrides for Header Button & Modal */
+:root[data-theme="light"] .header-location-btn.loc-status-granted {
+  background: rgba(16, 185, 129, 0.12);
+  border-color: rgba(16, 185, 129, 0.3);
+  color: #059669;
+}
+
+:root[data-theme="light"] .header-location-btn.loc-status-prompt,
+:root[data-theme="light"] .header-location-btn.loc-status-loading {
+  background: rgba(245, 158, 11, 0.12);
+  border-color: rgba(245, 158, 11, 0.3);
+  color: #d97706;
+}
+
+:root[data-theme="light"] .header-location-btn.loc-status-denied,
+:root[data-theme="light"] .header-location-btn.loc-status-gps_off,
+:root[data-theme="light"] .header-location-btn.loc-status-timeout,
+:root[data-theme="light"] .header-location-btn.loc-status-unsupported,
+:root[data-theme="light"] .header-location-btn.loc-status-error {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.3);
+  color: #dc2626;
+}
+
+:root[data-theme="light"] .loc-modal-overlay {
+  background: rgba(15, 23, 42, 0.45);
+}
+
+:root[data-theme="light"] .loc-modal-dialog {
+  background: #ffffff;
+  border-color: rgba(0, 0, 0, 0.1);
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.15);
+}
+
+:root[data-theme="light"] .loc-modal-header {
+  border-bottom-color: rgba(0, 0, 0, 0.08);
+}
+
+:root[data-theme="light"] .loc-modal-header-text h3 {
+  color: #0f172a;
+}
+
+:root[data-theme="light"] .loc-modal-close-btn {
+  background: rgba(0, 0, 0, 0.05);
+  color: #64748b;
+}
+
+:root[data-theme="light"] .loc-modal-close-btn:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #0f172a;
+}
+
+:root[data-theme="light"] .loc-modal-footer {
+  border-top-color: rgba(0, 0, 0, 0.08);
+}
+
+:root[data-theme="light"] .loc-modal-btn-close {
+  background: rgba(0, 0, 0, 0.05);
+  border-color: rgba(0, 0, 0, 0.1);
+  color: #334155;
+}
+
+:root[data-theme="light"] .loc-modal-btn-close:hover {
+  background: rgba(0, 0, 0, 0.1);
+  color: #0f172a;
+}

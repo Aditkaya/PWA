@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { MapPinOff, AlertTriangle, CheckCircle2, RefreshCw, ChevronDown, ChevronUp, HelpCircle } from 'lucide-react';
+import { MapPin, MapPinOff, AlertTriangle, CheckCircle2, RefreshCw, ChevronDown, ChevronUp, HelpCircle, X } from 'lucide-react';
 import '../styles/location-status.css';
 
 export type LocationPermissionState = 'loading' | 'granted' | 'prompt' | 'denied' | 'gps_off' | 'timeout' | 'unsupported';
@@ -7,13 +7,19 @@ export type LocationPermissionState = 'loading' | 'granted' | 'prompt' | 'denied
 interface LocationStatusProps {
   onStatusChange?: (status: LocationPermissionState, coords?: { lat: number; lng: number } | null) => void;
   compact?: boolean;
+  variant?: 'navbar' | 'banner';
 }
 
-export const LocationStatus: React.FC<LocationStatusProps> = ({ onStatusChange, compact = false }) => {
+export const LocationStatus: React.FC<LocationStatusProps> = ({ 
+  onStatusChange, 
+  compact = false,
+  variant = 'navbar' 
+}) => {
   const [status, setStatus] = useState<LocationPermissionState>('loading');
   const [coords, setCoords] = useState<{ lat: number; lng: number } | null>(null);
   const [isRequesting, setIsRequesting] = useState(false);
   const [showGuide, setShowGuide] = useState(false);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   // Ambil lokasi dan tentukan status detailnya
   const requestLocation = useCallback(() => {
@@ -105,6 +111,19 @@ export const LocationStatus: React.FC<LocationStatusProps> = ({ onStatusChange, 
     }
   }, [requestLocation, onStatusChange]);
 
+  // Handle escape key untuk menutup modal
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') {
+        setIsModalOpen(false);
+      }
+    };
+    if (isModalOpen) {
+      window.addEventListener('keydown', handleKeyDown);
+    }
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [isModalOpen]);
+
   // Konten berdasarkan status
   const renderContent = () => {
     switch (status) {
@@ -174,33 +193,32 @@ export const LocationStatus: React.FC<LocationStatusProps> = ({ onStatusChange, 
     }
   };
 
+  const getTooltip = () => {
+    switch (status) {
+      case 'granted':
+        return coords 
+          ? `Lokasi Terhubung (${coords.lat.toFixed(4)}, ${coords.lng.toFixed(4)}) - Klik untuk detail`
+          : 'Lokasi Terhubung - Klik untuk detail';
+      case 'prompt':
+        return 'Izin Lokasi Belum Aktif - Klik untuk izinkan';
+      case 'gps_off':
+        return 'Sinyal GPS Tidak Ditemukan - Klik untuk panduan';
+      case 'timeout':
+        return 'Pencarian Sinyal Habis Waktu - Klik untuk coba lagi';
+      case 'denied':
+        return 'Izin Lokasi Diblokir - Klik untuk bantuan aktivasi';
+      case 'unsupported':
+        return 'Perangkat tidak mendukung Geolocation';
+      default:
+        return 'Memeriksa status lokasi...';
+    }
+  };
+
   const content = renderContent();
 
-  // Jika mode compact & sudah granted, kita bisa tampilkan versi minimalis
-  if (compact && status === 'granted') {
-    return (
-      <div 
-        style={{ 
-          display: 'inline-flex', 
-          alignItems: 'center', 
-          gap: '6px', 
-          fontSize: '0.8rem', 
-          color: 'var(--success-color, #34d399)', 
-          background: 'rgba(16, 185, 129, 0.15)', 
-          border: '1px solid rgba(16, 185, 129, 0.3)',
-          padding: '4px 10px', 
-          borderRadius: '999px',
-          fontWeight: 600
-        }}
-      >
-        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 6px rgba(16, 185, 129, 0.6)' }} />
-        <span>Izin Lokasi Aktif</span>
-      </div>
-    );
-  }
-
-  return (
-    <div className={`location-status-container status-${status}`}>
+  // Detail Kartu Status Utama
+  const renderDetailCard = () => (
+    <div className={`location-status-container status-${status}`} style={{ margin: 0 }}>
       <div className="location-status-header">
         <div className="location-status-main">
           <div className="location-status-icon-wrapper">
@@ -259,6 +277,90 @@ export const LocationStatus: React.FC<LocationStatusProps> = ({ onStatusChange, 
         </div>
       )}
     </div>
+  );
+
+  // Jika mode compact & sudah granted (tampilan inline pill)
+  if (compact && status === 'granted') {
+    return (
+      <div 
+        style={{ 
+          display: 'inline-flex', 
+          alignItems: 'center', 
+          gap: '6px', 
+          fontSize: '0.8rem', 
+          color: 'var(--success-color, #34d399)', 
+          background: 'rgba(16, 185, 129, 0.15)', 
+          border: '1px solid rgba(16, 185, 129, 0.3)',
+          padding: '4px 10px', 
+          borderRadius: '999px',
+          fontWeight: 600
+        }}
+      >
+        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 6px rgba(16, 185, 129, 0.6)' }} />
+        <span>Izin Lokasi Aktif</span>
+      </div>
+    );
+  }
+
+  // Jika variant banner inline langsung
+  if (variant === 'banner') {
+    return renderDetailCard();
+  }
+
+  // Default: Variant Navbar (Icon kecil di navbar + Popup Dialog saat ditekan)
+  return (
+    <>
+      <button 
+        type="button"
+        className={`header-location-btn loc-status-${status}`}
+        onClick={() => setIsModalOpen(true)}
+        title={getTooltip()}
+        aria-label="Status Lokasi Perangkat"
+      >
+        <MapPin size={18} strokeWidth={1.8} />
+        <span className="loc-status-dot" />
+      </button>
+
+      {/* Modal Popup Tampilan Status Lokasi */}
+      {isModalOpen && (
+        <div className="loc-modal-overlay" onClick={() => setIsModalOpen(false)}>
+          <div className="loc-modal-dialog" onClick={(e) => e.stopPropagation()}>
+            <div className="loc-modal-header">
+              <div className="loc-modal-header-text">
+                <h3>
+                  <MapPin size={18} color={status === 'granted' ? '#10b981' : status === 'prompt' ? '#f59e0b' : '#ef4444'} />
+                  Status Lokasi Perangkat
+                </h3>
+                <p>Informasi koneksi GPS perangkat Anda untuk presensi</p>
+              </div>
+              <button 
+                type="button" 
+                className="loc-modal-close-btn"
+                onClick={() => setIsModalOpen(false)}
+                title="Tutup"
+                aria-label="Tutup"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="loc-modal-body">
+              {renderDetailCard()}
+            </div>
+
+            <div className="loc-modal-footer">
+              <button 
+                type="button" 
+                className="loc-modal-btn-close"
+                onClick={() => setIsModalOpen(false)}
+              >
+                Tutup
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </>
   );
 };
 

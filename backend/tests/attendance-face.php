@@ -25,6 +25,6 @@ imagedestroy($image);
 $photo = 'data:image/jpeg;base64,' . base64_encode(file_get_contents(UPLOAD_BASE_DIR . '/uploads/face_verifications/reference.jpg'));
 if (($argv[2] ?? '') === 'missing') $photo = null;
 ob_start();
-(new \App\Http\Controllers\AttendanceController())->submitBreak(['user_id' => 1, 'tipe' => 'Masuk', 'foto_base64' => $photo]);
+(new \App\Http\Controllers\AttendanceController())->submitBreak(['user_id' => 1, 'tipe' => 'Masuk', 'foto_base64' => $photo, 'latitude' => -6.2, 'longitude' => 106.8, 'gps_accuracy' => 11, 'location_age_ms' => 0]);
 $response = ob_get_clean();
 echo json_encode(['status' => http_response_code(), 'count' => (int) $pdo->query('SELECT COUNT(*) FROM absensis')->fetchColumn(), 'body' => json_decode($response, true)]);

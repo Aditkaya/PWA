@@ -25,6 +25,20 @@ class AttendanceController {
             echo json_encode(['message' => 'Data user_id dan tipe diperlukan']);
             return;
         }
+        // Check location quality before face verification or any writes.
+        $accuracy = $postData['gps_accuracy'] ?? null;
+        $locationAge = $postData['location_age_ms'] ?? null;
+        if (!is_numeric($latitude) || !is_numeric($longitude)
+            || !is_finite((float)$latitude) || !is_finite((float)$longitude)
+            || abs((float)$latitude) > 90 || abs((float)$longitude) > 180
+            || !is_numeric($accuracy) || !is_finite((float)$accuracy)
+            || (float)$accuracy <= 0 || (float)$accuracy > 50
+            || !is_numeric($locationAge) || !is_finite((float)$locationAge)
+            || (float)$locationAge < 0 || (float)$locationAge > 30000) {
+            http_response_code(422);
+            echo json_encode(['message' => 'Lokasi belum valid. Cari ulang GPS dengan akurasi maksimal 50 meter, lalu ambil foto kembali.']);
+            return;
+        }
         try {
             $pdo = Database::getConnection();
             

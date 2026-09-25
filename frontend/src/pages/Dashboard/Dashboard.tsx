@@ -256,7 +256,7 @@ export default function Dashboard() {
 
 
 
-  const handleCapture = async (imageSrc: string, locationData?: {address: string, lat: number, lng: number, outOfRangeMessage?: string}) => {
+  const handleCapture = async (imageSrc: string, locationData?: {address: string, lat: number, lng: number, accuracy: number, locationAgeMs: number, outOfRangeMessage?: string}) => {
     if (!user?.id) throw new Error('Silakan masuk kembali sebelum absen.')
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 45000)
@@ -270,6 +270,8 @@ export default function Dashboard() {
       if (locationData) {
         formData.append('latitude', locationData.lat.toString())
         formData.append('longitude', locationData.lng.toString())
+        formData.append('gps_accuracy', locationData.accuracy.toString())
+        formData.append('location_age_ms', locationData.locationAgeMs.toString())
         let detailLokasi = locationData.address;
         if (locationData.outOfRangeMessage) {
           detailLokasi += ` (${locationData.outOfRangeMessage})`;

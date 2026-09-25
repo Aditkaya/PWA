@@ -185,14 +185,15 @@ export const LocationStatus: React.FC<LocationStatusProps> = ({ onStatusChange, 
           alignItems: 'center', 
           gap: '6px', 
           fontSize: '0.8rem', 
-          color: '#059669', 
-          background: 'rgba(16, 185, 129, 0.1)', 
+          color: 'var(--success-color, #34d399)', 
+          background: 'rgba(16, 185, 129, 0.15)', 
+          border: '1px solid rgba(16, 185, 129, 0.3)',
           padding: '4px 10px', 
           borderRadius: '999px',
           fontWeight: 600
         }}
       >
-        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981' }} />
+        <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#10b981', boxShadow: '0 0 6px rgba(16, 185, 129, 0.6)' }} />
         <span>Izin Lokasi Aktif</span>
       </div>
     );

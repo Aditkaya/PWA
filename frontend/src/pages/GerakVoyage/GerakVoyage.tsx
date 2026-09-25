@@ -25,15 +25,22 @@ const API = import.meta.env.VITE_API_BASE_URL || "/api";
 
 interface DateFields {
   tanggal_muat: string;
+  jam_muat: string;
   tanggal_mulai_berlayar: string;
+  jam_mulai_berlayar: string;
   tanggal_berlabuh: string;
+  jam_berlabuh: string;
   tanggal_sandar: string;
+  jam_sandar: string;
   tanggal_mulai_bongkar: string;
+  jam_mulai_bongkar: string;
   tanggal_selesai_bongkar: string;
+  jam_selesai_bongkar: string;
 }
 
 const DATE_CONFIG: {
   key: keyof DateFields;
+  jamKey: keyof DateFields;
   label: string;
   subLabel: string;
   icon: typeof Package;
@@ -42,61 +49,73 @@ const DATE_CONFIG: {
 }[] = [
   {
     key: "tanggal_muat",
+    jamKey: "jam_muat",
     label: "Muat",
     subLabel: "Pemuatan barang/kargo ke kapal (OB Muat)",
     icon: Package,
-    color: "#06b6d4", // Cyan
+    color: "#06b6d4",
     step: 1,
   },
   {
     key: "tanggal_mulai_berlayar",
+    jamKey: "jam_mulai_berlayar",
     label: "Mulai Berlayar",
     subLabel: "Kapal berangkat menuju pelabuhan tujuan",
     icon: Navigation,
-    color: "#3b82f6", // Blue
+    color: "#3b82f6",
     step: 2,
   },
   {
     key: "tanggal_berlabuh",
+    jamKey: "jam_berlabuh",
     label: "Berlabuh",
     subLabel: "Kapal tiba di area labuh / lego jangkar",
     icon: Anchor,
-    color: "#8b5cf6", // Purple
+    color: "#8b5cf6",
     step: 3,
   },
   {
     key: "tanggal_sandar",
+    jamKey: "jam_sandar",
     label: "Sandar",
     subLabel: "Kapal sandar merapat di dermaga",
     icon: MapPin,
-    color: "#f59e0b", // Amber
+    color: "#f59e0b",
     step: 4,
   },
   {
     key: "tanggal_mulai_bongkar",
+    jamKey: "jam_mulai_bongkar",
     label: "Mulai Bongkar",
     subLabel: "Proses bongkar kargo dimulai",
     icon: Truck,
-    color: "#ec4899", // Pink
+    color: "#ec4899",
     step: 5,
   },
   {
     key: "tanggal_selesai_bongkar",
+    jamKey: "jam_selesai_bongkar",
     label: "Selesai Bongkar",
     subLabel: "Seluruh muatan selesai dibongkar",
     icon: CheckCircle2,
-    color: "#10b981", // Emerald
+    color: "#10b981",
     step: 6,
   },
 ];
 
 const EMPTY_DATES: DateFields = {
   tanggal_muat: "",
+  jam_muat: "",
   tanggal_mulai_berlayar: "",
+  jam_mulai_berlayar: "",
   tanggal_berlabuh: "",
+  jam_berlabuh: "",
   tanggal_sandar: "",
+  jam_sandar: "",
   tanggal_mulai_bongkar: "",
+  jam_mulai_bongkar: "",
   tanggal_selesai_bongkar: "",
+  jam_selesai_bongkar: "",
 };
 
 export default function GerakVoyage() {
@@ -162,7 +181,11 @@ export default function GerakVoyage() {
         if (d.data) {
           const filled: DateFields = { ...EMPTY_DATES };
           for (const k of Object.keys(EMPTY_DATES) as (keyof DateFields)[]) {
-            filled[k] = d.data[k] ? d.data[k].substring(0, 10) : "";
+            if (k.startsWith("tanggal_")) {
+              filled[k] = d.data[k] ? d.data[k].substring(0, 10) : "";
+            } else if (k.startsWith("jam_")) {
+              filled[k] = d.data[k] ? String(d.data[k]).substring(0, 5) : "";
+            }
           }
           setDates(filled);
         }
@@ -216,7 +239,9 @@ export default function GerakVoyage() {
     }
   };
 
-  const filledCount = Object.values(dates).filter((v) => v.trim() !== "").length;
+  // Hanya hitung field tanggal (bukan jam) untuk progress badge
+  const filledCount = (Object.keys(dates) as (keyof DateFields)[])
+    .filter((k) => k.startsWith("tanggal_") && dates[k].trim() !== "").length;
 
   return (
     <div className="gv-page">
@@ -417,7 +442,7 @@ export default function GerakVoyage() {
 
             {/* List of 6 stages in exact user sequence */}
             <div className="gv-timeline-list">
-              {DATE_CONFIG.map(({ key, label, subLabel, icon: Icon, color, step: stepNum }, index) => {
+              {DATE_CONFIG.map(({ key, jamKey, label, subLabel, icon: Icon, color, step: stepNum }, index) => {
                 const isFilled = dates[key].trim() !== "";
                 const isMuatField = key === "tanggal_muat";
 
@@ -470,23 +495,45 @@ export default function GerakVoyage() {
                         </div>
                       </div>
 
-                      <div className="gv-date-input-wrap">
-                        <input
-                          type="date"
-                          className="gv-date-input"
-                          value={dates[key]}
-                          onChange={(e) => setDates((prev) => ({ ...prev, [key]: e.target.value }))}
-                        />
-                        {dates[key] && (
-                          <button
-                            type="button"
-                            className="gv-clear-date"
-                            onClick={() => setDates((prev) => ({ ...prev, [key]: "" }))}
-                            title="Hapus tanggal"
-                          >
-                            ×
-                          </button>
-                        )}
+                      <div className="gv-date-time-wrap">
+                        {/* Input Tanggal */}
+                        <div className="gv-date-input-wrap">
+                          <input
+                            type="date"
+                            className="gv-date-input"
+                            value={dates[key]}
+                            onChange={(e) => setDates((prev) => ({ ...prev, [key]: e.target.value }))}
+                          />
+                          {dates[key] && (
+                            <button
+                              type="button"
+                              className="gv-clear-date"
+                              onClick={() => setDates((prev) => ({ ...prev, [key]: "" }))}
+                              title="Hapus tanggal"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
+                        {/* Input Jam */}
+                        <div className="gv-time-input-wrap">
+                          <input
+                            type="time"
+                            className="gv-time-input"
+                            value={dates[jamKey]}
+                            onChange={(e) => setDates((prev) => ({ ...prev, [jamKey]: e.target.value }))}
+                          />
+                          {dates[jamKey] && (
+                            <button
+                              type="button"
+                              className="gv-clear-date"
+                              onClick={() => setDates((prev) => ({ ...prev, [jamKey]: "" }))}
+                              title="Hapus jam"
+                            >
+                              ×
+                            </button>
+                          )}
+                        </div>
                       </div>
                     </div>
                   </div>

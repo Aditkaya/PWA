@@ -554,12 +554,19 @@
   transform: scale(1.04);
 }
 
+/* Date + Time inputs row wrapper */
+.gv-date-time-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-width: 170px;
+}
+
 /* Date input wrapper */
 .gv-date-input-wrap {
   position: relative;
   display: flex;
   align-items: center;
-  min-width: 170px;
 }
 
 .gv-date-input {
@@ -585,6 +592,37 @@
   box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
 }
 
+/* Time input wrapper */
+.gv-time-input-wrap {
+  position: relative;
+  display: flex;
+  align-items: center;
+}
+
+.gv-time-input {
+  color-scheme: var(--gv-color-scheme);
+  width: 100%;
+  min-height: 40px;
+  border: 1px solid var(--gv-input-border);
+  border-left: 3px solid rgba(56, 189, 248, 0.45);
+  border-radius: 12px;
+  padding: 7px 12px;
+  background: var(--gv-input-bg);
+  color: var(--gv-input-text);
+  font: inherit;
+  font-size: 0.88rem;
+  font-weight: 500;
+  box-sizing: border-box;
+  transition: all 0.2s;
+  cursor: pointer;
+}
+
+.gv-time-input:focus {
+  outline: none;
+  border-color: #38bdf8;
+  box-shadow: 0 0 0 3px rgba(56, 189, 248, 0.2);
+}
+
 .gv-clear-date {
   position: absolute;
   right: 8px;
@@ -608,6 +646,7 @@
   background: #ef4444;
   color: #ffffff;
 }
+
 
 /* Submit & Action Buttons */
 .gv-btn-submit {
@@ -702,6 +741,7 @@
     gap: 10px;
   }
 
+  .gv-date-time-wrap,
   .gv-date-input-wrap {
     min-width: 100%;
   }

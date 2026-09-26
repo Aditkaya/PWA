@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import { useNavigate } from "react-router-dom";
 import {
   Anchor,
@@ -17,8 +18,10 @@ import {
   RotateCcw,
   Check,
   Compass,
-  Zap
+  Zap,
+  X,
 } from "lucide-react";
+import { useToast } from "../../contexts/ToastContext";
 import "./GerakVoyage.css";
 
 const API = import.meta.env.VITE_API_BASE_URL || "/api";
@@ -120,6 +123,7 @@ const EMPTY_DATES: DateFields = {
 
 export default function GerakVoyage() {
   const navigate = useNavigate();
+  const { showToast } = useToast();
 
   const [ships, setShips] = useState<string[]>([]);
   const [voyages, setVoyages] = useState<string[]>([]);
@@ -136,6 +140,13 @@ export default function GerakVoyage() {
   const [step, setStep] = useState<1 | 2>(1);
   const [alert, setAlert] = useState<{ type: "success" | "error" | "info"; msg: string } | null>(null);
   const [updatedCount, setUpdatedCount] = useState<number | null>(null);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [successDetails, setSuccessDetails] = useState<{
+    ship: string;
+    voyage: string;
+    updatedCount: number | null;
+    message: string;
+  } | null>(null);
 
   /* ─── Load ships on mount ─── */
   useEffect(() => {
@@ -214,13 +225,27 @@ export default function GerakVoyage() {
       });
       const d = await res.json();
       if (res.ok) {
-        setUpdatedCount(d.updated ?? null);
-        setAlert({ type: "success", msg: d.message || "Data tanggal gerak voyage berhasil disimpan." });
+        const count = d.updated ?? null;
+        setUpdatedCount(count);
+        const successMsg = d.message || "Data tanggal gerak voyage berhasil disimpan.";
+        setAlert({ type: "success", msg: successMsg });
+        showToast(successMsg, "success");
+        setSuccessDetails({
+          ship: selectedShip,
+          voyage: selectedVoyage,
+          updatedCount: count,
+          message: successMsg,
+        });
+        setShowSuccessModal(true);
       } else {
-        setAlert({ type: "error", msg: d.message || "Gagal menyimpan tanggal." });
+        const errorMsg = d.message || "Gagal menyimpan tanggal.";
+        setAlert({ type: "error", msg: errorMsg });
+        showToast(errorMsg, "error");
       }
     } catch {
-      setAlert({ type: "error", msg: "Terjadi kesalahan jaringan." });
+      const errorMsg = "Terjadi kesalahan jaringan.";
+      setAlert({ type: "error", msg: errorMsg });
+      showToast(errorMsg, "error");
     } finally {
       setSaving(false);
     }
@@ -231,6 +256,7 @@ export default function GerakVoyage() {
     setStep(1);
     setAlert(null);
     setUpdatedCount(null);
+    setShowSuccessModal(false);
   };
 
   const applyAutoObMuat = () => {
@@ -565,6 +591,81 @@ export default function GerakVoyage() {
           </div>
         </div>
       )}
+
+      {/* ──────────────── SUCCESS POPUP MODAL ──────────────── */}
+      {showSuccessModal &&
+        createPortal(
+          <div className="gv-modal-overlay fade-in" onClick={() => setShowSuccessModal(false)}>
+            <div className="gv-modal-content scale-in" onClick={(e) => e.stopPropagation()}>
+              <button
+                className="gv-modal-close-btn"
+                onClick={() => setShowSuccessModal(false)}
+                aria-label="Tutup notifikasi"
+              >
+                <X size={20} />
+              </button>
+
+              <div className="gv-modal-icon-wrap">
+                <div className="gv-modal-icon-glow" />
+                <div className="gv-modal-icon-circle">
+                  <CheckCircle2 size={46} className="gv-modal-check-icon" />
+                </div>
+              </div>
+
+              <div className="gv-modal-header">
+                <h3 className="gv-modal-title">Data Berhasil Disimpan!</h3>
+                <p className="gv-modal-subtitle">
+                  {successDetails?.message || "Data tanggal & jam gerak voyage berhasil diperbarui."}
+                </p>
+              </div>
+
+              <div className="gv-modal-details-card">
+                <div className="gv-modal-detail-row">
+                  <span className="gv-modal-detail-label">
+                    <Ship size={14} /> Nama Kapal
+                  </span>
+                  <span className="gv-modal-detail-value">{successDetails?.ship}</span>
+                </div>
+                <div className="gv-modal-detail-row">
+                  <span className="gv-modal-detail-label">
+                    <Anchor size={14} /> No. Voyage
+                  </span>
+                  <span className="gv-modal-detail-value">{successDetails?.voyage}</span>
+                </div>
+                {successDetails?.updatedCount !== null && (
+                  <div className="gv-modal-detail-row highlight">
+                    <span className="gv-modal-detail-label">
+                      <Sparkles size={14} /> Manifest Terupdate
+                    </span>
+                    <span className="gv-modal-detail-value badge-count">
+                      {successDetails?.updatedCount} Dokumen
+                    </span>
+                  </div>
+                )}
+                <div className="gv-modal-detail-row">
+                  <span className="gv-modal-detail-label">
+                    <Calendar size={14} /> Tahapan Terisi
+                  </span>
+                  <span className="gv-modal-detail-value">
+                    {filledCount} dari 6 Tahap
+                  </span>
+                </div>
+              </div>
+
+              <div className="gv-modal-actions">
+                <button
+                  type="button"
+                  className="gv-modal-btn-confirm"
+                  onClick={() => setShowSuccessModal(false)}
+                >
+                  <Check size={18} strokeWidth={2.5} />
+                  <span>OK, Mengerti</span>
+                </button>
+              </div>
+            </div>
+          </div>,
+          document.body
+        )}
     </div>
   );
 }

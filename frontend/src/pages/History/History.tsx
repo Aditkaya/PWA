@@ -351,17 +351,17 @@ export default function History() {
                           </span>
                         </div>
                         <div className="history-card-header-status">
-                          <span className={`status-text ${
-                            item.status === 'Tepat Waktu' || item.status === 'Disetujui' || item.status === 'Selesai'
-                              ? 'status-ok'
-                              : item.status === 'Persetujuan'
-                                ? 'status-pending-radius'
+                          {item.status?.toLowerCase() !== 'persetujuan' && (
+                            <span className={`status-text ${
+                              item.status === 'Tepat Waktu' || item.status === 'Disetujui' || item.status === 'Selesai'
+                                ? 'status-ok'
                                 : item.status === 'Ditolak'
                                   ? 'status-rejected'
                                   : 'status-warn'
-                          }`}>
-                            {item.status === 'Persetujuan' ? '⏳ Menunggu Persetujuan' : item.status === 'Ditolak' ? '✗ Ditolak' : item.status}
-                          </span>
+                            }`}>
+                              {item.status === 'Ditolak' ? '✗ Ditolak' : item.status}
+                            </span>
+                          )}
                           {expandedItems.includes(item.id) ? <ChevronUp size={20} color="var(--text-secondary)" /> : <ChevronDown size={20} color="var(--text-secondary)" />}
                         </div>
                       </div>
@@ -369,10 +369,12 @@ export default function History() {
                       {expandedItems.includes(item.id) && (
                         <div className="history-card-body">
                           <div className="history-details">
-                            <div className="detail-item">
-                              <Info size={16} />
-                              <span>{t.status}: {item.status}</span>
-                            </div>
+                            {item.status?.toLowerCase() !== 'persetujuan' && (
+                              <div className="detail-item">
+                                <Info size={16} />
+                                <span>{t.status}: {item.status}</span>
+                              </div>
+                            )}
                             {item.keterangan && (
                               <div className="detail-item detail-item-full">
                                 <FileText size={16} className="detail-item-icon" />

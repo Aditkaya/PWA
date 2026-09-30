@@ -77,6 +77,80 @@ if (strpos($uri, '/uploads/') === 0 || strpos($uri, '/storage/') === 0) {
             $file_path = $candidate;
         }
     }
+
+    // ── LAZY MIRROR ────────────────────────────────────────────────────────────
+    // Jika file tidak ada di lokal, coba salin dari server AYPSIS.
+    // Prioritas: (1) copy langsung dari filesystem AYPSIS_PUBLIC_DIR (jika server sama)
+    //            (2) fetch via HTTP dari AYPSIS_BASE_URL (jika server berbeda)
+    // Setelah berhasil, file tersimpan di PWA_BACKEND_UPLOADS_DIR untuk request berikutnya.
+    if ($file_path === null
+        && strpos($uri, '/uploads/') === 0
+        && defined('PWA_BACKEND_UPLOADS_DIR')
+    ) {
+        $mirrorAllowed = in_array(
+            strtolower(pathinfo($uri, PATHINFO_EXTENSION)),
+            ['jpg', 'jpeg', 'png', 'gif', 'webp', 'svg']
+        );
+
+        if ($mirrorAllowed) {
+            $subPath   = substr($uri, strlen('/uploads/'));   // path relatif dari uploads/
+            $localDir  = rtrim(PWA_BACKEND_UPLOADS_DIR, '/\\') . DIRECTORY_SEPARATOR
+                         . str_replace('/', DIRECTORY_SEPARATOR, dirname($subPath));
+            $localFile = rtrim(PWA_BACKEND_UPLOADS_DIR, '/\\') . DIRECTORY_SEPARATOR
+                         . str_replace('/', DIRECTORY_SEPARATOR, $subPath);
+
+            // Buat direktori tujuan jika belum ada
+            if (!is_dir($localDir)) {
+                @mkdir($localDir, 0775, true);
+            }
+
+            $mirrorOk = false;
+
+            // ── Prioritas 1: copy langsung dari filesystem AYPSIS_PUBLIC_DIR ──
+            $aypsisSrcFile = rtrim(AYPSIS_PUBLIC_DIR, '/\\') . DIRECTORY_SEPARATOR
+                             . str_replace('/', DIRECTORY_SEPARATOR, 'uploads/' . $subPath);
+            if (!$mirrorOk && file_exists($aypsisSrcFile)) {
+                if (@copy($aypsisSrcFile, $localFile)) {
+                    error_log("[PWA mirror] Copied $aypsisSrcFile → $localFile");
+                    $mirrorOk  = true;
+                    $file_path = $localFile;
+                }
+            }
+
+            // ── Prioritas 2: fetch via HTTP dari AYPSIS_BASE_URL ──────────────
+            if (!$mirrorOk) {
+                $aypsisBaseUrl = rtrim(getenv('AYPSIS_BASE_URL') ?: '', '/');
+                if ($aypsisBaseUrl) {
+                    $remoteUrl = $aypsisBaseUrl . $uri;
+                    $ctx = stream_context_create(['http' => [
+                        'timeout'         => 10,
+                        'follow_location' => true,
+                        'ignore_errors'   => true,
+                    ]]);
+                    $imageData = @file_get_contents($remoteUrl, false, $ctx);
+                    $httpOk = false;
+                    if ($imageData !== false && isset($http_response_header)) {
+                        foreach ($http_response_header as $h) {
+                            if (preg_match('#^HTTP/\S+\s+(\d+)#', $h, $m) && (int)$m[1] === 200) {
+                                $httpOk = true;
+                                break;
+                            }
+                        }
+                    }
+                    if ($httpOk && $imageData !== false) {
+                        file_put_contents($localFile, $imageData);
+                        error_log("[PWA mirror] Fetched $remoteUrl → $localFile");
+                        $mirrorOk  = true;
+                        $file_path = $localFile;
+                    } else {
+                        error_log("[PWA mirror] HTTP fetch failed for $remoteUrl");
+                    }
+                }
+            }
+        }
+    }
+    // ── END LAZY MIRROR ────────────────────────────────────────────────────────
+
 }
 
 if ($file_path !== null) {

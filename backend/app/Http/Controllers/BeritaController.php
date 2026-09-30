@@ -145,19 +145,10 @@ class BeritaController
         $baseDirs = array_unique(array_filter([$uploadBaseDir, $aypsisPubDir]));
 
         // Jika path sudah ada prefix uploads/ atau storage/,
-        // cek apakah file benar-benar ada di salah satu base directory
+        // selalu kembalikan sebagai path relatif.
+        // Lazy mirror di api.php akan otomatis fetch dari AYPSIS_BASE_URL
+        // jika file belum ada secara lokal di PWA_BACKEND_UPLOADS_DIR.
         if (str_starts_with($cleanPath, 'uploads/') || str_starts_with($cleanPath, 'storage/')) {
-            foreach ($baseDirs as $base) {
-                if (file_exists($base . '/' . $cleanPath)) {
-                    return '/' . $cleanPath;
-                }
-            }
-            // File tidak ditemukan di filesystem lokal.
-            // Jika AYPSIS_BASE_URL dikonfigurasi, ambil gambar langsung dari server AYPSIS.
-            if ($aypsisBaseUrl) {
-                return $aypsisBaseUrl . '/' . $cleanPath;
-            }
-            // Tidak ada fallback URL → kembalikan path relatif (akan 404 di browser)
             return '/' . $cleanPath;
         }
 

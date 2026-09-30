@@ -1,5 +1,7 @@
 <?php
-$_SERVER['SERVER_NAME'] = 'localhost';
+if (php_sapi_name() === 'cli' && strtoupper(substr(PHP_OS, 0, 3)) === 'WIN' && !isset($_SERVER['SERVER_NAME'])) {
+    $_SERVER['SERVER_NAME'] = 'localhost';
+}
 require_once __DIR__ . '/config/database.php';
 
 try {

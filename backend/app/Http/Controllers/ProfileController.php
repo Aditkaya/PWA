@@ -21,9 +21,43 @@ class ProfileController {
         }
         try {
             $pdo = Database::getConnection();
+
+            // Ambil daftar kolom yang ada di tabel users secara dinamis agar aman jika ada migrasi yang belum dijalankan di produksi
+            $userCols = [];
+            try {
+                $colsStmt = $pdo->query("DESCRIBE users");
+                $userCols = $colsStmt ? $colsStmt->fetchAll(PDO::FETCH_COLUMN) : [];
+            } catch (\Throwable $e) {}
+
+            $hasFaceBase64     = in_array('face_photo_base64', $userCols);
+            $hasFacePath       = in_array('face_photo_path', $userCols);
+            $hasFaceVerifiedAt = in_array('face_verified_at', $userCols);
+            $hasAvatarUpdated  = in_array('avatar_updated_at', $userCols);
+
+            // Auto-tambahkan kolom face_photo_base64 jika belum ada
+            if (!$hasFaceBase64) {
+                try {
+                    $pdo->exec("ALTER TABLE users ADD COLUMN face_photo_base64 LONGTEXT NULL DEFAULT NULL AFTER face_photo_path");
+                    $hasFaceBase64 = true;
+                } catch (\Throwable $e) {
+                    // Abaikan jika tidak punya hak akses ALTER
+                }
+            }
+
+            $selectParts = [
+                'k.*',
+                'u.id as user_id',
+                'u.username',
+                $hasAvatarUpdated  ? 'u.avatar_updated_at' : 'NULL as avatar_updated_at',
+                $hasFaceVerifiedAt ? 'u.face_verified_at' : 'NULL as face_verified_at',
+                $hasFacePath       ? 'u.face_photo_path' : 'NULL as face_photo_path',
+                $hasFaceBase64     ? 'u.face_photo_base64' : 'NULL as face_photo_base64',
+                'k.id as karyawan_id'
+            ];
+
             // Combine data from users and karyawans
             $stmt = $pdo->prepare("
-                SELECT k.*, u.id as user_id, u.username, u.avatar_updated_at, u.face_verified_at, u.face_photo_path, u.face_photo_base64, k.id as karyawan_id 
+                SELECT " . implode(', ', $selectParts) . "
                 FROM users u 
                 LEFT JOIN karyawans k ON u.karyawan_id = k.id 
                 WHERE u.id = ?
@@ -35,25 +69,29 @@ class ProfileController {
                 $profile['user_id'] = (int)$user_id;
                 // Setup avatar url
                 $avatar_path = "/uploads/avatars/avatar_{$user_id}.jpg";
-                if (file_exists(UPLOAD_BASE_DIR . $avatar_path)) {
+                $uploadBaseDir = defined('UPLOAD_BASE_DIR') ? UPLOAD_BASE_DIR : __DIR__ . '/../../..';
+                if (file_exists($uploadBaseDir . $avatar_path)) {
                     $profile['avatar_url'] = $avatar_path . '?v=' . time();
                 } else {
                     $profile['avatar_url'] = null;
                 }
 
                 // Setup face verification url & auto-restore dari database jika file fisik belum ada di disk
-                $profile['is_face_verified'] = $profile['face_verified_at'] ? true : false;
-                if ($profile['face_photo_path'] || !empty($profile['face_photo_base64'])) {
-                    $ltrimPath = ltrim($profile['face_photo_path'] ?? '', '/');
-                    $localTarget = UPLOAD_BASE_DIR . '/' . $ltrimPath;
+                $profile['is_face_verified'] = !empty($profile['face_verified_at']);
+                $facePhotoPath = $profile['face_photo_path'] ?? null;
+                $facePhotoBase64 = $profile['face_photo_base64'] ?? null;
+
+                if ($facePhotoPath || !empty($facePhotoBase64)) {
+                    $ltrimPath = ltrim($facePhotoPath ?? '', '/');
+                    $localTarget = $uploadBaseDir . '/' . $ltrimPath;
 
                     // Jika file fisik belum ada tapi ada foto di database, simpan/pulihkan otomatis ke disk
-                    if ($ltrimPath && !file_exists($localTarget) && !empty($profile['face_photo_base64'])) {
+                    if ($ltrimPath && !file_exists($localTarget) && !empty($facePhotoBase64)) {
                         $targetDir = dirname($localTarget);
                         if (!is_dir($targetDir)) {
                             @mkdir($targetDir, 0777, true);
                         }
-                        $rawBinary = preg_replace('#^data:image/\w+;base64,#i', '', $profile['face_photo_base64']);
+                        $rawBinary = preg_replace('#^data:image/\w+;base64,#i', '', $facePhotoBase64);
                         @file_put_contents($localTarget, base64_decode($rawBinary));
                     }
 
@@ -63,14 +101,14 @@ class ProfileController {
                     } elseif ($ltrimPath && defined('AYPSIS_PUBLIC_DIR') && file_exists(AYPSIS_PUBLIC_DIR . '/' . $ltrimPath)) {
                         $profile['face_verification_url'] = '/' . $ltrimPath . '?v=' . rawurlencode((string) $profile['face_verified_at']);
                         $profile['is_face_verified'] = true;
-                    } elseif (!empty($profile['face_photo_base64'])) {
+                    } elseif (!empty($facePhotoBase64)) {
                         // Fallback gunakan data URL langsung dari DB
-                        $profile['face_verification_url'] = $profile['face_photo_base64'];
+                        $profile['face_verification_url'] = $facePhotoBase64;
                         $profile['is_face_verified'] = true;
                     } else {
                         // Jika di local development dan face_verified_at sudah ada di DB, tetap anggap verified
                         $isLocal = (isset($_SERVER['SERVER_NAME']) && in_array($_SERVER['SERVER_NAME'], ['localhost', '127.0.0.1'])) || (php_sapi_name() === 'cli');
-                        if ($isLocal && $profile['face_verified_at']) {
+                        if ($isLocal && !empty($profile['face_verified_at'])) {
                             $profile['face_verification_url'] = null;
                             $profile['is_face_verified'] = true;
                         } else {
@@ -80,57 +118,65 @@ class ProfileController {
                     }
                 } else {
                     $profile['face_verification_url'] = null;
-                    $profile['is_face_verified'] = false; // Force re-registration if path is missing
+                    $profile['is_face_verified'] = false;
                 }
                 // Hapus data base64 mentah dari array respons JSON agar payload jaringan tetap ringan
                 unset($profile['face_photo_base64']);
 
                 // Check full day leave
                 $profile['has_full_day_leave'] = false;
-                if ($profile['karyawan_id']) {
+                $karyawanId = $profile['karyawan_id'] ?? null;
+
+                if ($karyawanId) {
                     $today = date('Y-m-d');
                     
                     // Cek Izin Tidak Masuk / Sakit (Status Disetujui)
-                    $stmtLeave = $pdo->prepare("SELECT id FROM permohonan_izins WHERE karyawan_id = ? AND (jenis_izin = 'Tidak Masuk' OR jenis_izin = 'Sakit') AND LOWER(status) = 'disetujui' AND ? BETWEEN tanggal_mulai AND tanggal_selesai LIMIT 1");
-                    $stmtLeave->execute([$profile['karyawan_id'], $today]);
-                    if ($stmtLeave->fetch()) {
-                        $profile['has_full_day_leave'] = true;
-                    }
+                    try {
+                        $stmtLeave = $pdo->prepare("SELECT id FROM permohonan_izins WHERE karyawan_id = ? AND (jenis_izin = 'Tidak Masuk' OR jenis_izin = 'Sakit') AND LOWER(status) = 'disetujui' AND ? BETWEEN tanggal_mulai AND tanggal_selesai LIMIT 1");
+                        $stmtLeave->execute([$karyawanId, $today]);
+                        if ($stmtLeave->fetch()) {
+                            $profile['has_full_day_leave'] = true;
+                        }
+                    } catch (\Throwable $e) {}
                     
                     // Cek Cuti (Status Disetujui/Approved)
-                    $stmtCutiLeave = $pdo->prepare("SELECT id FROM cutis WHERE karyawan_id = ? AND (LOWER(status) = 'approved' OR LOWER(status) = 'disetujui') AND ? BETWEEN tanggal_mulai AND tanggal_selesai LIMIT 1");
-                    $stmtCutiLeave->execute([$profile['karyawan_id'], $today]);
-                    if ($stmtCutiLeave->fetch()) {
-                        $profile['has_full_day_leave'] = true;
-                    }
+                    try {
+                        $stmtCutiLeave = $pdo->prepare("SELECT id FROM cutis WHERE karyawan_id = ? AND (LOWER(status) = 'approved' OR LOWER(status) = 'disetujui') AND ? BETWEEN tanggal_mulai AND tanggal_selesai LIMIT 1");
+                        $stmtCutiLeave->execute([$karyawanId, $today]);
+                        if ($stmtCutiLeave->fetch()) {
+                            $profile['has_full_day_leave'] = true;
+                        }
+                    } catch (\Throwable $e) {}
                     
                     // Fetch Saldo Cuti
-                    $currentYear = date('Y');
-                    $stmtCuti = $pdo->prepare("SELECT total_cuti, cuti_terpakai, sisa_cuti FROM saldo_cutis WHERE karyawan_id = ? ORDER BY tahun DESC LIMIT 1");
-                    $stmtCuti->execute([$profile['karyawan_id']]);
-                    $saldoCuti = $stmtCuti->fetch(PDO::FETCH_ASSOC);
-                    
-                    if ($saldoCuti) {
-                        $profile['total_cuti'] = (int)$saldoCuti['total_cuti'];
-                        $profile['cuti_terpakai'] = (int)$saldoCuti['cuti_terpakai'];
-                        $profile['sisa_cuti'] = (int)$saldoCuti['sisa_cuti'];
-                    } else {
-                        $profile['total_cuti'] = 0;
-                        $profile['cuti_terpakai'] = 0;
-                        $profile['sisa_cuti'] = 0;
-                    }
+                    $profile['total_cuti'] = 0;
+                    $profile['cuti_terpakai'] = 0;
+                    $profile['sisa_cuti'] = 0;
+                    try {
+                        $stmtCuti = $pdo->prepare("SELECT total_cuti, cuti_terpakai, sisa_cuti FROM saldo_cutis WHERE karyawan_id = ? ORDER BY tahun DESC LIMIT 1");
+                        $stmtCuti->execute([$karyawanId]);
+                        $saldoCuti = $stmtCuti->fetch(PDO::FETCH_ASSOC);
+                        
+                        if ($saldoCuti) {
+                            $profile['total_cuti'] = (int)$saldoCuti['total_cuti'];
+                            $profile['cuti_terpakai'] = (int)$saldoCuti['cuti_terpakai'];
+                            $profile['sisa_cuti'] = (int)$saldoCuti['sisa_cuti'];
+                        }
+                    } catch (\Throwable $e) {}
                 }
                 
                 // Check if supervisor
                 $profile['is_supervisor'] = false;
-                if ($profile['karyawan_id']) {
-                    $nik = $profile['nik'] ?? '';
-                    $nama = $profile['nama_lengkap'] ?? '';
-                    $stmtSpv = $pdo->prepare("SELECT id FROM karyawans WHERE nik_supervisor = ? OR supervisor = ? LIMIT 1");
-                    $stmtSpv->execute([$nik, $nama]);
-                    if ($stmtSpv->fetch()) {
-                        $profile['is_supervisor'] = true;
-                    }
+                if ($karyawanId) {
+                    try {
+                        $nik = $profile['nik'] ?? '';
+                        $nama = $profile['nama_lengkap'] ?? '';
+                        $stmtSpv = $pdo->prepare("SELECT id FROM karyawans WHERE nik_supervisor = ? OR supervisor = ? LIMIT 1");
+                        $stmtSpv->execute([$nik, $nama]);
+                        if ($stmtSpv->fetch()) {
+                            $profile['is_supervisor'] = true;
+                        }
+                    } catch (\Throwable $e) {}
                 }
                 
                 // To ensure compatibility with frontend components that expect 'id' to be user_id or karyawan_id,
@@ -138,7 +184,11 @@ class ProfileController {
                 $profile['id'] = $profile['user_id'];
 
                 // Sertakan feature permissions untuk user ini
-                $profile['feature_permissions'] = FeaturePermissionController::getPermissionsForUser($pdo, (int)$profile['user_id']);
+                try {
+                    $profile['feature_permissions'] = FeaturePermissionController::getPermissionsForUser($pdo, (int)$profile['user_id']);
+                } catch (\Throwable $e) {
+                    $profile['feature_permissions'] = [];
+                }
 
                 http_response_code(200);
                 echo json_encode(['data' => $profile]);
@@ -146,10 +196,10 @@ class ProfileController {
                 http_response_code(404);
                 echo json_encode(['message' => 'User tidak ditemukan']);
             }
-        } catch (\PDOException $e) {
+        } catch (\Throwable $e) {
             http_response_code(500);
-            error_log('Database error: ' . $e->getMessage());
-            echo json_encode(['message' => 'Terjadi kesalahan pada server']);
+            error_log('Database error in getProfile: ' . $e->getMessage());
+            echo json_encode(['message' => 'Terjadi kesalahan pada server', 'error' => $e->getMessage()]);
         }
     }
 

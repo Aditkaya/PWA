@@ -16,3 +16,7 @@ backend/.env
 # OS
 .DS_Store
 Thumbs.db
+
+# Upload files (user-generated content - jangan di-track git)
+backend/uploads/**/
+!backend/uploads/.gitkeep

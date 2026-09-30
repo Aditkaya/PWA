@@ -31,15 +31,38 @@ class AttendanceController {
         $waktuAbsenParam = null;
 
         if ($isOffline && $waktuOffline) {
-            $parsedTime = strtotime($waktuOffline);
-            // Batasi waktu offline: tidak boleh lebih dari 48 jam yang lalu dan tidak di masa depan (> 5 menit toleransi clock drift)
-            if ($parsedTime && $parsedTime <= (time() + 300) && $parsedTime >= (time() - 86400 * 2)) {
-                $waktuAbsenParam = date('Y-m-d H:i:s', $parsedTime);
-                $tagOffline = "[Offline: " . date('d/m/Y H:i', $parsedTime) . "]";
+            $parsedTime = null;
+            $formattedWaktu = null;
+            $tagTime = null;
+
+            try {
+                $tz = new \DateTimeZone('Asia/Jakarta');
+                // Jika waktu_offline belum mengandung offset/timezone, parse eksplisit dalam Asia/Jakarta (WIB)
+                $dt = new \DateTime($waktuOffline, $tz);
+                $dt->setTimezone($tz);
+                $parsedTime = $dt->getTimestamp();
+                $formattedWaktu = $dt->format('Y-m-d H:i:s');
+                $tagTime = $dt->format('d/m/Y H:i');
+            } catch (\Throwable $t) {
+                $parsedTime = strtotime($waktuOffline);
+                if ($parsedTime) {
+                    $formattedWaktu = date('Y-m-d H:i:s', $parsedTime);
+                    $tagTime = date('d/m/Y H:i', $parsedTime);
+                }
+            }
+
+            // Batasi waktu offline: toleransi 30 menit ke depan (clock drift jam HP) dan maksimal 48 jam ke belakang
+            if ($parsedTime && $parsedTime <= (time() + 1800) && $parsedTime >= (time() - 86400 * 2)) {
+                $waktuAbsenParam = $formattedWaktu;
+                $tagOffline = "[Offline: " . $tagTime . "]";
                 $keterangan = $keterangan ? ($keterangan . " " . $tagOffline) : $tagOffline;
             } else {
                 http_response_code(422);
-                echo json_encode(['message' => 'Waktu absensi offline tidak valid atau kedaluwarsa.']);
+                echo json_encode([
+                    'message' => 'Waktu absensi offline tidak valid atau kedaluwarsa.',
+                    'server_time' => date('Y-m-d H:i:s'),
+                    'received_time' => $waktuOffline
+                ]);
                 return;
             }
         }

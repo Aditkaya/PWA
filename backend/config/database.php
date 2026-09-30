@@ -23,6 +23,9 @@ class Database {
 
             try {
                 self::$pdo = new PDO($dsn, $user, $pass, $options);
+                try {
+                    self::$pdo->exec("SET time_zone = '+07:00'");
+                } catch (\Throwable $t) {}
             } catch (\PDOException $e) {
                 http_response_code(500);
                 error_log('Database error: ' . $e->getMessage());

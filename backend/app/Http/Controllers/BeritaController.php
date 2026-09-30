@@ -136,30 +136,49 @@ class BeritaController
         // Hapus leading slashes
         $cleanPath = ltrim($path, '/');
 
-        // Jika path sudah ada prefix uploads/ atau storage/, pakai apa adanya
+        $uploadBaseDir = defined('UPLOAD_BASE_DIR') ? rtrim(UPLOAD_BASE_DIR, '/') : null;
+        $aypsisPubDir  = defined('AYPSIS_PUBLIC_DIR') ? rtrim(AYPSIS_PUBLIC_DIR, '/') : '/var/www/aypsis/public';
+        // URL server AYPSIS (set via env AYPSIS_BASE_URL, misal: https://aypsis.perusahaan.com)
+        $aypsisBaseUrl = rtrim(getenv('AYPSIS_BASE_URL') ?: '', '/');
+
+        // Kumpulkan semua base directory yang perlu dicek (unik)
+        $baseDirs = array_unique(array_filter([$uploadBaseDir, $aypsisPubDir]));
+
+        // Jika path sudah ada prefix uploads/ atau storage/,
+        // cek apakah file benar-benar ada di salah satu base directory
         if (str_starts_with($cleanPath, 'uploads/') || str_starts_with($cleanPath, 'storage/')) {
+            foreach ($baseDirs as $base) {
+                if (file_exists($base . '/' . $cleanPath)) {
+                    return '/' . $cleanPath;
+                }
+            }
+            // File tidak ditemukan di filesystem lokal.
+            // Jika AYPSIS_BASE_URL dikonfigurasi, ambil gambar langsung dari server AYPSIS.
+            if ($aypsisBaseUrl) {
+                return $aypsisBaseUrl . '/' . $cleanPath;
+            }
+            // Tidak ada fallback URL → kembalikan path relatif (akan 404 di browser)
             return '/' . $cleanPath;
         }
 
         // Jika path hanya nama file atau subfolder tanpa prefix,
-        // coba uploads/berita/ terlebih dahulu (konvensi upload manual AYPSIS)
-        // lalu fallback ke storage/ (konvensi Filament/Laravel)
+        // coba berbagai direktori upload yang umum
         $candidates = [
-            'uploads/berita/' . $cleanPath,
-            'uploads/' . $cleanPath,
-            'storage/' . $cleanPath,
+            'uploads/pamflet/' . $cleanPath,
+            'uploads/berita/'  . $cleanPath,
+            'uploads/'         . $cleanPath,
+            'storage/'         . $cleanPath,
         ];
 
-        $publicDir = defined('AYPSIS_PUBLIC_DIR') ? rtrim(AYPSIS_PUBLIC_DIR, '/') : '/var/www/aypsis/public';
-        foreach ($candidates as $candidate) {
-            $fullPath = $publicDir . '/' . $candidate;
-            if (file_exists($fullPath)) {
-                return '/' . $candidate;
+        foreach ($baseDirs as $base) {
+            foreach ($candidates as $candidate) {
+                if (file_exists($base . '/' . $candidate)) {
+                    return '/' . $candidate;
+                }
             }
         }
 
         // Tidak ditemukan di filesystem → fallback ke uploads/berita/ agar URL tetap terbentuk
-        // (browser akan mendapat 404, tapi tidak crash)
         return '/uploads/berita/' . $cleanPath;
     }
 }

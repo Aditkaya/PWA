@@ -2,6 +2,22 @@
 
 require_once __DIR__ . '/../config/database.php';
 
+// Load .env file jika ada (simple key=value parser, tanpa dependency)
+$envFile = __DIR__ . '/../.env';
+if (file_exists($envFile)) {
+    foreach (file($envFile, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES) as $line) {
+        $line = trim($line);
+        if ($line === '' || $line[0] === '#') continue;
+        if (strpos($line, '=') !== false) {
+            [$key, $val] = explode('=', $line, 2);
+            $key = trim($key); $val = trim($val);
+            if ($key !== '' && getenv($key) === false) {
+                putenv("$key=$val");
+            }
+        }
+    }
+}
+
 header("Access-Control-Allow-Origin: *");
 header("Content-Type: application/json; charset=UTF-8");
 header("Access-Control-Allow-Methods: OPTIONS,GET,POST,PUT,DELETE");
@@ -18,15 +34,30 @@ $isLocalServer = ($_SERVER['SERVER_NAME'] === 'localhost' || $_SERVER['SERVER_NA
 if ($isLocalServer) {
     define('UPLOAD_BASE_DIR', getenv('UPLOAD_BASE_DIR') ?: (file_exists('C:/kerjaan/aypsis/aypsis/aypsis/public') ? 'C:/kerjaan/aypsis/aypsis/aypsis/public' : 'D:/kerjaan/aypsis/aypsis/aypsis/public'));
     define('AYPSIS_PUBLIC_DIR', getenv('AYPSIS_PUBLIC_DIR') ?: UPLOAD_BASE_DIR);
+    // Folder uploads/ lokal PWA backend (gambar disync dari AYPSIS via PWA_UPLOAD_DIR)
+    define('PWA_BACKEND_UPLOADS_DIR', getenv('PWA_BACKEND_UPLOADS_DIR') ?: __DIR__ . '/../uploads');
 } else {
     define('UPLOAD_BASE_DIR', getenv('UPLOAD_BASE_DIR') ?: '/var/www/pwa/backend');
     define('AYPSIS_PUBLIC_DIR', getenv('AYPSIS_PUBLIC_DIR') ?: '/var/www/aypsis/public');
+    // Folder uploads/ lokal PWA backend (gambar disync dari AYPSIS via PWA_UPLOAD_DIR)
+    define('PWA_BACKEND_UPLOADS_DIR', getenv('PWA_BACKEND_UPLOADS_DIR') ?: __DIR__ . '/../uploads');
 }
 
 // Only uploaded and storage files are public. Configuration, service tokens and AI models
 // must never be exposed through this PHP router's static-file handler.
 $file_path = null;
 if (strpos($uri, '/uploads/') === 0 || strpos($uri, '/storage/') === 0) {
+    // Cek di PWA_BACKEND_UPLOADS_DIR (uploads/ lokal) -- hilangkan prefix /uploads dari URI
+    if ($file_path === null && defined('PWA_BACKEND_UPLOADS_DIR') && strpos($uri, '/uploads/') === 0) {
+        $subPath = substr($uri, strlen('/uploads'));
+        $candidate = realpath(PWA_BACKEND_UPLOADS_DIR . $subPath);
+        if ($candidate && is_file($candidate)) {
+            $baseReal = realpath(PWA_BACKEND_UPLOADS_DIR);
+            if ($baseReal && strpos($candidate, $baseReal . DIRECTORY_SEPARATOR) === 0) {
+                $file_path = $candidate;
+            }
+        }
+    }
     foreach ([UPLOAD_BASE_DIR, AYPSIS_PUBLIC_DIR] as $base) {
         $candidate = realpath($base . $uri);
         if ($candidate && is_file($candidate)) {

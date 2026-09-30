@@ -23,7 +23,7 @@ class ProfileController {
             $pdo = Database::getConnection();
             // Combine data from users and karyawans
             $stmt = $pdo->prepare("
-                SELECT k.*, u.id as user_id, u.username, u.avatar_updated_at, u.face_verified_at, u.face_photo_path, k.id as karyawan_id 
+                SELECT k.*, u.id as user_id, u.username, u.avatar_updated_at, u.face_verified_at, u.face_photo_path, u.face_photo_base64, k.id as karyawan_id 
                 FROM users u 
                 LEFT JOIN karyawans k ON u.karyawan_id = k.id 
                 WHERE u.id = ?
@@ -41,22 +41,49 @@ class ProfileController {
                     $profile['avatar_url'] = null;
                 }
 
-                // Setup face verification url
+                // Setup face verification url & auto-restore dari database jika file fisik belum ada di disk
                 $profile['is_face_verified'] = $profile['face_verified_at'] ? true : false;
-                if ($profile['face_photo_path']) {
-                    $ltrimPath = ltrim($profile['face_photo_path'], '/');
-                    if (file_exists(UPLOAD_BASE_DIR . '/' . $ltrimPath)) {
+                if ($profile['face_photo_path'] || !empty($profile['face_photo_base64'])) {
+                    $ltrimPath = ltrim($profile['face_photo_path'] ?? '', '/');
+                    $localTarget = UPLOAD_BASE_DIR . '/' . $ltrimPath;
+
+                    // Jika file fisik belum ada tapi ada foto di database, simpan/pulihkan otomatis ke disk
+                    if ($ltrimPath && !file_exists($localTarget) && !empty($profile['face_photo_base64'])) {
+                        $targetDir = dirname($localTarget);
+                        if (!is_dir($targetDir)) {
+                            @mkdir($targetDir, 0777, true);
+                        }
+                        $rawBinary = preg_replace('#^data:image/\w+;base64,#i', '', $profile['face_photo_base64']);
+                        @file_put_contents($localTarget, base64_decode($rawBinary));
+                    }
+
+                    if ($ltrimPath && file_exists($localTarget)) {
                         $profile['face_verification_url'] = '/' . $ltrimPath . '?v=' . rawurlencode((string) $profile['face_verified_at']);
-                    } elseif (defined('AYPSIS_PUBLIC_DIR') && file_exists(AYPSIS_PUBLIC_DIR . '/' . $ltrimPath)) {
+                        $profile['is_face_verified'] = true;
+                    } elseif ($ltrimPath && defined('AYPSIS_PUBLIC_DIR') && file_exists(AYPSIS_PUBLIC_DIR . '/' . $ltrimPath)) {
                         $profile['face_verification_url'] = '/' . $ltrimPath . '?v=' . rawurlencode((string) $profile['face_verified_at']);
+                        $profile['is_face_verified'] = true;
+                    } elseif (!empty($profile['face_photo_base64'])) {
+                        // Fallback gunakan data URL langsung dari DB
+                        $profile['face_verification_url'] = $profile['face_photo_base64'];
+                        $profile['is_face_verified'] = true;
                     } else {
-                        $profile['face_verification_url'] = null;
-                        $profile['is_face_verified'] = false; // Force re-registration if file is missing
+                        // Jika di local development dan face_verified_at sudah ada di DB, tetap anggap verified
+                        $isLocal = (isset($_SERVER['SERVER_NAME']) && in_array($_SERVER['SERVER_NAME'], ['localhost', '127.0.0.1'])) || (php_sapi_name() === 'cli');
+                        if ($isLocal && $profile['face_verified_at']) {
+                            $profile['face_verification_url'] = null;
+                            $profile['is_face_verified'] = true;
+                        } else {
+                            $profile['face_verification_url'] = null;
+                            $profile['is_face_verified'] = false; // Force re-registration if file is missing in production
+                        }
                     }
                 } else {
                     $profile['face_verification_url'] = null;
                     $profile['is_face_verified'] = false; // Force re-registration if path is missing
                 }
+                // Hapus data base64 mentah dari array respons JSON agar payload jaringan tetap ringan
+                unset($profile['face_photo_base64']);
 
                 // Check full day leave
                 $profile['has_full_day_leave'] = false;
@@ -383,8 +410,16 @@ class ProfileController {
             
             if (file_put_contents($target_path, $image_base64)) {
                 $dbPath = 'uploads/face_verifications/' . $filename;
-                $stmt = $pdo->prepare("UPDATE users SET face_verified_at = NOW(), face_photo_path = ? WHERE id = ?");
-                $stmt->execute([$dbPath, $user_id]);
+                $dbBase64 = 'data:image/jpeg;base64,' . base64_encode($image_base64);
+
+                $hasBase64Col = (bool)$pdo->query("SHOW COLUMNS FROM users LIKE 'face_photo_base64'")->fetch();
+                if ($hasBase64Col) {
+                    $stmt = $pdo->prepare("UPDATE users SET face_verified_at = NOW(), face_photo_path = ?, face_photo_base64 = ? WHERE id = ?");
+                    $stmt->execute([$dbPath, $dbBase64, $user_id]);
+                } else {
+                    $stmt = $pdo->prepare("UPDATE users SET face_verified_at = NOW(), face_photo_path = ? WHERE id = ?");
+                    $stmt->execute([$dbPath, $user_id]);
+                }
 
                 http_response_code(200);
                 echo json_encode([

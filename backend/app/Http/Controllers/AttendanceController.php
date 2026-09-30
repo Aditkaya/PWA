@@ -25,16 +25,37 @@ class AttendanceController {
             echo json_encode(['message' => 'Data user_id dan tipe diperlukan']);
             return;
         }
+
+        $isOffline = !empty($postData['is_offline']);
+        $waktuOffline = !empty($postData['waktu_offline']) ? trim($postData['waktu_offline']) : null;
+        $waktuAbsenParam = null;
+
+        if ($isOffline && $waktuOffline) {
+            $parsedTime = strtotime($waktuOffline);
+            // Batasi waktu offline: tidak boleh lebih dari 48 jam yang lalu dan tidak di masa depan (> 5 menit toleransi clock drift)
+            if ($parsedTime && $parsedTime <= (time() + 300) && $parsedTime >= (time() - 86400 * 2)) {
+                $waktuAbsenParam = date('Y-m-d H:i:s', $parsedTime);
+                $tagOffline = "[Offline: " . date('d/m/Y H:i', $parsedTime) . "]";
+                $keterangan = $keterangan ? ($keterangan . " " . $tagOffline) : $tagOffline;
+            } else {
+                http_response_code(422);
+                echo json_encode(['message' => 'Waktu absensi offline tidak valid atau kedaluwarsa.']);
+                return;
+            }
+        }
+
         // Check location quality before face verification or any writes.
         $accuracy = $postData['gps_accuracy'] ?? null;
         $locationAge = $postData['location_age_ms'] ?? null;
+        $maxLocationAge = $isOffline ? 86400000 : 30000; // Untuk offline, usia GPS diukur saat pengambilan foto di HP
+
         if (!is_numeric($latitude) || !is_numeric($longitude)
             || !is_finite((float)$latitude) || !is_finite((float)$longitude)
             || abs((float)$latitude) > 90 || abs((float)$longitude) > 180
             || !is_numeric($accuracy) || !is_finite((float)$accuracy)
             || (float)$accuracy <= 0 || (float)$accuracy > 50
             || !is_numeric($locationAge) || !is_finite((float)$locationAge)
-            || (float)$locationAge < 0 || (float)$locationAge > 30000) {
+            || (float)$locationAge < 0 || (float)$locationAge > $maxLocationAge) {
             http_response_code(422);
             echo json_encode(['message' => 'Lokasi belum valid. Cari ulang GPS dengan akurasi maksimal 50 meter, lalu ambil foto kembali.']);
             return;
@@ -54,7 +75,18 @@ class AttendanceController {
             $karyawan_id = $userData['karyawan_id'];
             $nik = $userData['nik'] ?? $user_id; // Fallback if missing
 
-            $today = date('Y-m-d');
+            // Cegah duplikasi pengiriman offline sync
+            if ($waktuAbsenParam) {
+                $stmtDup = $pdo->prepare("SELECT id FROM absensis WHERE karyawan_id = ? AND tipe = ? AND waktu BETWEEN DATE_SUB(?, INTERVAL 2 MINUTE) AND DATE_ADD(?, INTERVAL 2 MINUTE) LIMIT 1");
+                $stmtDup->execute([$karyawan_id, $tipe, $waktuAbsenParam, $waktuAbsenParam]);
+                if ($stmtDup->fetch()) {
+                    http_response_code(200);
+                    echo json_encode(['message' => "Absensi {$tipe} sudah tersimpan sebelumnya.", 'status' => 'Selesai']);
+                    return;
+                }
+            }
+
+            $today = $waktuAbsenParam ? date('Y-m-d', strtotime($waktuAbsenParam)) : date('Y-m-d');
             
             // Cek Izin Tidak Masuk / Sakit
             $stmtLeave = $pdo->prepare("SELECT id FROM permohonan_izins WHERE karyawan_id = ? AND (jenis_izin = 'Tidak Masuk' OR jenis_izin = 'Sakit') AND LOWER(status) = 'disetujui' AND ? BETWEEN tanggal_mulai AND tanggal_selesai LIMIT 1");
@@ -73,8 +105,8 @@ class AttendanceController {
             // Validasi: Istirahat hanya boleh 1x sehari
             // Jika tipe = Istirahat Keluar, cek apakah sudah ada Istirahat Masuk hari ini
             if (strtolower($tipe) === 'istirahat keluar') {
-                $stmtCek = $pdo->prepare("SELECT COUNT(*) as total FROM absensis WHERE karyawan_id = ? AND tipe IN ('Istirahat Keluar', 'Istirahat Masuk') AND DATE(waktu) = CURDATE()");
-                $stmtCek->execute([$karyawan_id]);
+                $stmtCek = $pdo->prepare("SELECT COUNT(*) as total FROM absensis WHERE karyawan_id = ? AND tipe IN ('Istirahat Keluar', 'Istirahat Masuk') AND DATE(waktu) = ?");
+                $stmtCek->execute([$karyawan_id, $today]);
                 $cekResult = $stmtCek->fetch();
                 if ($cekResult['total'] >= 2) {
                     // Sudah ada pasangan Istirahat Keluar + Istirahat Masuk, tolak
@@ -206,8 +238,13 @@ class AttendanceController {
             }
 
             // Insert into absensis
-            $stmt = $pdo->prepare("INSERT INTO absensis (karyawan_id, nik, waktu, tipe, status, foto, latitude, longitude, detail_lokasi, keterangan) VALUES (?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->execute([$karyawan_id, $nik, $tipe, $statusAbsensi, $db_photo_path, $latitude, $longitude, $finalDetailLokasi, $keterangan]);
+            if ($waktuAbsenParam) {
+                $stmt = $pdo->prepare("INSERT INTO absensis (karyawan_id, nik, waktu, tipe, status, foto, latitude, longitude, detail_lokasi, keterangan) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$karyawan_id, $nik, $waktuAbsenParam, $tipe, $statusAbsensi, $db_photo_path, $latitude, $longitude, $finalDetailLokasi, $keterangan]);
+            } else {
+                $stmt = $pdo->prepare("INSERT INTO absensis (karyawan_id, nik, waktu, tipe, status, foto, latitude, longitude, detail_lokasi, keterangan) VALUES (?, ?, NOW(), ?, ?, ?, ?, ?, ?, ?)");
+                $stmt->execute([$karyawan_id, $nik, $tipe, $statusAbsensi, $db_photo_path, $latitude, $longitude, $finalDetailLokasi, $keterangan]);
+            }
 
             $normalizedTipe = strtolower(str_replace('_', ' ', $tipe));
             if (in_array($normalizedTipe, ['lembur pulang', 'selesai lembur', 'lembur keluar'])) {

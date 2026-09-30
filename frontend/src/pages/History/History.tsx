@@ -3,10 +3,11 @@ import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Info, Loader2, Map
 import { useAuthStore } from '../../store/auth.store'
 import { useLangStore } from '../../store/lang.store'
 import { translations } from '../../utils/translations'
+import { getOfflineAttendances } from '../../utils/offlineQueue'
 import './History.css'
 
 interface HistoryItem {
-  id: number
+  id: number | string
   date: string
   type: string
   time: string
@@ -84,6 +85,37 @@ export default function History() {
       if (holiRes.ok) {
         const holiResult = await holiRes.json()
         setHolidaysData(holiResult.data || [])
+      }
+
+      // Gabungkan antrean offline yang belum tersinkronisasi
+      try {
+        const offlineItems = await getOfflineAttendances();
+        if (offlineItems.length > 0 && user?.id) {
+          const offlineHistoryItems: HistoryItem[] = offlineItems
+            .filter(item => item.user_id === user.id)
+            .map(item => {
+              const timePart = item.waktu_offline.split(' ')[1] || '';
+              const datePart = item.waktu_offline.split(' ')[0] || '';
+              return {
+                id: item.id,
+                date: datePart,
+                actual_date: datePart,
+                type: item.tipe,
+                time: timePart.slice(0, 5),
+                status: 'Tersimpan Offline',
+                foto: item.foto_base64,
+                location: item.detail_lokasi || 'Offline',
+                keterangan: (item.keterangan ? item.keterangan + ' ' : '') + '[Menunggu Sinkronisasi Server]'
+              };
+            });
+          setHistoryData(prev => {
+            const existingIds = new Set(prev.map(h => String(h.id)));
+            const toAdd = offlineHistoryItems.filter(item => !existingIds.has(String(item.id)));
+            return [...toAdd, ...prev];
+          });
+        }
+      } catch (e) {
+        console.warn('Gagal membaca antrean offline di History:', e);
       }
     } catch (error) {
       console.error("Failed to fetch history data", error)

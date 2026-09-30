@@ -1,0 +1,18 @@
+# Dependencies
+node_modules/
+vendor/
+
+# Build output
+frontend/dist/
+
+# Environment files (jangan commit credentials)
+backend/.env
+*.env
+
+# Editor
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db

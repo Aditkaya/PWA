@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useOutletContext, useNavigate } from 'react-router-dom'
-import { Clock, Coffee, LogOut, LogIn, CalendarDays, Sun, Plane, AlertCircle, Info, XCircle, ScanFace, ClipboardCheck, CalendarClock, Shield } from 'lucide-react'
+import { Clock, Coffee, LogOut, LogIn, CalendarDays, Sun, Plane, AlertCircle, Info, XCircle, ScanFace, ClipboardCheck, CalendarClock, Shield, WifiOff, RefreshCw } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import CameraModal from '../../components/CameraModal'
 import IzinModal from '../../components/IzinModal'
@@ -13,10 +13,11 @@ import { useLangStore } from '../../store/lang.store'
 import { useModeStore } from '../../store/mode.store'
 import { translations } from '../../utils/translations'
 import { useToast } from '../../contexts/ToastContext'
+import { saveOfflineAttendance, getPendingOfflineCount, syncOfflineAttendances, getOfflineAttendances, type OfflineAttendanceItem } from '../../utils/offlineQueue'
 import './dashboard.css'
 
 interface HistoryItem {
-  id: number
+  id: number | string
   date: string
   type: string
   time: string
@@ -24,17 +25,35 @@ interface HistoryItem {
   is_overnight?: boolean
   actual_date?: string
   occurred_at?: string
+  is_offline?: boolean
 }
 
 export default function Dashboard() {
   const navigate = useNavigate()
   const [time, setTime] = useState(new Date())
   const { user } = useAuthStore()
-  const [historyData, setHistoryData] = useState<HistoryItem[]>([])
+  const [historyData, setHistoryData] = useState<HistoryItem[]>(() => {
+    if (!user?.id) return [];
+    try {
+      const cached = localStorage.getItem(`cached_history_${user.id}`);
+      return cached ? JSON.parse(cached) : [];
+    } catch {
+      return [];
+    }
+  })
   const [, setPermohonanData] = useState<any[]>([])
   const [userGroup, setUserGroup] = useState<string>('')
-  const [userProfile, setUserProfile] = useState<any>(null)
+  const [userProfile, setUserProfile] = useState<any>(() => {
+    try {
+      const cached = localStorage.getItem('cached_profile');
+      return cached ? JSON.parse(cached) : null;
+    } catch {
+      return null;
+    }
+  })
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0)
+  const [pendingOfflineCount, setPendingOfflineCount] = useState(0)
+  const [isSyncing, setIsSyncing] = useState(false)
   
   const { lang } = useLangStore()
   const { isOvertimeMode } = useModeStore()
@@ -93,19 +112,78 @@ export default function Dashboard() {
     return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
   };
 
+  const loadOfflinePendingToHistory = async () => {
+    try {
+      const offlineItems = await getOfflineAttendances();
+      setPendingOfflineCount(offlineItems.length);
+      if (offlineItems.length > 0 && user?.id) {
+        const offlineHistoryItems: HistoryItem[] = offlineItems
+          .filter(item => item.user_id === user.id)
+          .map(item => {
+            const timePart = item.waktu_offline.split(' ')[1] || '';
+            const datePart = item.waktu_offline.split(' ')[0] || '';
+            return {
+              id: item.id,
+              date: datePart,
+              actual_date: datePart,
+              occurred_at: item.waktu_offline,
+              type: item.tipe,
+              time: timePart.slice(0, 5),
+              status: 'Tersimpan Offline',
+              is_offline: true
+            };
+          });
+
+        setHistoryData(prev => {
+          const existingIds = new Set(prev.map(h => String(h.id)));
+          const toAdd = offlineHistoryItems.filter(item => !existingIds.has(String(item.id)));
+          return [...toAdd, ...prev];
+        });
+      }
+    } catch (e) {
+      console.warn('Gagal memuat pending offline ke history:', e);
+    }
+  };
+
+  const runAutoSync = async () => {
+    if (isSyncing) return;
+    const count = await getPendingOfflineCount();
+    if (count === 0) return;
+    setIsSyncing(true);
+    try {
+      const res = await syncOfflineAttendances();
+      if (res.success > 0) {
+        showToast(`Berhasil menyinkronkan ${res.success} absensi offline ke server!`, 'success');
+        fetchHistoryAndProfile();
+      }
+      if (res.errors.length > 0 && res.failed > 0) {
+        showToast(res.errors[0], 'error');
+      }
+    } catch (e) {
+      console.warn('Auto-sync offline attendance error:', e);
+    } finally {
+      setIsSyncing(false);
+      const remaining = await getPendingOfflineCount();
+      setPendingOfflineCount(remaining);
+    }
+  };
+
   const fetchHistoryAndProfile = async () => {
     if (!user?.id) return
     try {
       // Fetch History
-      const histRes = await fetch(`/api/history?user_id=${user.id}`)
-      if (histRes.ok) {
+      const histRes = await fetch(`/api/history?user_id=${user.id}`).catch(() => null)
+      if (histRes && histRes.ok) {
         const histData = await histRes.json()
         setHistoryData(histData.data)
+        try {
+          localStorage.setItem(`cached_history_${user.id}`, JSON.stringify(histData.data))
+        } catch {}
       }
       
       // Fetch Permohonan
-      const permRes = await fetch(`/api/permohonan?user_id=${user.id}`)
-      if (permRes.ok) {
+      const permRes = await fetch(`/api/permohonan?user_id=${user.id}`).catch(() => null)
+      if (permRes && permRes.ok) {
         const permData = await permRes.json()
         setPermohonanData(permData.data)
 
@@ -130,18 +208,21 @@ export default function Dashboard() {
       }
 
       // Fetch Profile
-      const profRes = await fetch(`/api/profile?user_id=${user.id}`)
-      if (profRes.ok) {
+      const profRes = await fetch(`/api/profile?user_id=${user.id}`).catch(() => null)
+      if (profRes && profRes.ok) {
         const profData = await profRes.json()
         setUserProfile(profData.data)
         setUserGroup(profData.data?.grup || '')
+        try {
+          localStorage.setItem('cached_profile', JSON.stringify(profData.data))
+        } catch {}
         
         const isSpv = profData.data?.is_supervisor;
         const job = profData.data?.pekerjaan?.trim().toUpperCase();
         if (isSpv || job === 'HRD' || job === 'IT') {
           try {
-            const apprRes = await fetch(`/api/hrd/permohonan?user_id=${user.id}`)
-            if (apprRes.ok) {
+            const apprRes = await fetch(`/api/hrd/permohonan?user_id=${user.id}`).catch(() => null)
+            if (apprRes && apprRes.ok) {
               const apprResult = await apprRes.json();
               const rawData = apprResult.data || [];
               
@@ -181,11 +262,34 @@ export default function Dashboard() {
       }
     } catch (error) {
       console.error("Failed to fetch data", error)
+    } finally {
+      loadOfflinePendingToHistory();
     }
   }
 
   useEffect(() => {
     fetchHistoryAndProfile()
+
+    const handleOnline = () => {
+      runAutoSync();
+    };
+    window.addEventListener('online', handleOnline);
+
+    const interval = setInterval(() => {
+      if (navigator.onLine) {
+        getPendingOfflineCount().then(c => {
+          setPendingOfflineCount(c);
+          if (c > 0) {
+            runAutoSync();
+          }
+        });
+      }
+    }, 25000);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      clearInterval(interval);
+    };
   }, [user])
 
   const now = new Date()
@@ -256,10 +360,71 @@ export default function Dashboard() {
 
 
 
+  const handleOfflineSave = async (
+    imageSrc: string,
+    locationData?: {address: string, lat: number, lng: number, accuracy: number, locationAgeMs: number, outOfRangeMessage?: string},
+    detailLokasi?: string
+  ) => {
+    const now = new Date();
+    const pad = (n: number) => String(n).padStart(2, '0');
+    const waktuOffline = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+    const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+    const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+    const offlineItem: OfflineAttendanceItem = {
+      id: `offline_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      user_id: user!.id,
+      tipe: attendanceType,
+      foto_base64: imageSrc,
+      latitude: locationData?.lat ?? null,
+      longitude: locationData?.lng ?? null,
+      gps_accuracy: locationData?.accuracy ?? null,
+      location_age_ms: locationData?.locationAgeMs ?? null,
+      detail_lokasi: detailLokasi || null,
+      keterangan: permitReason || null,
+      waktu_offline: waktuOffline,
+      created_at: Date.now(),
+      status: 'pending'
+    };
+
+    await saveOfflineAttendance(offlineItem);
+    const count = await getPendingOfflineCount();
+    setPendingOfflineCount(count);
+
+    // Optimistically update history so UI updates immediately
+    const optimisticHistory: HistoryItem = {
+      id: offlineItem.id,
+      date: dateStr,
+      actual_date: dateStr,
+      occurred_at: waktuOffline,
+      type: attendanceType,
+      time: timeStr,
+      status: 'Tersimpan Offline',
+      is_offline: true
+    };
+
+    setHistoryData(prev => {
+      const updated = [optimisticHistory, ...prev];
+      if (user?.id) {
+        try {
+          localStorage.setItem(`cached_history_${user.id}`, JSON.stringify(updated));
+        } catch {}
+      }
+      return updated;
+    });
+
+    showToast(`Mode Offline: Absen ${attendanceType} tersimpan di HP! Akan otomatis dikirim saat server aktif.`, 'info');
+  };
+
   const handleCapture = async (imageSrc: string, locationData?: {address: string, lat: number, lng: number, accuracy: number, locationAgeMs: number, outOfRangeMessage?: string}) => {
     if (!user?.id) throw new Error('Silakan masuk kembali sebelum absen.')
     const controller = new AbortController()
-    const timeout = setTimeout(() => controller.abort(), 45000)
+    const timeout = setTimeout(() => controller.abort(), 20000)
+    let detailLokasi = locationData?.address || '';
+    if (locationData?.outOfRangeMessage) {
+      detailLokasi += ` (${locationData.outOfRangeMessage})`;
+    }
+
     try {
       // Create form data with base64 image and location
       const formData = new FormData()
@@ -272,10 +437,6 @@ export default function Dashboard() {
         formData.append('longitude', locationData.lng.toString())
         formData.append('gps_accuracy', locationData.accuracy.toString())
         formData.append('location_age_ms', locationData.locationAgeMs.toString())
-        let detailLokasi = locationData.address;
-        if (locationData.outOfRangeMessage) {
-          detailLokasi += ` (${locationData.outOfRangeMessage})`;
-        }
         formData.append('detail_lokasi', detailLokasi)
       }
       
@@ -283,35 +444,57 @@ export default function Dashboard() {
         formData.append('keterangan', permitReason)
       }
 
-      // All attendance (including Mulai Lembur without approval) goes to the same default handler
-      const response = await fetch('/api/attendance/break', {
-        method: 'POST',
-        body: formData,
-        signal: controller.signal,
-      })
+      // Check if navigator is already offline before fetch
+      if (!navigator.onLine) {
+        await handleOfflineSave(imageSrc, locationData, detailLokasi);
+        return;
+      }
 
-      if (response.ok) {
-        const data = await response.json().catch(() => ({}));
-        if (data.status === 'Persetujuan' || data.is_approval) {
-          showToast(data.message || 'Absensi di luar radius lokasi wajib dan memerlukan persetujuan.', 'info');
+      try {
+        const response = await fetch('/api/attendance/break', {
+          method: 'POST',
+          body: formData,
+          signal: controller.signal,
+        })
+
+        if (response.ok) {
+          const data = await response.json().catch(() => ({}));
+          if (data.status === 'Persetujuan' || data.is_approval) {
+            showToast(data.message || 'Absensi di luar radius lokasi wajib dan memerlukan persetujuan.', 'info');
+          } else {
+            showToast(data.message || t.attendanceRecorded.replace('{type}', attendanceType), 'success');
+          }
+          fetchHistoryAndProfile(); // Refresh data
         } else {
-          showToast(data.message || t.attendanceRecorded.replace('{type}', attendanceType), 'success');
+          // If server error 502, 503, 504 (server offline / bad gateway)
+          if ([502, 503, 504].includes(response.status)) {
+            await handleOfflineSave(imageSrc, locationData, detailLokasi);
+            return;
+          }
+          const data = await response.json().catch(() => ({}))
+          throw new Error(data.message || t.attendanceFailed)
         }
-        fetchHistoryAndProfile(); // Refresh data
-      } else {
-        const data = await response.json().catch(() => ({}))
-        throw new Error(data.message || t.attendanceFailed)
+      } catch (fetchError: any) {
+        const isOfflineLike = !navigator.onLine || 
+          fetchError?.name === 'AbortError' || 
+          (fetchError?.message && (
+            fetchError.message.includes('fetch') || 
+            fetchError.message.includes('network') || 
+            fetchError.message.includes('Failed') ||
+            fetchError.message.includes('NetworkError')
+          ));
+
+        if (isOfflineLike) {
+          await handleOfflineSave(imageSrc, locationData, detailLokasi);
+          return;
+        }
+        throw fetchError;
       }
-    } catch (error) {
-      if (error instanceof Error && error.name === 'AbortError') {
-        throw new Error('Respons server terlalu lama. Periksa riwayat absen sebelum mencoba lagi.')
-      }
-      throw error
     } finally {
       clearTimeout(timeout)
+      setIsCameraOpen(false)
+      setPermitReason('')
     }
-    setIsCameraOpen(false)
-    setPermitReason('')
   }
 
 
@@ -349,6 +532,32 @@ export default function Dashboard() {
         <h2>{getGreeting()}, {getFirstName()}!</h2>
         <p>{hasFullDayLeave ? t.statusLeave : (isOvertimeMode ? t.statusOvertime : t.statusActive)}</p>
       </div>
+
+      {pendingOfflineCount > 0 && (
+        <div className="offline-banner glass-panel">
+          <div className="offline-banner-left">
+            <div className="offline-pulse-dot"></div>
+            <WifiOff size={20} color="#f59e0b" style={{ flexShrink: 0 }} />
+            <div>
+              <div className="offline-title">
+                {pendingOfflineCount} Absen Offline Tersimpan di HP
+              </div>
+              <div className="offline-desc">
+                Data absensi aman di memori HP. Otomatis dikirim saat server aktif.
+              </div>
+            </div>
+          </div>
+          <button 
+            className="btn-sync-offline" 
+            onClick={runAutoSync}
+            disabled={isSyncing}
+            title="Kirim antrean ke server sekarang"
+          >
+            <RefreshCw size={14} className={isSyncing ? 'animate-spin' : ''} />
+            {isSyncing ? 'Sinkron...' : 'Sinkronkan'}
+          </button>
+        </div>
+      )}
 
 
 

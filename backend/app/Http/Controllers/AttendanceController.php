@@ -167,6 +167,13 @@ class AttendanceController {
                     $aypsis_dir = AYPSIS_PUBLIC_DIR . '/uploads/attendance/' . $tipe_folder . '/';
                     if (!is_dir($aypsis_dir)) { mkdir($aypsis_dir, 0755, true); }
                     if (AYPSIS_PUBLIC_DIR !== UPLOAD_BASE_DIR) { file_put_contents($aypsis_dir . $filename, $image_base64); }
+
+                    // Duplikat ke folder uploads PWA backend lokal agar selalu tersedia langsung
+                    if (defined('PWA_BACKEND_UPLOADS_DIR')) {
+                        $pwa_dir = rtrim(PWA_BACKEND_UPLOADS_DIR, '/\\') . '/attendance/' . $tipe_folder . '/';
+                        if (!is_dir($pwa_dir)) { @mkdir($pwa_dir, 0777, true); }
+                        @file_put_contents($pwa_dir . $filename, $image_base64);
+                    }
                 } else {
                     $db_photo_path = null;
                 }

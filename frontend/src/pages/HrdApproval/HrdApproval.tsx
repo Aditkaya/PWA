@@ -46,6 +46,15 @@ export default function HrdApproval() {
   const [isSupervisor, setIsSupervisor] = useState(false)
   const [isHRD, setIsHRD] = useState(false)
 
+  const getAttachmentUrl = (path?: string | null): string => {
+    if (!path) return ''
+    const trimmed = path.trim()
+    if (trimmed.startsWith('http://') || trimmed.startsWith('https://') || trimmed.startsWith('data:')) {
+      return trimmed
+    }
+    return trimmed.startsWith('/') ? trimmed : `/${trimmed}`
+  }
+
   const fetchProfile = async () => {
     if (!user?.id) return
     try {
@@ -497,9 +506,24 @@ export default function HrdApproval() {
                           <span className="detail-label">Lampiran Bukti</span>
                           <div 
                               className="attachment-preview"
-                              onClick={() => setEnlargedPhoto(item.lampiran!)}
+                              onClick={() => setEnlargedPhoto(getAttachmentUrl(item.lampiran))}
                           >
-                              <img src={item.lampiran} alt="Lampiran" />
+                              <img 
+                                src={getAttachmentUrl(item.lampiran)} 
+                                alt="Lampiran" 
+                                onError={(e) => {
+                                  const target = e.currentTarget
+                                  target.style.display = 'none'
+                                  const parent = target.parentElement
+                                  if (parent && !parent.querySelector('.attachment-error-fallback')) {
+                                    const fallback = document.createElement('div')
+                                    fallback.className = 'attachment-error-fallback'
+                                    fallback.style.cssText = 'padding: 16px; text-align: center; color: var(--text-secondary, #94a3b8); font-size: 0.82rem; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; width: 100%; min-height: 100px; background: rgba(255,255,255,0.02); border-radius: 8px;'
+                                    fallback.innerHTML = '<span>⚠️ Foto belum dapat dimuat</span><span style="font-size: 0.75rem; opacity: 0.7;">Pastikan file foto tersimpan pada server</span>'
+                                    parent.appendChild(fallback)
+                                  }
+                                }}
+                              />
                               <div className="attachment-overlay">
                                 <Search size={24} color="white" />
                               </div>
@@ -594,7 +618,7 @@ export default function HrdApproval() {
                   <button className="close-enlarged-modern" onClick={(e) => { e.stopPropagation(); setEnlargedPhoto(null) }}>
                       <X size={24} />
                   </button>
-                  <img src={enlargedPhoto} alt="Foto Diperbesar" />
+                  <img src={getAttachmentUrl(enlargedPhoto)} alt="Foto Diperbesar" />
               </div>
           </div>
       )}

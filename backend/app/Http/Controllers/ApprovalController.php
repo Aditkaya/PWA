@@ -67,7 +67,13 @@ class ApprovalController {
 
             // Get permohonan from users
             $stmtIzin = $pdo->prepare("
-                SELECT p.id, p.karyawan_id, kr.nama_lengkap as pengaju, kr.nik, kr.pekerjaan, CONCAT('/uploads/avatars/avatar_', u.id, '.jpg') as foto_profil, 'Izin' as tipe, p.jenis_izin as jenis, p.tanggal_mulai, p.tanggal_selesai, p.waktu, p.alasan as keterangan, p.status, p.created_at, p.lampiran, spv_kr.nama_lengkap as nama_spv, hrd_kr.nama_lengkap as nama_hrd 
+                SELECT p.id, p.karyawan_id, kr.nama_lengkap as pengaju, kr.nik, kr.pekerjaan, CONCAT('/uploads/avatars/avatar_', u.id, '.jpg') as foto_profil, 'Izin' as tipe, p.jenis_izin as jenis, p.tanggal_mulai, p.tanggal_selesai, p.waktu, p.alasan as keterangan, p.status, p.created_at, 
+                       CASE 
+                           WHEN p.lampiran IS NULL OR p.lampiran = '' THEN NULL
+                           WHEN p.lampiran LIKE 'http%' OR p.lampiran LIKE '/%' THEN p.lampiran
+                           ELSE CONCAT('/', p.lampiran)
+                       END as lampiran, 
+                       spv_kr.nama_lengkap as nama_spv, hrd_kr.nama_lengkap as nama_hrd 
                 FROM permohonan_izins p 
                 LEFT JOIN karyawans kr ON p.karyawan_id = kr.id 
                 LEFT JOIN users u ON u.karyawan_id = kr.id
@@ -112,7 +118,13 @@ class ApprovalController {
             $lupa = $stmtLupa->fetchAll();
 
             $stmtLembur = $pdo->prepare("
-                SELECT b.id, b.karyawan_id, kr.nama_lengkap as pengaju, kr.nik, kr.pekerjaan, CONCAT('/uploads/avatars/avatar_', u.id, '.jpg') as foto_profil, 'Lembur' as tipe, 'Pengajuan Lembur' as jenis, b.tanggal as tanggal_mulai, b.tanggal as tanggal_selesai, CONCAT(b.jam_mulai, ' - ', b.jam_selesai) as waktu, b.keterangan, b.keterangan_karyawan, b.status, b.created_at, b.foto as lampiran, spv_kr.nama_lengkap as nama_spv, hrd_kr.nama_lengkap as nama_hrd, pl.keterangan as keterangan_rencana
+                SELECT b.id, b.karyawan_id, kr.nama_lengkap as pengaju, kr.nik, kr.pekerjaan, CONCAT('/uploads/avatars/avatar_', u.id, '.jpg') as foto_profil, 'Lembur' as tipe, 'Pengajuan Lembur' as jenis, b.tanggal as tanggal_mulai, b.tanggal as tanggal_selesai, CONCAT(b.jam_mulai, ' - ', b.jam_selesai) as waktu, b.keterangan, b.keterangan_karyawan, b.status, b.created_at, 
+                       CASE 
+                           WHEN b.foto IS NULL OR b.foto = '' THEN NULL
+                           WHEN b.foto LIKE 'http%' OR b.foto LIKE '/%' THEN b.foto
+                           ELSE CONCAT('/', b.foto)
+                       END as lampiran, 
+                       spv_kr.nama_lengkap as nama_spv, hrd_kr.nama_lengkap as nama_hrd, pl.keterangan as keterangan_rencana
                 FROM persetujuan_absensi_lemburs b 
                 LEFT JOIN karyawans kr ON b.karyawan_id = kr.id 
                 LEFT JOIN users u ON u.karyawan_id = kr.id
@@ -141,7 +153,12 @@ class ApprovalController {
                        DATE(a.waktu) as tanggal_mulai, DATE(a.waktu) as tanggal_selesai,
                        TIME_FORMAT(a.waktu, '%H:%i') as waktu,
                        a.detail_lokasi as keterangan, a.status, a.created_at,
-                       a.foto as lampiran, NULL as nama_spv, NULL as nama_hrd,
+                       CASE 
+                           WHEN a.foto IS NULL OR a.foto = '' THEN NULL
+                           WHEN a.foto LIKE 'http%' OR a.foto LIKE '/%' THEN a.foto
+                           ELSE CONCAT('/', a.foto)
+                       END as lampiran, 
+                       NULL as nama_spv, NULL as nama_hrd,
                        NULL as keterangan_rencana, NULL as keterangan_karyawan,
                        a.latitude, a.longitude
                 FROM absensis a

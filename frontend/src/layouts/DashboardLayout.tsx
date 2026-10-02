@@ -35,6 +35,23 @@ export default function DashboardLayout() {
 
   const fetchProfile = () => {
     if (user?.id) {
+      // Baca dari cached_profile dulu agar fitur (seperti toggle Mode Lembur) tetap bisa diakses saat offline
+      try {
+        const cached = localStorage.getItem('cached_profile');
+        if (cached) {
+          const parsed = JSON.parse(cached);
+          if (parsed) {
+            setUserGroup(parsed.grup || '');
+            setUserPekerjaan(parsed.pekerjaan || '');
+            setIsSupervisor(parsed.is_supervisor || false);
+            setFeaturePermissions(parsed.feature_permissions || {});
+            if (parsed.is_face_verified === false) {
+              setShowFaceRegistration(true);
+            }
+          }
+        }
+      } catch {}
+
       fetch(`/api/profile?user_id=${user.id}`)
         .then(res => res.json())
         .then(data => {
@@ -43,6 +60,9 @@ export default function DashboardLayout() {
             setUserPekerjaan(data.data.pekerjaan || '')
             setIsSupervisor(data.data.is_supervisor || false)
             setFeaturePermissions(data.data.feature_permissions || {})
+            try {
+              localStorage.setItem('cached_profile', JSON.stringify(data.data));
+            } catch {}
             
             if (data.data.is_face_verified === false) {
               setShowFaceRegistration(true)

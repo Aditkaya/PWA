@@ -104,10 +104,28 @@ if ($isStaticFrontend && $frontendDistDir) {
     if ($candidate && is_file($candidate)) {
         $distReal = realpath($frontendDistDir);
         if ($distReal && strpos($candidate, $distReal . DIRECTORY_SEPARATOR) === 0) {
-            $ext  = strtolower(pathinfo($candidate, PATHINFO_EXTENSION));
-            $mime = $staticMimes[$ext] ?? 'application/octet-stream';
+            $ext      = strtolower(pathinfo($candidate, PATHINFO_EXTENSION));
+            $mime     = $staticMimes[$ext] ?? 'application/octet-stream';
+            $basename = basename($candidate);
+
             header("Content-Type: $mime");
-            header("Cache-Control: public, max-age=31536000, immutable");
+
+            // ── Cache-Control berdasarkan jenis file ──────────────────────────
+            // sw.js / sw.mjs: JANGAN cache sama sekali agar browser selalu fetch
+            // versi terbaru → service worker update bisa langsung terdeteksi
+            if ($basename === 'sw.js' || $basename === 'sw.mjs') {
+                header("Cache-Control: no-store, no-cache, must-revalidate");
+                header("Pragma: no-cache");
+            }
+            // index.html & manifest: no-cache agar selalu up-to-date
+            elseif ($ext === 'html' || $ext === 'webmanifest') {
+                header("Cache-Control: no-cache, no-store, must-revalidate");
+            }
+            // Asset JS/CSS dengan content hash: cache agresif (1 tahun)
+            else {
+                header("Cache-Control: public, max-age=31536000, immutable");
+            }
+
             readfile($candidate);
             exit();
         }

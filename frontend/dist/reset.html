@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Reset Cache - AYPSIS</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #0f172a;
+      color: #f1f5f9;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .card {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 32px 24px;
+      max-width: 380px;
+      width: 100%;
+      text-align: center;
+    }
+    .icon { font-size: 48px; margin-bottom: 16px; }
+    h1 { font-size: 1.3rem; font-weight: 700; margin-bottom: 8px; color: #f8fafc; }
+    p { font-size: 0.9rem; color: #94a3b8; margin-bottom: 24px; line-height: 1.5; }
+    .status {
+      background: #0f172a;
+      border-radius: 10px;
+      padding: 14px;
+      font-size: 0.82rem;
+      color: #64748b;
+      margin-bottom: 20px;
+      min-height: 60px;
+      text-align: left;
+    }
+    .status .line { margin: 3px 0; }
+    .status .ok   { color: #22c55e; }
+    .status .busy { color: #f59e0b; }
+    button {
+      background: #3b82f6;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 28px;
+      font-size: 0.95rem;
+      font-weight: 600;
+      cursor: pointer;
+      width: 100%;
+    }
+    button:disabled { background: #1d4ed8; opacity: 0.6; cursor: not-allowed; }
+  </style>
+</head>
+<body>
+<div class="card">
+  <div class="icon">🔄</div>
+  <h1>Reset Cache Aplikasi</h1>
+  <p>Halaman ini akan membersihkan semua cache dan service worker yang bermasalah, lalu membawa Anda kembali ke aplikasi.</p>
+  <div class="status" id="status">
+    <div class="line busy">Siap untuk reset...</div>
+  </div>
+  <button id="btn" onclick="doReset()">Mulai Reset</button>
+</div>
+
+<script>
+  async function doReset() {
+    const status = document.getElementById('status');
+    const btn    = document.getElementById('btn');
+    btn.disabled = true;
+    btn.textContent = 'Sedang mereset...';
+
+    const log = (msg, ok = false) => {
+      status.innerHTML += `<div class="line ${ok ? 'ok' : 'busy'}">${msg}</div>`;
+    };
+
+    status.innerHTML = '';
+
+    // 1. Hapus semua cache
+    log('Menghapus cache lama...');
+    try {
+      const keys = await caches.keys();
+      await Promise.all(keys.map(k => caches.delete(k)));
+      log(`✓ ${keys.length} cache dihapus`, true);
+    } catch(e) {
+      log('⚠ Cache API tidak tersedia');
+    }
+
+    // 2. Unregister semua service worker
+    log('Menghapus service worker lama...');
+    try {
+      const regs = await navigator.serviceWorker.getRegistrations();
+      await Promise.all(regs.map(r => r.unregister()));
+      log(`✓ ${regs.length} service worker dihapus`, true);
+    } catch(e) {
+      log('⚠ Service Worker tidak tersedia');
+    }
+
+    // 3. Redirect ke halaman utama
+    log('Membuka ulang aplikasi...', true);
+    setTimeout(() => {
+      window.location.replace('/');
+    }, 1500);
+  }
+
+  // Auto-run jika ada parameter ?auto=1
+  if (new URLSearchParams(location.search).get('auto') === '1') {
+    window.addEventListener('load', () => setTimeout(doReset, 500));
+  }
+</script>
+</body>
+</html>

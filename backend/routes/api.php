@@ -48,11 +48,24 @@ if ($isLocalServer) {
 // ── FRONTEND STATIC FILE HANDLER ──────────────────────────────────────────
 // Serve file-file statis frontend (JS, CSS, images, manifest, dll) dari
 // folder frontend/dist/ yang berada di sebelah folder backend/
-// Struktur: /var/www/pwa/backend/routes/api.php
-//           /var/www/pwa/frontend/dist/  ← static files
-$frontendDistDir = realpath(__DIR__ . '/../../frontend/dist');
-if ($frontendDistDir === false) {
-    // Fallback: coba path relatif satu level di atas backend
+// Struktur: /var/www/pwa/backend/routes/api.php  → __DIR__ = /var/www/pwa/backend/routes
+//           /var/www/pwa/frontend/dist/           ← static files
+
+// Coba berbagai kemungkinan path (routes/ naik 2 level, atau backend/ naik 1 level)
+$_distCandidates = [
+    realpath(__DIR__ . '/../../frontend/dist'),         // dari routes/ naik 2
+    realpath(__DIR__ . '/../../../frontend/dist'),      // dari routes/ naik 3
+    realpath(__DIR__ . '/../frontend/dist'),            // dari backend/ naik 1
+];
+$frontendDistDir = null;
+foreach ($_distCandidates as $_dc) {
+    if ($_dc !== false && is_dir($_dc)) {
+        $frontendDistDir = $_dc;
+        break;
+    }
+}
+// Fallback tanpa realpath jika semua gagal (untuk path yang belum exist)
+if (!$frontendDistDir) {
     $frontendDistDir = __DIR__ . '/../../frontend/dist';
 }
 
@@ -268,6 +281,22 @@ if ($file_path !== null) {
 
 $method = $_SERVER['REQUEST_METHOD'];
 $requestData = json_decode(file_get_contents('php://input'), true);
+
+// Debug endpoint – cek path server dan status file dist
+if ($uri === '/api/debug-paths' && $method === 'GET') {
+    $indexExists  = $frontendDistDir && file_exists($frontendDistDir . '/index.html');
+    $assetsDir    = $frontendDistDir ? $frontendDistDir . '/assets' : null;
+    $assetFiles   = ($assetsDir && is_dir($assetsDir)) ? array_slice(scandir($assetsDir), 2, 10) : [];
+    echo json_encode([
+        '__DIR__'           => __DIR__,
+        'frontendDistDir'   => $frontendDistDir,
+        'index_html_exists' => $indexExists,
+        'assets_files'      => $assetFiles,
+        'server_name'       => $_SERVER['SERVER_NAME'] ?? '-',
+        'document_root'     => $_SERVER['DOCUMENT_ROOT'] ?? '-',
+    ], JSON_PRETTY_PRINT);
+    exit();
+}
 
 if ($uri === '/api/denah-gudang/layout' && $method === 'PUT') {
     require_once __DIR__ . '/../app/Http/Controllers/DenahGudangController.php';

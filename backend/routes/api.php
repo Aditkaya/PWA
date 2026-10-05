@@ -45,6 +45,83 @@ if ($isLocalServer) {
     define('PWA_BACKEND_UPLOADS_DIR', getenv('PWA_BACKEND_UPLOADS_DIR') ?: __DIR__ . '/../uploads');
 }
 
+// ── FRONTEND STATIC FILE HANDLER ──────────────────────────────────────────
+// Serve file-file statis frontend (JS, CSS, images, manifest, dll) dari
+// folder frontend/dist/ yang berada di sebelah folder backend/
+// Struktur: /var/www/pwa/backend/routes/api.php
+//           /var/www/pwa/frontend/dist/  ← static files
+$frontendDistDir = realpath(__DIR__ . '/../../frontend/dist');
+if ($frontendDistDir === false) {
+    // Fallback: coba path relatif satu level di atas backend
+    $frontendDistDir = __DIR__ . '/../../frontend/dist';
+}
+
+$staticExtensions = ['js', 'mjs', 'css', 'html', 'json', 'png', 'jpg', 'jpeg',
+                     'webp', 'gif', 'svg', 'ico', 'woff', 'woff2', 'ttf', 'webmanifest', 'map'];
+$staticMimes = [
+    'js'          => 'application/javascript',
+    'mjs'         => 'application/javascript',
+    'css'         => 'text/css',
+    'html'        => 'text/html; charset=UTF-8',
+    'json'        => 'application/json',
+    'webmanifest' => 'application/manifest+json',
+    'png'         => 'image/png',
+    'jpg'         => 'image/jpeg',
+    'jpeg'        => 'image/jpeg',
+    'webp'        => 'image/webp',
+    'gif'         => 'image/gif',
+    'svg'         => 'image/svg+xml',
+    'ico'         => 'image/x-icon',
+    'woff'        => 'font/woff',
+    'woff2'       => 'font/woff2',
+    'ttf'         => 'font/ttf',
+    'map'         => 'application/json',
+];
+
+// Cek apakah URI adalah file statis frontend (bukan API /api/...)
+$uriExt = strtolower(pathinfo($uri, PATHINFO_EXTENSION));
+$isStaticFrontend = in_array($uriExt, $staticExtensions)
+    && strpos($uri, '/api/') !== 0
+    && strpos($uri, '/uploads/') !== 0
+    && strpos($uri, '/storage/') !== 0;
+
+if ($isStaticFrontend && $frontendDistDir) {
+    $candidate = realpath($frontendDistDir . $uri);
+    // Security: pastikan path tidak keluar dari dist directory
+    if ($candidate && is_file($candidate)) {
+        $distReal = realpath($frontendDistDir);
+        if ($distReal && strpos($candidate, $distReal . DIRECTORY_SEPARATOR) === 0) {
+            $ext  = strtolower(pathinfo($candidate, PATHINFO_EXTENSION));
+            $mime = $staticMimes[$ext] ?? 'application/octet-stream';
+            header("Content-Type: $mime");
+            header("Cache-Control: public, max-age=31536000, immutable");
+            readfile($candidate);
+            exit();
+        }
+    }
+    // File statis tidak ditemukan di dist → 404
+    http_response_code(404);
+    exit();
+}
+
+// Serve index.html untuk semua route SPA (bukan API, bukan file statis dengan ekstensi)
+// agar React Router bisa menangani navigasi langsung ke URL seperti /tire-tread-pattern
+$isSpaRoute = strpos($uri, '/api/') !== 0
+    && strpos($uri, '/uploads/') !== 0
+    && strpos($uri, '/storage/') !== 0
+    && $uriExt === '';  // tidak punya ekstensi → route SPA
+
+if ($isSpaRoute && $frontendDistDir) {
+    $indexHtml = realpath($frontendDistDir . '/index.html');
+    if ($indexHtml && is_file($indexHtml)) {
+        header("Content-Type: text/html; charset=UTF-8");
+        header("Cache-Control: no-cache, no-store, must-revalidate");
+        readfile($indexHtml);
+        exit();
+    }
+}
+// ── END FRONTEND STATIC FILE HANDLER ──────────────────────────────────────
+
 // Only uploaded and storage files are public. Configuration, service tokens and AI models
 // must never be exposed through this PHP router's static-file handler.
 $file_path = null;

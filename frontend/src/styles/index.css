@@ -1,3 +1,4 @@
+/* AYPSIS Style Build: 2026-10-05-1823-v6 */
 @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700&display=swap');
 
 :root {
@@ -1259,4 +1260,8 @@ body {
   0% { top: 0%; opacity: 0.8; }
   50% { top: 96%; opacity: 1; }
   100% { top: 0%; opacity: 0.8; }
+}
+
+.aypsis-cache-bust-v6 {
+  --build-version: "v6-202610051825";
 }

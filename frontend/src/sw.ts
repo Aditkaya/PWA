@@ -7,8 +7,8 @@ import { NetworkFirst, CacheFirst } from 'workbox-strategies'
 declare let self: ServiceWorkerGlobalScope
 
 // ── Versi SW – naikkan angka ini setiap deploy untuk paksa update cache ──────
-// v5: auto self-healing and instant background client refresh
-const SW_VERSION = 'v5'
+// v6: fresh CSS bundle hash and self-healing
+const SW_VERSION = 'v6'
 
 // Langsung aktifkan SW baru tanpa menunggu tab ditutup
 skipWaiting()

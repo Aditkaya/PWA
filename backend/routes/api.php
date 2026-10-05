@@ -135,6 +135,17 @@ if ($isStaticFrontend && $frontendDistDir) {
     exit();
 }
 
+// Handle /reset shortcut route
+if (($uri === '/reset' || $uri === '/reset/') && $frontendDistDir) {
+    $resetHtml = realpath($frontendDistDir . '/reset.html');
+    if ($resetHtml && is_file($resetHtml)) {
+        header("Content-Type: text/html; charset=UTF-8");
+        header("Cache-Control: no-cache, no-store, must-revalidate");
+        readfile($resetHtml);
+        exit();
+    }
+}
+
 // Serve index.html untuk semua route SPA (bukan API, bukan file statis dengan ekstensi)
 // agar React Router bisa menangani navigasi langsung ke URL seperti /tire-tread-pattern
 $isSpaRoute = strpos($uri, '/api/') !== 0

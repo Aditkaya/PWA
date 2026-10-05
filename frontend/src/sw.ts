@@ -7,8 +7,8 @@ import { NetworkFirst, CacheFirst } from 'workbox-strategies'
 declare let self: ServiceWorkerGlobalScope
 
 // ── Versi SW – naikkan angka ini setiap deploy untuk paksa update cache ──────
-// v3: auto-reload semua HP user setelah cache dibersihkan
-const SW_VERSION = 'v3'
+// v4: bust Cloudflare cache and auto-reload client
+const SW_VERSION = 'v4'
 
 // Langsung aktifkan SW baru tanpa menunggu tab ditutup
 skipWaiting()

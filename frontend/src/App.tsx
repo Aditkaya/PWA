@@ -19,8 +19,10 @@ import TireTreadPattern from './pages/TireTreadPattern/TireTreadPattern'
 import PrivateRoute from './routes/PrivateRoute'
 import { ToastProvider } from './contexts/ToastContext'
 import UpdateNotification from './components/UpdateNotification'
+import { APP_BUILD_VERSION } from './version'
 
 function App() {
+  console.log('App version:', APP_BUILD_VERSION)
   return (
     <ToastProvider>
       <UpdateNotification />

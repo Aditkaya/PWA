@@ -15,6 +15,7 @@ import ItAdmin from './pages/ItAdmin/ItAdmin'
 import GerakVoyage from './pages/GerakVoyage/GerakVoyage'
 import Berita from './pages/Berita/Berita'
 import BeritaDetail from './pages/Berita/BeritaDetail'
+import TireTreadPattern from './pages/TireTreadPattern/TireTreadPattern'
 import PrivateRoute from './routes/PrivateRoute'
 import { ToastProvider } from './contexts/ToastContext'
 import UpdateNotification from './components/UpdateNotification'
@@ -34,6 +35,7 @@ function App() {
             <Route path="profile" element={<Profile />} />
             <Route path="stowage-plan" element={<StowagePlan />} />
             <Route path="denah-gudang" element={<DenahGudang />} />
+            <Route path="tire-tread-pattern" element={<TireTreadPattern />} />
             <Route path="hrd/approval" element={<HrdApproval />} />
             <Route path="amprahan" element={<Amprahan />} />
             <Route path="amprahan/request" element={<AmprahanRequest />} />

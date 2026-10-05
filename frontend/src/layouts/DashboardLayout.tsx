@@ -1,6 +1,6 @@
 import { Outlet, useLocation, useNavigate } from 'react-router-dom'
 import { useAuthStore } from '../store/auth.store'
-import { Home, History, User, LogOut as LogOutIcon, Download, Sun, Moon, Globe, MoreVertical, ClipboardList, Ship, Warehouse, Newspaper, Anchor, RefreshCw } from 'lucide-react'
+import { Home, History, User, LogOut as LogOutIcon, Download, Sun, Moon, Globe, MoreVertical, ClipboardList, Ship, Warehouse, Newspaper, Anchor, RefreshCw, Disc } from 'lucide-react'
 import { usePWAInstall } from '../hooks/usePWAInstall'
 import { useState, useEffect, useRef } from 'react'
 import { useLangStore } from '../store/lang.store'
@@ -236,6 +236,18 @@ export default function DashboardLayout() {
                   >
                     <Warehouse size={18} />
                     <span>Denah Gudang</span>
+                  </button>
+                )}
+
+                {(!featurePermissions || featurePermissions['tire_tread_pattern'] !== false) && (
+                  <button
+                    onClick={() => { navigate('/tire-tread-pattern'); setIsMenuOpen(false); }}
+                    style={{ display: 'flex', alignItems: 'center', gap: '10px', padding: '10px 12px', background: 'transparent', border: 'none', color: 'var(--text-primary)', cursor: 'pointer', borderRadius: '8px', textAlign: 'left', fontSize: '0.85rem', fontWeight: 500 }}
+                    onMouseEnter={(e) => e.currentTarget.style.background = 'var(--glass-bg)'}
+                    onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}
+                  >
+                    <Disc size={18} />
+                    <span>Tire Tread Pattern</span>
                   </button>
                 )}
 

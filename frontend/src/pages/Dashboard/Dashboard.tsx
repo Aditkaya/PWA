@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useOutletContext, useNavigate } from 'react-router-dom'
-import { Clock, Coffee, LogOut, LogIn, CalendarDays, Sun, Plane, AlertCircle, Info, XCircle, ScanFace, ClipboardCheck, CalendarClock, Shield, WifiOff, RefreshCw } from 'lucide-react'
+import { Clock, Coffee, LogOut, LogIn, CalendarDays, Sun, Plane, AlertCircle, Info, XCircle, ScanFace, ClipboardCheck, CalendarClock, Shield, WifiOff, RefreshCw, Disc } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import CameraModal from '../../components/CameraModal'
 import IzinModal from '../../components/IzinModal'
@@ -727,6 +727,12 @@ export default function Dashboard() {
                     <button className="btn-leave" onClick={() => setIsLupaAbsenModalOpen(true)}>
                       <Clock size={20} strokeWidth={1.5} />
                       <span>Lupa Absen</span>
+                    </button>
+                  )}
+                  {fp('tire_tread_pattern') && (
+                    <button className="btn-leave" onClick={() => navigate('/tire-tread-pattern')}>
+                      <Disc size={20} strokeWidth={1.5} />
+                      <span>Tire Tread Pattern</span>
                     </button>
                   )}
                   {isHrdOrSpv && fp('perencanaan_lembur') && (

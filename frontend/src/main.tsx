@@ -4,18 +4,33 @@ import './styles/index.css'
 import App from './App.tsx'
 import { registerSW } from 'virtual:pwa-register'
 
-// Register the PWA Service Worker with update detection
+// Auto-reload when new service worker takes control
+let isRefreshing = false;
+navigator.serviceWorker?.addEventListener('controllerchange', () => {
+  if (!isRefreshing) {
+    isRefreshing = true;
+    window.location.reload();
+  }
+});
+
+// Register the PWA Service Worker with immediate auto-update
 const updateSW = registerSW({
   immediate: true,
   onNeedRefresh() {
-    // Fire a custom event so any component can listen and show a notification
-    window.dispatchEvent(new CustomEvent('pwa-update-available', { detail: { updateSW } }));
+    // Auto-update immediately so all users get the fresh version automatically
+    updateSW(true);
   },
   onOfflineReady() {
     console.log('PWA: App is ready for offline use');
   },
   onRegistered(r) {
     console.log('SW Registered: ', r);
+    // Proactively check for updates every 15 minutes
+    if (r) {
+      setInterval(() => {
+        r.update();
+      }, 15 * 60 * 1000);
+    }
   },
   onRegisterError(error) {
     console.log('SW Registration Error', error);

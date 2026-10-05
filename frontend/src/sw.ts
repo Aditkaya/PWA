@@ -7,8 +7,8 @@ import { NetworkFirst, CacheFirst } from 'workbox-strategies'
 declare let self: ServiceWorkerGlobalScope
 
 // ── Versi SW – naikkan angka ini setiap deploy untuk paksa update cache ──────
-// v4: bust Cloudflare cache and auto-reload client
-const SW_VERSION = 'v4'
+// v5: auto self-healing and instant background client refresh
+const SW_VERSION = 'v5'
 
 // Langsung aktifkan SW baru tanpa menunggu tab ditutup
 skipWaiting()
@@ -38,7 +38,10 @@ self.addEventListener('activate', event => {
         type: 'window',
       })
       for (const client of allClients) {
-        client.navigate(client.url)
+        try {
+          client.postMessage({ type: 'SW_ACTIVATED' })
+          client.navigate(client.url)
+        } catch (_) {}
       }
     })()
   )

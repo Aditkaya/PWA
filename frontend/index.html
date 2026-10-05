@@ -5,7 +5,58 @@
     <link rel="icon" type="image/png" href="/logo-kotak.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+    <meta http-equiv="Pragma" content="no-cache" />
+    <meta http-equiv="Expires" content="0" />
     <title>AYPSIS Attendance</title>
+    <script>
+      (function() {
+        var APP_VER = '20261005_v5';
+        try {
+          var cur = localStorage.getItem('__aypsis_ver');
+          if (cur !== APP_VER) {
+            localStorage.setItem('__aypsis_ver', APP_VER);
+            if ('caches' in window) {
+              caches.keys().then(function(names) {
+                names.forEach(function(n) { caches.delete(n); });
+              });
+            }
+          }
+        } catch(e) {}
+
+        // Global error listener for failed modules/scripts
+        window.addEventListener('error', function(e) {
+          var msg = (e && e.message) ? e.message : '';
+          if (/module|script|MIME|Loading chunk|Failed to fetch/i.test(msg)) {
+            healOnce();
+          }
+        }, true);
+
+        // Watchdog: If React hasn't rendered #root after 2.5s, auto-heal
+        setTimeout(function() {
+          var root = document.getElementById('root');
+          if (root && root.childNodes.length === 0) {
+            healOnce();
+          }
+        }, 2500);
+
+        function healOnce() {
+          var k = '__healed_' + APP_VER;
+          if (!sessionStorage.getItem(k)) {
+            sessionStorage.setItem(k, '1');
+            if ('caches' in window) {
+              caches.keys().then(function(names) {
+                return Promise.all(names.map(function(n) { return caches.delete(n); }));
+              }).then(function() {
+                window.location.replace('/?r=' + Date.now());
+              });
+            } else {
+              window.location.replace('/?r=' + Date.now());
+            }
+          }
+        }
+      })();
+    </script>
   </head>
   <body>
     <div id="root" style="min-height: 100dvh; display: flex; flex-direction: column;"></div>

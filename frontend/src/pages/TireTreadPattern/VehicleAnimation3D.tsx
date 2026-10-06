@@ -24,41 +24,42 @@ interface VehicleAnimation3DProps {
   draggedTireId?: number | null;
 }
 
-// Preset Sudut & Target Kamera yang dioptimasi untuk setiap jenis kendaraan (Cinematic Studio Framing)
+// Preset Sudut & Target Kamera yang dioptimasi untuk setiap jenis kendaraan (Framing Seimbang di HP & Desktop)
 const getVehicleCameraPreset = (count: number) => {
   if (count === 4) {
-    // Forklift: Sudut 3/4 depan-kiri agak tinggi
+    // Forklift: Sudut 3/4 depan-kiri
     return {
-      target: new THREE.Vector3(0, 0.85, 0.1),
-      perspective: new THREE.Vector3(-4.8, 3.2, 4.6),
-      top: new THREE.Vector3(0.001, 8.5, 0.1),
-      side: new THREE.Vector3(-6.8, 1.4, 0.1)
+      target: new THREE.Vector3(0, 0.9, 0.1),
+      perspective: new THREE.Vector3(-5.6, 3.4, 4.8),
+      top: new THREE.Vector3(0.001, 9.5, 0.1),
+      side: new THREE.Vector3(-7.2, 1.5, 0.1)
     };
   }
   if (count === 6) {
-    // Tractor Head: Sudut 3/4 Hero View (menampakkan kabin depan, grille, sasis, saddle fifth wheel, dan gandar)
+    // Tractor Head: Menampakkan kabin depan, grille, sasis, tapal kuda, dan seluruh gandar
     return {
-      target: new THREE.Vector3(0, 1.25, 0.3),
-      perspective: new THREE.Vector3(-5.8, 3.2, 5.2),
-      top: new THREE.Vector3(0.001, 10.5, 0.3),
-      side: new THREE.Vector3(-8.2, 1.8, 0.3)
+      target: new THREE.Vector3(0, 1.25, 0.2),
+      perspective: new THREE.Vector3(-8.2, 4.2, 7.2),
+      top: new THREE.Vector3(0.001, 12.5, 0.2),
+      side: new THREE.Vector3(-10.2, 1.8, 0.2)
     };
   }
   if (count === 8) {
-    // Chassis Trailer 20ft
+    // Chassis Trailer 20ft (Panjang 7.8 unit)
     return {
-      target: new THREE.Vector3(0, 0.75, -1.2),
-      perspective: new THREE.Vector3(-7.4, 4.2, 5.2),
-      top: new THREE.Vector3(0.001, 12.0, -1.2),
-      side: new THREE.Vector3(-9.8, 1.8, -1.2)
+      target: new THREE.Vector3(0, 0.8, -0.4),
+      perspective: new THREE.Vector3(-10.5, 5.6, 8.4),
+      top: new THREE.Vector3(0.001, 14.5, -0.4),
+      side: new THREE.Vector3(-12.5, 1.8, -0.4)
     };
   }
-  // 12 Roda (Chassis Trailer 40ft)
+  // 12 Roda (Chassis Trailer 40ft: Panjang 11.2 unit)
+  // Target tepat di tengah sasis, jarak mundur kamera proporsional agar SELURUH trailer pas terlihat di layar HP
   return {
-    target: new THREE.Vector3(0, 0.75, -1.8),
-    perspective: new THREE.Vector3(-9.2, 4.8, 5.8),
-    top: new THREE.Vector3(0.001, 14.5, -1.8),
-    side: new THREE.Vector3(-12.0, 1.8, -1.8)
+    target: new THREE.Vector3(0, 0.8, -0.6),
+    perspective: new THREE.Vector3(-13.2, 7.2, 10.5),
+    top: new THREE.Vector3(0.001, 18.5, -0.6),
+    side: new THREE.Vector3(-15.5, 2.0, -0.6)
   };
 };
 
@@ -143,8 +144,8 @@ export default function VehicleAnimation3D({
       container.removeChild(container.firstChild);
     }
 
-    const width = container.clientWidth || 400;
-    const height = Math.min(Math.max(window.innerHeight * 0.44, 380), 480);
+    const width = container.clientWidth || 360;
+    const height = container.clientHeight || Math.min(Math.max(window.innerHeight * 0.44, 340), 440);
 
     // 1. Renderer (High Fidelity, Vivid Lighting)
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -163,7 +164,9 @@ export default function VehicleAnimation3D({
 
     // 3. Camera & Preset Posisi
     const presets = getVehicleCameraPreset(wheelCount);
-    const camera = new THREE.PerspectiveCamera(40, width / height, 0.1, 100);
+    const isMobile = width < 500;
+    const fov = isMobile ? 48 : 40;
+    const camera = new THREE.PerspectiveCamera(fov, width / height, 0.1, 100);
     camera.position.copy(presets.perspective);
     camera.lookAt(presets.target);
     cameraRef.current = camera;
@@ -173,7 +176,7 @@ export default function VehicleAnimation3D({
     controls.enableDamping = true;
     controls.dampingFactor = 0.06;
     controls.minDistance = 3.2;
-    controls.maxDistance = 24;
+    controls.maxDistance = 40;
     controls.maxPolarAngle = Math.PI / 2 - 0.04; // Jangan tembus ke bawah lantai
     controls.target.copy(presets.target);
     controls.autoRotate = false; // TIDAK BERPUTAR saat awal
@@ -1023,8 +1026,10 @@ export default function VehicleAnimation3D({
     // ── RESIZE LISTENER ──
     const handleResize = () => {
       if (!container || !rendererRef.current || !cameraRef.current) return;
-      const w = container.clientWidth || 400;
-      const h = Math.min(Math.max(window.innerHeight * 0.44, 380), 480);
+      const w = container.clientWidth || 360;
+      const h = container.clientHeight || Math.min(Math.max(window.innerHeight * 0.44, 340), 440);
+      const isMob = w < 500;
+      cameraRef.current.fov = isMob ? 48 : 40;
       cameraRef.current.aspect = w / h;
       cameraRef.current.updateProjectionMatrix();
       rendererRef.current.setSize(w, h);

@@ -1207,17 +1207,21 @@
   display: flex;
   flex-direction: column;
   gap: 8px;
-  max-height: 240px;
+  max-height: 380px;
   overflow-y: auto;
-  padding-right: 4px;
+  overflow-x: hidden;
+  -webkit-overflow-scrolling: touch;
+  padding: 2px 2px 8px 2px;
 }
 
 /* ── Kartu Ban di Tray (Tampilan Ban Fisik Nyata) ── */
 .vs-tire-card {
+  flex-shrink: 0; /* CRITICAL: Mencegah kartu ban gepeng/mengecil di layar HP */
+  min-height: 64px;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 12px;
+  gap: 10px;
   background: linear-gradient(135deg, rgba(15, 23, 42, 0.95) 0%, rgba(10, 16, 30, 0.95) 100%);
   border: 1px solid rgba(255, 255, 255, 0.1);
   border-radius: 12px;
@@ -1226,7 +1230,8 @@
   user-select: none;
   transition: all 0.22s cubic-bezier(0.2, 0.8, 0.2, 1);
   position: relative;
-  overflow: hidden;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .vs-tire-card:hover {
@@ -1267,6 +1272,8 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  flex: 1;
+  min-width: 0;
 }
 
 .vs-drag-handle {
@@ -1275,6 +1282,7 @@
   letter-spacing: -2px;
   cursor: grab;
   transition: color 0.15s ease;
+  flex-shrink: 0;
 }
 
 .vs-tire-card:hover .vs-drag-handle {
@@ -1309,6 +1317,9 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
 
 .vs-card-serial-row {

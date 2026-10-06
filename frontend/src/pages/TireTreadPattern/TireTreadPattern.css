@@ -3,13 +3,14 @@
 .tire-page {
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 12px;
+  gap: 12px;
+  padding: 10px;
   max-width: 100%;
   margin: 0 auto;
   width: 100%;
   box-sizing: border-box;
   min-height: calc(100vh - 120px);
+  overflow-x: hidden;
 }
 
 /* Header */
@@ -604,30 +605,35 @@
 
 .unit-detail-grid {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .unit-detail-item {
   background: rgba(0, 0, 0, 0.2);
   border: 1px solid var(--glass-border);
-  padding: 10px 12px;
+  padding: 8px 10px;
   border-radius: 10px;
   display: flex;
   flex-direction: column;
   gap: 2px;
+  min-width: 0;
+  box-sizing: border-box;
 }
 
 .unit-detail-label {
-  font-size: 0.72rem;
+  font-size: 0.68rem;
   text-transform: uppercase;
   color: var(--text-secondary);
 }
 
 .unit-detail-val {
-  font-size: 0.88rem;
+  font-size: 0.82rem;
   font-weight: 600;
   color: var(--text-primary);
+  word-break: break-word;
 }
 
 .simple-modal-footer {
@@ -1248,7 +1254,8 @@
   cursor: pointer;
   transition: all 0.2s ease;
   width: 100%;
-  max-width: 420px;
+  max-width: 100%;
+  box-sizing: border-box;
 }
 
 .btn-back-to-list:hover {

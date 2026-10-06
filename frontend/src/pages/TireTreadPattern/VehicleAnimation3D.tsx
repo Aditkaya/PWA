@@ -1157,11 +1157,22 @@ export default function VehicleAnimation3D({
 
   return (
     <div className="vs-3d-suite">
-      {/* ── 1. KONTROL & TOOLS DI LUAR KANVAS 3D (BAGIAN ATAS) ── */}
+      {/* ── 1. KONTROL & TOOLS DI LUAR KANVAS 3D (BAGIAN ATAS - MOBILE RESPONSIVE) ── */}
       <div className="vs-3d-toolbar">
-        <div className="vs-3d-badge-info">
-          <span className="vs-3d-pulse-dot" />
-          <span>3D ({wheelCount} RODA)</span>
+        <div className="vs-3d-toolbar-top-row">
+          <div className="vs-3d-badge-info">
+            <span className="vs-3d-pulse-dot" />
+            <span>3D ({wheelCount} RODA)</span>
+          </div>
+
+          <button
+            type="button"
+            className="vs-3d-tool-btn vs-3d-reset-btn"
+            onClick={handleResetCamera}
+            title="Reset Sudut Pandang Awal"
+          >
+            ↺ Reset
+          </button>
         </div>
 
         <div className="vs-3d-btn-group">
@@ -1208,15 +1219,6 @@ export default function VehicleAnimation3D({
             title={isRolling ? 'Jeda Animasi Ban Berjalan' : 'Jalankan Ban'}
           >
             🚗 {isRolling ? 'Ban Jalan' : 'Ban Diam'}
-          </button>
-
-          <button
-            type="button"
-            className="vs-3d-tool-btn"
-            onClick={handleResetCamera}
-            title="Reset Sudut Pandang Awal"
-          >
-            ↺ Reset
           </button>
         </div>
       </div>

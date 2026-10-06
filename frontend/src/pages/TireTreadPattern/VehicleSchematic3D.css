@@ -17,7 +17,8 @@
 /* ── Top Header / Status Bar ── */
 .vs-header-bar {
   width: 100%;
-  max-width: 440px;
+  max-width: 100%;
+  box-sizing: border-box;
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -168,7 +169,8 @@
 /* ── Blueprint SVG Container ── */
 .vs-container {
   width: 100%;
-  max-width: 440px;
+  max-width: 100%;
+  box-sizing: border-box;
   margin: 0 auto;
   position: relative;
   border-radius: 14px;
@@ -252,7 +254,8 @@
 /* ── Quick Switcher Bar ── */
 .vs-quick-bar {
   width: 100%;
-  max-width: 440px;
+  max-width: 100%;
+  box-sizing: border-box;
   display: flex;
   gap: 6px;
   overflow-x: auto;
@@ -303,7 +306,8 @@
 /* ── Unified Detail & Picker Card ── */
 .vs-unified-card {
   width: 100%;
-  max-width: 440px;
+  max-width: 100%;
+  box-sizing: border-box;
   background: linear-gradient(180deg, rgba(8, 22, 44, 0.96) 0%, rgba(3, 12, 26, 0.98) 100%);
   border: 1px solid rgba(56, 189, 248, 0.32);
   border-radius: 14px;
@@ -619,7 +623,8 @@
 /* ── Bottom Placeholder Hint ── */
 .vs-prompt-box {
   width: 100%;
-  max-width: 440px;
+  max-width: 100%;
+  box-sizing: border-box;
   text-align: center;
   padding: 10px 14px;
   background: rgba(15, 23, 42, 0.45);
@@ -732,7 +737,8 @@
 /* ── All Wheels Dropdown Table / Matrix ── */
 .vs-toggle-table-btn {
   width: 100%;
-  max-width: 440px;
+  max-width: 100%;
+  box-sizing: border-box;
   padding: 9px 14px;
   border-radius: 10px;
   font-size: 0.76rem;
@@ -757,7 +763,8 @@
 
 .vs-wheels-table-box {
   width: 100%;
-  max-width: 440px;
+  max-width: 100%;
+  box-sizing: border-box;
   background: rgba(4, 14, 30, 0.95);
   border: 1px solid rgba(56, 189, 248, 0.28);
   border-radius: 12px;
@@ -808,8 +815,9 @@
    ───────────────────────────────────────────────── */
 .vs-view-mode-bar {
   width: 100%;
-  max-width: 440px;
-  margin: 0 auto 12px;
+  max-width: 100%;
+  box-sizing: border-box;
+  margin: 0 0 10px;
   display: flex;
   align-items: center;
   justify-content: center;
@@ -860,16 +868,24 @@
 
 .vs-3d-toolbar {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
+  flex-direction: column;
   gap: 8px;
-  flex-wrap: wrap;
   background: rgba(3, 10, 24, 0.9);
   border: 1px solid rgba(56, 189, 248, 0.25);
   border-radius: 12px;
-  padding: 8px 12px;
+  padding: 8px 10px;
   backdrop-filter: blur(10px);
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.45);
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.vs-3d-toolbar-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
 }
 
 .vs-3d-canvas-wrapper {
@@ -941,7 +957,7 @@
 
 .vs-3d-viewport {
   width: 100%;
-  height: 380px;
+  height: clamp(280px, 44vh, 380px);
   display: block;
   touch-action: none;
 }
@@ -979,14 +995,23 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  flex-wrap: wrap;
+  overflow-x: auto;
+  width: 100%;
+  padding-bottom: 2px;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.vs-3d-btn-group::-webkit-scrollbar {
+  display: none;
 }
 
 .vs-3d-tool-btn {
-  padding: 5px 9px;
+  flex-shrink: 0;
+  padding: 6px 10px;
   border-radius: 8px;
   font-family: ui-monospace, monospace;
-  font-size: 0.7rem;
+  font-size: 0.72rem;
   font-weight: 700;
   border: 1px solid rgba(255, 255, 255, 0.12);
   background: rgba(15, 23, 42, 0.85);
@@ -995,6 +1020,7 @@
   backdrop-filter: blur(8px);
   transition: all 0.15s ease;
   white-space: nowrap;
+  touch-action: manipulation;
 }
 
 .vs-3d-tool-btn:hover {
@@ -1010,6 +1036,18 @@
   box-shadow: 0 0 8px rgba(56, 189, 248, 0.35);
 }
 
+.vs-3d-reset-btn {
+  background: rgba(239, 68, 68, 0.12);
+  border-color: rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+}
+
+.vs-3d-reset-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: #ef4444;
+  color: #fff;
+}
+
 .vs-3d-status-bar {
   width: 100%;
 }
@@ -1018,7 +1056,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  gap: 8px;
+  gap: 6px;
+  flex-wrap: wrap;
   padding: 8px 12px;
   background: rgba(4, 14, 30, 0.92);
   border: 1px solid rgba(56, 189, 248, 0.4);
@@ -1027,6 +1066,8 @@
   box-shadow: 0 6px 20px rgba(0, 0, 0, 0.6);
   pointer-events: auto;
   animation: vsFadeSlide 0.2s ease-out;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .vs-3d-wheel-tag--hover {
@@ -1100,7 +1141,8 @@
    ───────────────────────────────────────────────── */
 .vs-dnd-container {
   width: 100%;
-  max-width: 440px;
+  max-width: 100%;
+  box-sizing: border-box;
   margin: 0 auto 14px;
   display: flex;
   flex-direction: column;
@@ -1559,7 +1601,8 @@
 /* ── Top Bar (Status + Actions) ── */
 .vs-topbar {
   width: 100%;
-  max-width: 440px;
+  max-width: 100%;
+  box-sizing: border-box;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -1640,15 +1683,14 @@
 
 .vs-stage-header {
   width: 100%;
+  box-sizing: border-box;
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-  flex-wrap: wrap;
+  flex-direction: column;
+  gap: 8px;
   background: rgba(3, 10, 24, 0.85);
   border: 1px solid rgba(56, 189, 248, 0.2);
   border-radius: 12px;
-  padding: 8px 12px;
+  padding: 8px 10px;
   backdrop-filter: blur(10px);
   box-shadow: 0 4px 18px rgba(0, 0, 0, 0.4);
 }
@@ -1656,7 +1698,9 @@
 .vs-stage-status-group {
   display: flex;
   align-items: center;
-  gap: 12px;
+  justify-content: space-between;
+  width: 100%;
+  gap: 8px;
   flex-wrap: wrap;
 }
 
@@ -1717,24 +1761,29 @@
 .vs-filter-tabs {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 3px;
   background: rgba(15, 23, 42, 0.7);
   padding: 2px;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.08);
+  flex: 1;
+  min-width: 0;
 }
 
 .vs-filter-tab {
+  flex: 1;
+  text-align: center;
   background: transparent;
   border: none;
   color: #94a3b8;
   font-size: 0.68rem;
   font-weight: 700;
   font-family: ui-monospace, monospace;
-  padding: 4px 8px;
+  padding: 5px 6px;
   border-radius: 6px;
   cursor: pointer;
   transition: all 0.14s ease;
+  white-space: nowrap;
 }
 
 .vs-filter-tab:hover {

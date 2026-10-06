@@ -720,6 +720,14 @@ if ($uri === '/api/tire-tread/units' && $method === 'GET') {
     exit();
 }
 
+if ($uri === '/api/tire-tread/tires' && $method === 'GET') {
+    require_once __DIR__ . '/../app/Http/Controllers/TireTreadPatternController.php';
+    $controller = new \App\Http\Controllers\TireTreadPatternController();
+    $controller->getTires($_GET);
+    exit();
+}
+
+
 http_response_code(404);
 echo json_encode(['message' => 'Endpoint tidak ditemukan']);
 

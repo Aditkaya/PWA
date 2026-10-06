@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import {
   ArrowLeft,
   Disc,
-  X,
   ChevronRight,
   ChevronLeft,
   CircleDot,
@@ -18,6 +17,7 @@ import {
   Calendar
 } from 'lucide-react';
 import './TireTreadPattern.css';
+import VehicleSchematic3D from './VehicleSchematic3D';
 
 interface VehicleCategory {
   id: 'tractor-head' | 'chassis-container' | 'forklift';
@@ -46,6 +46,7 @@ interface UnitItem {
   merek?: string | null;
   merk?: string | null;
   jenis: string;
+  roda?: number | string | null;
   tahun_pembuatan?: string | number | null;
   lokasi?: string | null;
   // Alat berat fields
@@ -56,13 +57,149 @@ interface UnitItem {
   status?: string | null;
 }
 
+export interface WheelPosition {
+  id: string;
+  code: string;
+  name: string;
+  axle: string;
+  side: 'kiri' | 'kanan';
+  positionType: 'steer' | 'drive' | 'trailer';
+  patternName: string;
+  description: string;
+}
+
+export interface UnitWheelConfig {
+  wheelCount: 6 | 8 | 12 | 4;
+  title: string;
+  badgeLabel: string;
+  chassisType: string;
+  image3D: string;
+  axleSummary: string;
+  treadPatternSummary: string;
+  wheels: WheelPosition[];
+}
+
+/**
+ * Logika pengecekan jumlah roda (6 RODA, 8 RODA, atau 12 RODA)
+ * mengecek kolom `roda` dari database, nama `jenis`, serta kategori unit.
+ */
+export function getUnitWheelConfig(unit: UnitItem, categoryId?: string): UnitWheelConfig {
+  const rawRoda = Number(unit.roda);
+  const jenisUpper = (unit.jenis || '').toUpperCase();
+
+  let count: 6 | 8 | 12 | 4 = 6;
+
+  if (categoryId === 'forklift') {
+    count = rawRoda === 6 || jenisUpper.includes('6 TON') || jenisUpper.includes('7 TON') || jenisUpper.includes('10 TON') ? 6 : 4;
+  } else if (rawRoda === 12 || jenisUpper.includes('40 FEET') || jenisUpper.includes('40FT') || jenisUpper.includes('12 RODA')) {
+    count = 12;
+  } else if (rawRoda === 8 || jenisUpper.includes('20 FEET') || jenisUpper.includes('20FT') || jenisUpper.includes('8 RODA')) {
+    count = 8;
+  } else if (rawRoda === 6 || jenisUpper.includes('TRACTOR') || jenisUpper.includes('TRACKTOR') || jenisUpper.includes('6 RODA') || categoryId === 'tractor-head') {
+    count = 6;
+  } else if (categoryId === 'chassis-container') {
+    count = 8; // default sasis 20ft jika tidak tercatat
+  }
+
+  // 1. Konfigurasi 12 RODA (Chassis Kontainer 40 Feet - Tri-Axle)
+  if (count === 12) {
+    return {
+      wheelCount: 12,
+      title: 'Denah 3D Chassis 40ft (12 RODA)',
+      badgeLabel: '12 RODA • Tri-Axle (3 Gandar Sasis)',
+      chassisType: 'Trailer Sasis Kontainer 40 Feet',
+      image3D: '/images/tread-pattern/denah-12-roda.jpg',
+      axleSummary: '3 Gandar Belakang Tri-Axle dengan Roda Ganda (4 roda per gandar = total 12 roda).',
+      treadPatternSummary: 'Seluruh posisi menggunakan Pola Trailer Rib (Alur Lurus Trailer) dengan alur penepis panas dan tahan gesekan lateral.',
+      wheels: [
+        { id: 'w1', code: 'A1-LO', name: 'Gandar 1 - Kiri Luar', axle: 'Gandar 1 (Depan)', side: 'kiri', positionType: 'trailer', patternName: 'Pola Trailer Rib', description: 'Menopang distribusi beban depan trailer & menjaga kestabilan saat manuver.' },
+        { id: 'w2', code: 'A1-LI', name: 'Gandar 1 - Kiri Dalam', axle: 'Gandar 1 (Depan)', side: 'kiri', positionType: 'trailer', patternName: 'Pola Trailer Rib', description: 'Roda tandem dalam peredam kejut beban sasis sisi kiri.' },
+        { id: 'w3', code: 'A1-RI', name: 'Gandar 1 - Kanan Dalam', axle: 'Gandar 1 (Depan)', side: 'kanan', positionType: 'trailer', patternName: 'Pola Trailer Rib', description: 'Roda tandem dalam peredam kejut beban sasis sisi kanan.' },
+        { id: 'w4', code: 'A1-RO', name: 'Gandar 1 - Kanan Luar', axle: 'Gandar 1 (Depan)', side: 'kanan', positionType: 'trailer', patternName: 'Pola Trailer Rib', description: 'Menopang distribusi beban depan trailer sisi kanan.' },
+
+        { id: 'w5', code: 'A2-LO', name: 'Gandar 2 - Kiri Luar', axle: 'Gandar 2 (Tengah)', side: 'kiri', positionType: 'trailer', patternName: 'Pola Trailer Rib', description: 'Titik tumpu sentral penahan beban kontainer berat.' },
+        { id: 'w6', code: 'A2-LI', name: 'Gandar 2 - Kiri Dalam', axle: 'Gandar 2 (Tengah)', side: 'kiri', positionType: 'trailer', patternName: 'Pola Trailer Rib', description: 'Distribusi beban sentral tengah sisi kiri.' },
+        { id: 'w7', code: 'A2-RI', name: 'Gandar 2 - Kanan Dalam', axle: 'Gandar 2 (Tengah)', side: 'kanan', positionType: 'trailer', patternName: 'Pola Trailer Rib', description: 'Distribusi beban sentral tengah sisi kanan.' },
+        { id: 'w8', code: 'A2-RO', name: 'Gandar 2 - Kanan Luar', axle: 'Gandar 2 (Tengah)', side: 'kanan', positionType: 'trailer', patternName: 'Pola Trailer Rib', description: 'Titik tumpu sentral penahan beban kontainer sisi kanan.' },
+
+        { id: 'w9', code: 'A3-LO', name: 'Gandar 3 - Kiri Luar', axle: 'Gandar 3 (Belakang)', side: 'kiri', positionType: 'trailer', patternName: 'Pola Trailer Rib', description: 'Menahan drag gesekan samping saat manuver tajam dan belokan ekor trailer.' },
+        { id: 'w10', code: 'A3-LI', name: 'Gandar 3 - Kiri Dalam', axle: 'Gandar 3 (Belakang)', side: 'kiri', positionType: 'trailer', patternName: 'Pola Trailer Rib', description: 'Peredam torsi gandar paling belakang sisi kiri.' },
+        { id: 'w11', code: 'A3-RI', name: 'Gandar 3 - Kanan Dalam', axle: 'Gandar 3 (Belakang)', side: 'kanan', positionType: 'trailer', patternName: 'Pola Trailer Rib', description: 'Peredam torsi gandar paling belakang sisi kanan.' },
+        { id: 'w12', code: 'A3-RO', name: 'Gandar 3 - Kanan Luar', axle: 'Gandar 3 (Belakang)', side: 'kanan', positionType: 'trailer', patternName: 'Pola Trailer Rib', description: 'Menahan drag torsi manuver putar paling belakang sisi kanan.' }
+      ]
+    };
+  }
+
+  // 2. Konfigurasi 8 RODA (Chassis Kontainer 20 Feet - Tandem 2-Axle)
+  if (count === 8) {
+    return {
+      wheelCount: 8,
+      title: 'Denah 3D Chassis 20ft (8 RODA)',
+      badgeLabel: '8 RODA • Tandem 2-Axle (2 Gandar Sasis)',
+      chassisType: 'Trailer Sasis Kontainer 20 Feet',
+      image3D: '/images/tread-pattern/denah-8-roda.jpg',
+      axleSummary: '2 Gandar Belakang Tandem dengan Roda Ganda (4 roda per gandar = total 8 roda).',
+      treadPatternSummary: 'Seluruh posisi menggunakan Pola Trailer Rib (Alur Lurus Khusus Trailer) tahan gesek dan efisien BBM perjalanan jarak jauh.',
+      wheels: [
+        { id: 'w1', code: 'A1-LO', name: 'Gandar 1 - Kiri Luar', axle: 'Gandar 1 (Depan)', side: 'kiri', positionType: 'trailer', patternName: 'Pola Trailer Rib', description: 'Menerima distribusi beban awal dari kingpin sasis 20ft.' },
+        { id: 'w2', code: 'A1-LI', name: 'Gandar 1 - Kiri Dalam', axle: 'Gandar 1 (Depan)', side: 'kiri', positionType: 'trailer', patternName: 'Pola Trailer Rib', description: 'Peredam kejut beban gandeng sisi kiri.' },
+        { id: 'w3', code: 'A1-RI', name: 'Gandar 1 - Kanan Dalam', axle: 'Gandar 1 (Depan)', side: 'kanan', positionType: 'trailer', patternName: 'Pola Trailer Rib', description: 'Peredam kejut beban gandeng sisi kanan.' },
+        { id: 'w4', code: 'A1-RO', name: 'Gandar 1 - Kanan Luar', axle: 'Gandar 1 (Depan)', side: 'kanan', positionType: 'trailer', patternName: 'Pola Trailer Rib', description: 'Menerima distribusi beban awal sisi kanan.' },
+
+        { id: 'w5', code: 'A2-LO', name: 'Gandar 2 - Kiri Luar', axle: 'Gandar 2 (Belakang)', side: 'kiri', positionType: 'trailer', patternName: 'Pola Trailer Rib', description: 'Menstabilkan ekor trailer dan menahan gaya seret tikungan.' },
+        { id: 'w6', code: 'A2-LI', name: 'Gandar 2 - Kiri Dalam', axle: 'Gandar 2 (Belakang)', side: 'kiri', positionType: 'trailer', patternName: 'Pola Trailer Rib', description: 'Peredam beban statis peti kemas 20ft sisi kiri.' },
+        { id: 'w7', code: 'A2-RI', name: 'Gandar 2 - Kanan Dalam', axle: 'Gandar 2 (Belakang)', side: 'kanan', positionType: 'trailer', patternName: 'Pola Trailer Rib', description: 'Peredam beban statis peti kemas 20ft sisi kanan.' },
+        { id: 'w8', code: 'A2-RO', name: 'Gandar 2 - Kanan Luar', axle: 'Gandar 2 (Belakang)', side: 'kanan', positionType: 'trailer', patternName: 'Pola Trailer Rib', description: 'Menstabilkan ekor trailer sisi kanan.' }
+      ]
+    };
+  }
+
+  // 3. Konfigurasi 4 RODA (Forklift Standar)
+  if (count === 4) {
+    return {
+      wheelCount: 4,
+      title: 'Denah Forklift (4 RODA)',
+      badgeLabel: '4 RODA • 2 Beban + 2 Kemudi',
+      chassisType: 'Alat Berat Forklift',
+      image3D: '/images/tread-pattern/forklift.jpg',
+      axleSummary: '1 Gandar Depan Beban (2 Roda) + 1 Gandar Belakang Kemudi Putar (2 Roda).',
+      treadPatternSummary: 'Depan menggunakan Pola Heavy Traction Lug, Belakang menggunakan Pola Smooth / Industri.',
+      wheels: [
+        { id: 'w1', code: 'FL', name: 'Depan Kiri (Beban Utama)', axle: 'Gandar Depan (Beban)', side: 'kiri', positionType: 'drive', patternName: 'Pola Heavy Traction Lug', description: 'Menopang beban angkat garpu mast depan sisi kiri.' },
+        { id: 'w2', code: 'FR', name: 'Depan Kanan (Beban Utama)', axle: 'Gandar Depan (Beban)', side: 'kanan', positionType: 'drive', patternName: 'Pola Heavy Traction Lug', description: 'Menopang beban angkat garpu mast depan sisi kanan.' },
+        { id: 'w3', code: 'RL', name: 'Belakang Kiri (Kemudi)', axle: 'Gandar Belakang (Kemudi)', side: 'kiri', positionType: 'steer', patternName: 'Pola Smooth / Industri', description: 'Kemudi putar manuver ruang sempit gudang sisi kiri.' },
+        { id: 'w4', code: 'RR', name: 'Belakang Kanan (Kemudi)', axle: 'Gandar Belakang (Kemudi)', side: 'kanan', positionType: 'steer', patternName: 'Pola Smooth / Industri', description: 'Kemudi putar manuver ruang sempit gudang sisi kanan.' }
+      ]
+    };
+  }
+
+  // 4. Konfigurasi 6 RODA (Tractor Head Prime Mover)
+  return {
+    wheelCount: 6,
+    title: 'Denah 3D Tractor Head (6 RODA)',
+    badgeLabel: '6 RODA • 1 Gandar Steer + 1 Gandar Dual Drive',
+    chassisType: 'Truk Prime Mover / Tractor Head',
+    image3D: '/images/tread-pattern/denah-6-roda.jpg',
+    axleSummary: '1 Gandar Depan Kemudi (2 Roda Single) + 1 Gandar Belakang Penggerak (4 Roda Dual/Ganda).',
+    treadPatternSummary: 'Gandar Kemudi wajib Pola Rib (Alur Lurus), Gandar Penggerak wajib Pola Lug (Balok / Cakar) untuk traksi optimal.',
+    wheels: [
+      { id: 'w1', code: 'FL', name: 'Depan Kiri (Steer / Kemudi)', axle: 'Gandar Depan (Kemudi)', side: 'kiri', positionType: 'steer', patternName: 'Pola Rib (Alur Lurus)', description: 'Kemudi utama sisi kiri, menjaga stabilitas arah jalan tol & manuver.' },
+      { id: 'w2', code: 'FR', name: 'Depan Kanan (Steer / Kemudi)', axle: 'Gandar Depan (Kemudi)', side: 'kanan', positionType: 'steer', patternName: 'Pola Rib (Alur Lurus)', description: 'Kemudi utama sisi kanan, menjaga respons setir kemudi.' },
+      { id: 'w3', code: 'RL-O', name: 'Belakang Kiri Luar (Drive)', axle: 'Gandar Belakang (Penggerak)', side: 'kiri', positionType: 'drive', patternName: 'Pola Lug (Balok / Cakar)', description: 'Traksi penggerak luar menahan torsi tarikan kontainer.' },
+      { id: 'w4', code: 'RL-I', name: 'Belakang Kiri Dalam (Drive)', axle: 'Gandar Belakang (Penggerak)', side: 'kiri', positionType: 'drive', patternName: 'Pola Lug (Balok / Cakar)', description: 'Menopang beban vertikal fifth wheel sisi kiri.' },
+      { id: 'w5', code: 'RR-I', name: 'Belakang Kanan Dalam (Drive)', axle: 'Gandar Belakang (Penggerak)', side: 'kanan', positionType: 'drive', patternName: 'Pola Lug (Balok / Cakar)', description: 'Menopang beban vertikal fifth wheel sisi kanan.' },
+      { id: 'w6', code: 'RR-O', name: 'Belakang Kanan Luar (Drive)', axle: 'Gandar Belakang (Penggerak)', side: 'kanan', positionType: 'drive', patternName: 'Pola Lug (Balok / Cakar)', description: 'Traksi penggerak luar sisi kanan menahan torsi jalan.' }
+    ]
+  };
+}
+
 const CATEGORIES: VehicleCategory[] = [
   {
     id: 'tractor-head',
     name: 'Tracktor Head',
     subtitle: 'Truk Penarik Kontainer',
     image: '/images/tread-pattern/tractor-head.jpg',
-    wheelCount: '10 Roda',
+    wheelCount: '6 Roda',
     sourceTable: 'mobils',
     filterLabel: 'TRACTOR HEAD',
     badgeType: 'tractor',
@@ -128,6 +265,9 @@ export default function TireTreadPattern() {
   const [selectedUnit, setSelectedUnit] = useState<UnitItem | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
   const ITEMS_PER_PAGE = 10;
+
+  // Posisi Roda yang Sedang Dipilih
+  const [selectedWheelId, setSelectedWheelId] = useState<string | null>(null);
 
   // Ambil data dari database sesuai kategori yang dipilih
   useEffect(() => {
@@ -217,6 +357,18 @@ export default function TireTreadPattern() {
     return filteredUnits.slice(startIndex, startIndex + ITEMS_PER_PAGE);
   }, [filteredUnits, currentPage]);
 
+  // Konfigurasi roda unit yang sedang dipilih di modal
+  const selectedWheelConfig = useMemo(() => {
+    if (!selectedUnit) return null;
+    return getUnitWheelConfig(selectedUnit, selectedCategory?.id);
+  }, [selectedUnit, selectedCategory]);
+
+  // Handler saat user memilih unit dari daftar
+  const handleSelectUnit = (unit: UnitItem) => {
+    setSelectedUnit(unit);
+    setSelectedWheelId(null);
+  };
+
   return (
     <div className="tire-page fade-in">
       {/* ====================================================================
@@ -287,6 +439,159 @@ export default function TireTreadPattern() {
             ))}
           </div>
         </>
+      ) : selectedUnit && selectedWheelConfig ? (
+        /* ====================================================================
+            TAMPILAN 3: Full Screen View Detail Denah 3D Unit (Bukan Pop Up)
+            ==================================================================== */
+        <div className="unit-fullscreen-view fade-in">
+          {/* Header Navigasi Kembali */}
+          <div className="tire-header-simple">
+            <button
+              className="btn-back-simple"
+              onClick={() => {
+                setSelectedUnit(null);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+              title="Kembali ke Daftar Unit"
+            >
+              <ArrowLeft size={16} />
+              <span>Kembali ke Daftar Unit</span>
+            </button>
+          </div>
+
+          {/* Hero Banner Unit */}
+          <div className="unit-hero-card">
+            <div className="unit-hero-top">
+              <div className="unit-hero-title-box">
+                <span className="unit-hero-subtitle">
+                  {selectedCategory.name} • {selectedUnit.jenis}
+                </span>
+                <h2 className="unit-hero-title">
+                  {selectedCategory.id === 'forklift'
+                    ? selectedUnit.nama || selectedUnit.kode_alat
+                    : selectedUnit.nomor_polisi || selectedUnit.kode_no}
+                </h2>
+              </div>
+              <div className="unit-hero-badges">
+                <span className={`badge-roda-tag badge-roda-${selectedWheelConfig.wheelCount} badge-roda-lg`}>
+                  {selectedWheelConfig.wheelCount} RODA
+                </span>
+              </div>
+            </div>
+          </div>
+
+          {/* Visualizer Workbench: 3D Studio, Denah Blueprint 2D, & Inventori Ban Unit */}
+          <div className="fade-in" style={{ width: '100%', marginBottom: '16px' }}>
+            <VehicleSchematic3D
+              wheelCount={selectedWheelConfig.wheelCount}
+              selectedWheelId={selectedWheelId}
+              onWheelClick={(id) => {
+                setSelectedWheelId(id);
+              }}
+              mobil_id={selectedCategory?.id === 'forklift' ? undefined : selectedUnit.id}
+              alat_berat_id={selectedCategory?.id === 'forklift' ? selectedUnit.id : undefined}
+              category={selectedCategory?.id}
+              wheelConfig={selectedWheelConfig}
+            />
+          </div>
+
+          {/* Detail Spesifikasi Unit */}
+          <div className="unit-detail-grid">
+            <div className="unit-detail-item">
+              <span className="unit-detail-label">Jenis Armada</span>
+              <span className="unit-detail-val">{selectedUnit.jenis}</span>
+            </div>
+            <div className="unit-detail-item">
+              <span className="unit-detail-label">
+                {selectedCategory.id === 'forklift' ? 'Kode Alat' : 'Kode No'}
+              </span>
+              <span className="unit-detail-val">
+                {selectedUnit.kode_alat || selectedUnit.kode_no || '-'}
+              </span>
+            </div>
+
+            {(selectedCategory.id === 'tractor-head' || selectedCategory.id === 'chassis-container') && (
+              <>
+                <div className="unit-detail-item">
+                  <span className="unit-detail-label">Nomor Plat Polisi</span>
+                  <span className="unit-detail-val" style={{ color: '#38bdf8' }}>
+                    {selectedUnit.nomor_polisi && selectedUnit.nomor_polisi !== '0'
+                      ? selectedUnit.nomor_polisi
+                      : '-'}
+                  </span>
+                </div>
+                <div className="unit-detail-item">
+                  <span className="unit-detail-label">Nomor Uji KIR</span>
+                  <span className="unit-detail-val" style={{ color: '#34d399' }}>
+                    {selectedUnit.no_kir || selectedUnit.nomor_kir || '-'}
+                  </span>
+                </div>
+              </>
+            )}
+
+            <div className="unit-detail-item">
+              <span className="unit-detail-label">Jumlah Roda</span>
+              <span className="unit-detail-val" style={{ color: '#fbbf24', fontWeight: 700 }}>
+                {selectedWheelConfig.wheelCount} Roda ({selectedWheelConfig.chassisType})
+              </span>
+            </div>
+
+            {selectedUnit.lokasi && (
+              <div className="unit-detail-item">
+                <span className="unit-detail-label">Lokasi Operasional</span>
+                <span className="unit-detail-val">{selectedUnit.lokasi}</span>
+              </div>
+            )}
+          </div>
+
+          {/* Ringkasan Rekomendasi Pola Tapak Ban */}
+          <div className="simple-info-block">
+            <div className="simple-info-title">
+              Rekomendasi Pola Tapak Ban ({selectedWheelConfig.wheelCount} RODA)
+            </div>
+            <div style={{ fontSize: '0.82rem', color: '#94a3b8', lineHeight: 1.45, marginBottom: '6px' }}>
+              {selectedWheelConfig.treadPatternSummary}
+            </div>
+            {selectedCategory.tireInfo.map((info, idx) => (
+              <div key={idx} className="simple-info-row">
+                <span className="simple-row-label">{info.label}</span>
+                <span className="simple-row-value">{info.detail}</span>
+              </div>
+            ))}
+          </div>
+
+          <div
+            style={{
+              background: 'rgba(16, 185, 129, 0.1)',
+              border: '1px solid rgba(16, 185, 129, 0.25)',
+              borderRadius: '10px',
+              padding: '10px 14px',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              fontSize: '0.82rem',
+              color: '#10b981'
+            }}
+          >
+            <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
+            <span>Denah 3D {selectedWheelConfig.wheelCount} RODA siap digunakan untuk pemantauan rotasi & keausan ban.</span>
+          </div>
+
+          {/* Tombol Kembali ke Daftar Unit */}
+          <div className="unit-bottom-actions">
+            <button
+              type="button"
+              className="btn-back-to-list"
+              onClick={() => {
+                setSelectedUnit(null);
+                window.scrollTo({ top: 0, behavior: 'smooth' });
+              }}
+            >
+              <ArrowLeft size={16} />
+              <span>Kembali ke Daftar Unit {selectedCategory.name}</span>
+            </button>
+          </div>
+        </div>
       ) : (
         /* ====================================================================
             TAMPILAN 2: Daftar Unit Sesuai Kategori yang Dipilih dari Database
@@ -413,17 +718,24 @@ export default function TireTreadPattern() {
                 const capacity = u.kapasitas || null;
                 const year = u.tahun_pembuatan || null;
 
+                // Cek konfigurasi roda unit (6, 8, atau 12 RODA)
+                const unitWheel = getUnitWheelConfig(u, selectedCategory.id);
+
                 return (
                   <div
                     key={u.id}
                     className="unit-item-card"
-                    onClick={() => setSelectedUnit(u)}
+                    onClick={() => handleSelectUnit(u)}
                   >
                     <div className="unit-item-left">
                       <div className="unit-primary-title">
                         <span>{primaryTitle}</span>
                         <span className={`unit-badge-pill ${selectedCategory.badgeType}`}>
                           {u.jenis}
+                        </span>
+                        {/* Badge jumlah roda terdeteksi */}
+                        <span className={`badge-roda-tag badge-roda-${unitWheel.wheelCount}`}>
+                          {unitWheel.wheelCount} RODA
                         </span>
                       </div>
 
@@ -519,121 +831,7 @@ export default function TireTreadPattern() {
         </>
       )}
 
-      {/* ====================================================================
-          MODAL DETAIL UNIT & REKOMENDASI POLA BAN
-          ==================================================================== */}
-      {selectedUnit && selectedCategory && (
-        <div
-          className="simple-modal-backdrop fade-in"
-          onClick={() => setSelectedUnit(null)}
-        >
-          <div
-            className="simple-modal-box scale-in"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="simple-modal-header">
-              <h3>
-                {selectedCategory.id === 'forklift'
-                  ? selectedUnit.nama || selectedUnit.kode_alat
-                  : selectedUnit.nomor_polisi || selectedUnit.kode_no}
-              </h3>
-              <button
-                className="btn-close-modal"
-                onClick={() => setSelectedUnit(null)}
-              >
-                <X size={20} />
-              </button>
-            </div>
-
-            <div className="simple-modal-body">
-              <div className="modal-img-wrap">
-                <img src={selectedCategory.image} alt={selectedCategory.name} />
-              </div>
-
-              {/* Detail Unit Terpilih */}
-              <div className="unit-detail-grid">
-                <div className="unit-detail-item">
-                  <span className="unit-detail-label">Jenis Armada</span>
-                  <span className="unit-detail-val">{selectedUnit.jenis}</span>
-                </div>
-                <div className="unit-detail-item">
-                  <span className="unit-detail-label">
-                    {selectedCategory.id === 'forklift' ? 'Kode Alat' : 'Kode No'}
-                  </span>
-                  <span className="unit-detail-val">
-                    {selectedUnit.kode_alat || selectedUnit.kode_no || '-'}
-                  </span>
-                </div>
-
-                {(selectedCategory.id === 'tractor-head' || selectedCategory.id === 'chassis-container') && (
-                  <>
-                    <div className="unit-detail-item">
-                      <span className="unit-detail-label">Nomor Plat Polisi</span>
-                      <span className="unit-detail-val" style={{ color: '#38bdf8' }}>
-                        {selectedUnit.nomor_polisi && selectedUnit.nomor_polisi !== '0'
-                          ? selectedUnit.nomor_polisi
-                          : '-'}
-                      </span>
-                    </div>
-                    <div className="unit-detail-item">
-                      <span className="unit-detail-label">Nomor Uji KIR</span>
-                      <span className="unit-detail-val" style={{ color: '#34d399' }}>
-                        {selectedUnit.no_kir || selectedUnit.nomor_kir || '-'}
-                      </span>
-                    </div>
-                  </>
-                )}
-
-                {selectedUnit.lokasi && (
-                  <div className="unit-detail-item" style={{ gridColumn: 'span 2' }}>
-                    <span className="unit-detail-label">Lokasi Operasional</span>
-                    <span className="unit-detail-val">{selectedUnit.lokasi}</span>
-                  </div>
-                )}
-              </div>
-
-              {/* Rekomendasi Pola Tapak Ban */}
-              <div className="simple-info-block">
-                <div className="simple-info-title">
-                  Konfigurasi Pola Ban ({selectedCategory.wheelCount})
-                </div>
-                {selectedCategory.tireInfo.map((info, idx) => (
-                  <div key={idx} className="simple-info-row">
-                    <span className="simple-row-label">{info.label}</span>
-                    <span className="simple-row-value">{info.detail}</span>
-                  </div>
-                ))}
-              </div>
-
-              <div
-                style={{
-                  background: 'rgba(16, 185, 129, 0.1)',
-                  border: '1px solid rgba(16, 185, 129, 0.25)',
-                  borderRadius: '10px',
-                  padding: '10px 14px',
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: '8px',
-                  fontSize: '0.82rem',
-                  color: '#10b981'
-                }}
-              >
-                <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
-                <span>Unit terpilih siap untuk modul pemantauan ketebalan & nomor ban.</span>
-              </div>
-            </div>
-
-            <div className="simple-modal-footer">
-              <button
-                className="btn-modal-close"
-                onClick={() => setSelectedUnit(null)}
-              >
-                Tutup
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Lightbox modal dihapus – gunakan SVG interaktif langsung di halaman */}
     </div>
   );
 }

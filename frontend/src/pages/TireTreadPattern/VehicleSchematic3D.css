@@ -1283,10 +1283,36 @@
   cursor: grab;
   transition: color 0.15s ease;
   flex-shrink: 0;
+  touch-action: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+  padding: 6px 4px;
+}
+
+.vs-drag-handle:active {
+  cursor: grabbing;
 }
 
 .vs-tire-card:hover .vs-drag-handle {
   color: #38bdf8;
+}
+
+/* ── Container sentuh gambar ban (Touch Trigger HP) ── */
+.vs-tire-touch-trigger {
+  touch-action: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
+  cursor: grab;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+
+.vs-tire-touch-trigger:active {
+  cursor: grabbing;
 }
 
 /* ── Realistic Tire SVG Wrapper ── */
@@ -1298,6 +1324,10 @@
   flex-shrink: 0;
   filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.65));
   transition: transform 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+  touch-action: none;
+  -webkit-touch-callout: none;
+  user-select: none;
+  -webkit-user-select: none;
 }
 
 .vs-tire-card:hover .vs-tire-graphic-wrap {
@@ -2482,6 +2512,77 @@
   color: #fff;
   box-shadow: 0 0 12px rgba(16, 185, 129, 0.45);
   transform: translateY(-1px);
+}
+
+/* ── FLOATING TOUCH TIRE (DRAG AND DROP LAYAR SENTUH HP / PWA) ── */
+.vs-floating-touch-tire {
+  position: fixed;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  z-index: 999999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  filter: drop-shadow(0 14px 28px rgba(0, 0, 0, 0.85)) drop-shadow(0 0 20px rgba(56, 189, 248, 0.7));
+  animation: vsTireFloatPulse 1.6s ease-in-out infinite alternate;
+  will-change: transform, left, top;
+}
+
+.vs-floating-touch-tire .vs-tire-graphic-wrap {
+  border-radius: 50%;
+  overflow: visible;
+  background: transparent !important;
+}
+
+.vs-floating-touch-tire .vs-tire-graphic-svg {
+  filter: drop-shadow(0 6px 14px rgba(0, 0, 0, 0.75));
+}
+
+@keyframes vsTireFloatPulse {
+  0% {
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+  100% {
+    transform: translate(-50%, -50%) scale(1.18);
+  }
+}
+
+.vs-floating-touch-label {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  background: rgba(10, 16, 30, 0.95);
+  border: 1.5px solid rgba(56, 189, 248, 0.6);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  padding: 4px 12px;
+  border-radius: 999px;
+  color: #f8fafc;
+  font-size: 0.75rem;
+  font-weight: 800;
+  white-space: nowrap;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.6);
+}
+
+.vs-floating-touch-brand {
+  letter-spacing: 0.5px;
+  color: #ffffff;
+}
+
+.vs-floating-touch-target {
+  color: #34d399;
+  font-size: 0.7rem;
+  font-weight: 800;
+  text-shadow: 0 0 8px rgba(16, 185, 129, 0.6);
+}
+
+.vs-floating-touch-hint {
+  color: #94a3b8;
+  font-size: 0.65rem;
+  font-weight: 500;
 }
 
 

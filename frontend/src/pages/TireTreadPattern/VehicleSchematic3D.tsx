@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useRef } from 'react';
 import './VehicleSchematic3D.css';
 import VehicleAnimation3D from './VehicleAnimation3D';
 
@@ -118,6 +118,7 @@ interface TireProps {
   svgId: string;
   tireData?: StockBanItem | null;
   pillOffsetY?: number;
+  isTouchOver?: boolean;
 }
 
 function Tire({
@@ -127,6 +128,7 @@ function Tire({
   type,
   label,
   isActive,
+  isTouchOver = false,
   onClick,
   onDropTire,
   W = 30,
@@ -146,6 +148,7 @@ function Tire({
     <g
       className={`vs-tire${isActive ? ' vs-tire--active' : ''}${!isAssigned ? ' vs-tire--unassigned' : ''}`}
       onClick={() => onClick?.(id)}
+      data-wheel-id={id}
       onDragOver={(e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'copy';
@@ -164,14 +167,14 @@ function Tire({
       style={{ cursor: 'pointer' }}
     >
       {/* Active Glowing Ring atau Drag-Over Highlight */}
-      {(isActive || isDndOver) && (
+      {(isActive || isDndOver || isTouchOver) && (
         <rect
           x={cx - rx - 5} y={cy - ry - 5}
           width={W + 10} height={H + 10}
           rx={8} ry={8}
-          fill={isDndOver ? 'rgba(16, 185, 129, 0.25)' : 'none'}
-          stroke={isDndOver ? '#10b981' : c.glow}
-          strokeWidth={isDndOver ? 3.0 : 2.5}
+          fill={(isDndOver || isTouchOver) ? 'rgba(16, 185, 129, 0.25)' : 'none'}
+          stroke={(isDndOver || isTouchOver) ? '#10b981' : c.glow}
+          strokeWidth={(isDndOver || isTouchOver) ? 3.0 : 2.5}
           opacity={0.9}
           filter={`url(#${svgId}_glow)`}
         />
@@ -340,12 +343,14 @@ function Schema6Roda({
   selectedWheelId,
   onWheelClick,
   getTire,
-  onDropTire
+  onDropTire,
+  touchTargetWheelId
 }: {
   selectedWheelId?: string | null;
   onWheelClick?: (id: string) => void;
   getTire: (wheelId: string) => StockBanItem | null;
   onDropTire?: (wheelId: string, banId: number) => void;
+  touchTargetWheelId?: string | null;
 }) {
   const ID = 's6';
   const VW = 380, VH = 460;
@@ -388,18 +393,18 @@ function Schema6Roda({
       </text>
 
       <Tire cx={85}  cy={steerY} id="w1" type="steer" label="FL"
-        isActive={selectedWheelId === 'w1'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w1')} pillOffsetY={4} />
+        isActive={selectedWheelId === 'w1'} isTouchOver={touchTargetWheelId === 'w1'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w1')} pillOffsetY={4} />
       <Tire cx={295} cy={steerY} id="w2" type="steer" label="FR"
-        isActive={selectedWheelId === 'w2'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w2')} pillOffsetY={4} />
+        isActive={selectedWheelId === 'w2'} isTouchOver={touchTargetWheelId === 'w2'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w2')} pillOffsetY={4} />
 
       <Tire cx={56}  cy={driveY} id="w3" type="drive" label="RL-O"
-        isActive={selectedWheelId === 'w3'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w3')} pillOffsetY={3} />
+        isActive={selectedWheelId === 'w3'} isTouchOver={touchTargetWheelId === 'w3'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w3')} pillOffsetY={3} />
       <Tire cx={96}  cy={driveY} id="w4" type="drive" label="RL-I"
-        isActive={selectedWheelId === 'w4'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w4')} pillOffsetY={17} />
+        isActive={selectedWheelId === 'w4'} isTouchOver={touchTargetWheelId === 'w4'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w4')} pillOffsetY={17} />
       <Tire cx={284} cy={driveY} id="w5" type="drive" label="RR-I"
-        isActive={selectedWheelId === 'w5'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w5')} pillOffsetY={17} />
+        isActive={selectedWheelId === 'w5'} isTouchOver={touchTargetWheelId === 'w5'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w5')} pillOffsetY={17} />
       <Tire cx={324} cy={driveY} id="w6" type="drive" label="RR-O"
-        isActive={selectedWheelId === 'w6'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w6')} pillOffsetY={3} />
+        isActive={selectedWheelId === 'w6'} isTouchOver={touchTargetWheelId === 'w6'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w6')} pillOffsetY={3} />
     </svg>
   );
 }
@@ -411,12 +416,14 @@ function Schema8Roda({
   selectedWheelId,
   onWheelClick,
   getTire,
-  onDropTire
+  onDropTire,
+  touchTargetWheelId
 }: {
   selectedWheelId?: string | null;
   onWheelClick?: (id: string) => void;
   getTire: (wheelId: string) => StockBanItem | null;
   onDropTire?: (wheelId: string, banId: number) => void;
+  touchTargetWheelId?: string | null;
 }) {
   const ID = 's8';
   const VW = 380, VH = 490;
@@ -451,22 +458,22 @@ function Schema8Roda({
       </text>
 
       <Tire cx={56}  cy={a1Y} id="w1" type="trailer" label="A1-LO"
-        isActive={selectedWheelId === 'w1'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w1')} pillOffsetY={3} />
+        isActive={selectedWheelId === 'w1'} isTouchOver={touchTargetWheelId === 'w1'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w1')} pillOffsetY={3} />
       <Tire cx={96}  cy={a1Y} id="w2" type="trailer" label="A1-LI"
-        isActive={selectedWheelId === 'w2'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w2')} pillOffsetY={17} />
+        isActive={selectedWheelId === 'w2'} isTouchOver={touchTargetWheelId === 'w2'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w2')} pillOffsetY={17} />
       <Tire cx={284} cy={a1Y} id="w3" type="trailer" label="A1-RI"
-        isActive={selectedWheelId === 'w3'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w3')} pillOffsetY={17} />
+        isActive={selectedWheelId === 'w3'} isTouchOver={touchTargetWheelId === 'w3'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w3')} pillOffsetY={17} />
       <Tire cx={324} cy={a1Y} id="w4" type="trailer" label="A1-RO"
-        isActive={selectedWheelId === 'w4'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w4')} pillOffsetY={3} />
+        isActive={selectedWheelId === 'w4'} isTouchOver={touchTargetWheelId === 'w4'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w4')} pillOffsetY={3} />
 
       <Tire cx={56}  cy={a2Y} id="w5" type="trailer" label="A2-LO"
-        isActive={selectedWheelId === 'w5'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w5')} pillOffsetY={3} />
+        isActive={selectedWheelId === 'w5'} isTouchOver={touchTargetWheelId === 'w5'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w5')} pillOffsetY={3} />
       <Tire cx={96}  cy={a2Y} id="w6" type="trailer" label="A2-LI"
-        isActive={selectedWheelId === 'w6'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w6')} pillOffsetY={17} />
+        isActive={selectedWheelId === 'w6'} isTouchOver={touchTargetWheelId === 'w6'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w6')} pillOffsetY={17} />
       <Tire cx={284} cy={a2Y} id="w7" type="trailer" label="A2-RI"
-        isActive={selectedWheelId === 'w7'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w7')} pillOffsetY={17} />
+        isActive={selectedWheelId === 'w7'} isTouchOver={touchTargetWheelId === 'w7'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w7')} pillOffsetY={17} />
       <Tire cx={324} cy={a2Y} id="w8" type="trailer" label="A2-RO"
-        isActive={selectedWheelId === 'w8'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w8')} pillOffsetY={3} />
+        isActive={selectedWheelId === 'w8'} isTouchOver={touchTargetWheelId === 'w8'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w8')} pillOffsetY={3} />
     </svg>
   );
 }
@@ -478,12 +485,14 @@ function Schema12Roda({
   selectedWheelId,
   onWheelClick,
   getTire,
-  onDropTire
+  onDropTire,
+  touchTargetWheelId
 }: {
   selectedWheelId?: string | null;
   onWheelClick?: (id: string) => void;
   getTire: (wheelId: string) => StockBanItem | null;
   onDropTire?: (wheelId: string, banId: number) => void;
+  touchTargetWheelId?: string | null;
 }) {
   const ID = 's12';
   const VW = 380, VH = 580;
@@ -498,13 +507,13 @@ function Schema12Roda({
       <>
         <AxleBar x1={56} y={ay} x2={324} svgId={ID} />
         <Tire cx={56}  cy={ay} id={`w${startIdx}`}   type="trailer" label={`${prefix}-LO`}
-          isActive={selectedWheelId === `w${startIdx}`}   onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire(`w${startIdx}`)} pillOffsetY={3} />
+          isActive={selectedWheelId === `w${startIdx}`}   isTouchOver={touchTargetWheelId === `w${startIdx}`}   onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire(`w${startIdx}`)} pillOffsetY={3} />
         <Tire cx={96}  cy={ay} id={`w${startIdx+1}`} type="trailer" label={`${prefix}-LI`}
-          isActive={selectedWheelId === `w${startIdx+1}`} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire(`w${startIdx+1}`)} pillOffsetY={17} />
+          isActive={selectedWheelId === `w${startIdx+1}`} isTouchOver={touchTargetWheelId === `w${startIdx+1}`} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire(`w${startIdx+1}`)} pillOffsetY={17} />
         <Tire cx={284} cy={ay} id={`w${startIdx+2}`} type="trailer" label={`${prefix}-RI`}
-          isActive={selectedWheelId === `w${startIdx+2}`} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire(`w${startIdx+2}`)} pillOffsetY={17} />
+          isActive={selectedWheelId === `w${startIdx+2}`} isTouchOver={touchTargetWheelId === `w${startIdx+2}`} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire(`w${startIdx+2}`)} pillOffsetY={17} />
         <Tire cx={324} cy={ay} id={`w${startIdx+3}`} type="trailer" label={`${prefix}-RO`}
-          isActive={selectedWheelId === `w${startIdx+3}`} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire(`w${startIdx+3}`)} pillOffsetY={3} />
+          isActive={selectedWheelId === `w${startIdx+3}`} isTouchOver={touchTargetWheelId === `w${startIdx+3}`} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire(`w${startIdx+3}`)} pillOffsetY={3} />
       </>
     );
   }
@@ -549,12 +558,14 @@ function Schema4Roda({
   selectedWheelId,
   onWheelClick,
   getTire,
-  onDropTire
+  onDropTire,
+  touchTargetWheelId
 }: {
   selectedWheelId?: string | null;
   onWheelClick?: (id: string) => void;
   getTire: (wheelId: string) => StockBanItem | null;
   onDropTire?: (wheelId: string, banId: number) => void;
+  touchTargetWheelId?: string | null;
 }) {
   const ID = 's4';
   const VW = 380, VH = 420;
@@ -598,13 +609,13 @@ function Schema4Roda({
       </text>
 
       <Tire cx={95}  cy={frontY} id="w1" type="drive" label="FL"
-        isActive={selectedWheelId === 'w1'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w1')} pillOffsetY={4} />
+        isActive={selectedWheelId === 'w1'} isTouchOver={touchTargetWheelId === 'w1'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w1')} pillOffsetY={4} />
       <Tire cx={285} cy={frontY} id="w2" type="drive" label="FR"
-        isActive={selectedWheelId === 'w2'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w2')} pillOffsetY={4} />
+        isActive={selectedWheelId === 'w2'} isTouchOver={touchTargetWheelId === 'w2'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w2')} pillOffsetY={4} />
       <Tire cx={105} cy={rearY}  id="w3" type="steer" label="RL"
-        isActive={selectedWheelId === 'w3'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w3')} pillOffsetY={4} />
+        isActive={selectedWheelId === 'w3'} isTouchOver={touchTargetWheelId === 'w3'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w3')} pillOffsetY={4} />
       <Tire cx={275} cy={rearY}  id="w4" type="steer" label="RR"
-        isActive={selectedWheelId === 'w4'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w4')} pillOffsetY={4} />
+        isActive={selectedWheelId === 'w4'} isTouchOver={touchTargetWheelId === 'w4'} onClick={onWheelClick} onDropTire={onDropTire} svgId={ID} tireData={getTire('w4')} pillOffsetY={4} />
     </svg>
   );
 }
@@ -1719,6 +1730,85 @@ export default function VehicleSchematic3D({
     return true;
   });
 
+  // Virtual Touch Drag & Drop (Mencegah kotak hitam & badge (+) OS Android di layar HP)
+  const [touchDraggingTire, setTouchDraggingTire] = useState<StockBanItem | null>(null);
+  const [touchCoords, setTouchCoords] = useState<{ x: number; y: number } | null>(null);
+  const [touchTargetWheelId, setTouchTargetWheelId] = useState<string | null>(null);
+
+  const touchDraggingTireRef = useRef<StockBanItem | null>(null);
+  const touchCoordsRef = useRef<{ x: number; y: number } | null>(null);
+  const touchTargetWheelIdRef = useRef<string | null>(null);
+
+  const handleTouchStart = (ban: StockBanItem, e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    const coords = { x: touch.clientX, y: touch.clientY };
+    setTouchDraggingTire(ban);
+    setTouchCoords(coords);
+    touchDraggingTireRef.current = ban;
+    touchCoordsRef.current = coords;
+
+    if (navigator.vibrate) {
+      try {
+        navigator.vibrate(35);
+      } catch {}
+    }
+  };
+
+  useEffect(() => {
+    if (!touchDraggingTire) return;
+
+    const handleTouchMove = (e: TouchEvent) => {
+      if (e.touches.length === 0) return;
+      if (e.cancelable) {
+        e.preventDefault(); // Mencegah scrolling layar saat sedang mendrag ban
+      }
+      const touch = e.touches[0];
+      const coords = { x: touch.clientX, y: touch.clientY };
+      setTouchCoords(coords);
+      touchCoordsRef.current = coords;
+
+      if (viewMode === 'blueprint') {
+        const el = document.elementFromPoint(touch.clientX, touch.clientY);
+        const wheelEl = el?.closest('[data-wheel-id]');
+        const wheelId = wheelEl?.getAttribute('data-wheel-id') || null;
+        setTouchTargetWheelId(wheelId);
+        touchTargetWheelIdRef.current = wheelId;
+      }
+    };
+
+    const handleTouchEnd = () => {
+      const currentTire = touchDraggingTireRef.current;
+      const targetWheel = touchTargetWheelIdRef.current;
+
+      if (currentTire && targetWheel) {
+        handleAssignTire(targetWheel, currentTire.id);
+        if (navigator.vibrate) {
+          try {
+            navigator.vibrate([30, 50, 30]);
+          } catch {}
+        }
+      }
+
+      setTouchDraggingTire(null);
+      setTouchCoords(null);
+      setTouchTargetWheelId(null);
+      touchDraggingTireRef.current = null;
+      touchCoordsRef.current = null;
+      touchTargetWheelIdRef.current = null;
+    };
+
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd);
+    window.addEventListener('touchcancel', handleTouchEnd);
+
+    return () => {
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('touchcancel', handleTouchEnd);
+    };
+  }, [touchDraggingTire, viewMode]);
+
   return (
     <div className="vs-wrapper">
       {/* ── WORKBENCH GRID CONTAINER (2-KOLOM PADA DESKTOP, RESPONSIVE) ── */}
@@ -1801,21 +1891,26 @@ export default function VehicleSchematic3D({
                 }}
                 onRemoveTireFromWheel={handleRemoveTire}
                 onReturnBorrowedTire={handleReturnTire}
-                draggedTireId={draggedTireId}
+                draggedTireId={draggedTireId || touchDraggingTire?.id || null}
+                touchCoords={touchCoords}
+                onTargetWheelChange={(wId) => {
+                  setTouchTargetWheelId(wId);
+                  touchTargetWheelIdRef.current = wId;
+                }}
               />
             ) : (
               <div className="vs-container">
                 {wheelCount === 6 && (
-                  <Schema6Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} />
+                  <Schema6Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} touchTargetWheelId={touchTargetWheelId} />
                 )}
                 {wheelCount === 8 && (
-                  <Schema8Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} />
+                  <Schema8Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} touchTargetWheelId={touchTargetWheelId} />
                 )}
                 {wheelCount === 12 && (
-                  <Schema12Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} />
+                  <Schema12Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} touchTargetWheelId={touchTargetWheelId} />
                 )}
                 {wheelCount === 4 && (
-                  <Schema4Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} />
+                  <Schema4Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} touchTargetWheelId={touchTargetWheelId} />
                 )}
 
                 {/* Status Bar untuk Blueprint 2D */}
@@ -1993,20 +2088,24 @@ export default function VehicleSchematic3D({
                 displayedTires.map((ban) => {
                   const placedAtWheel = Object.entries(assignments).find(([_, bId]) => bId === ban.id)?.[0];
                   const placedMeta = placedAtWheel ? wheelConfig?.wheels.find((w) => w.id === placedAtWheel) : null;
-                  const isDraggingThis = draggedTireId === ban.id;
+                  const isDraggingThis = draggedTireId === ban.id || touchDraggingTire?.id === ban.id;
 
                   return (
                     <div
                       key={ban.id}
                       draggable={true}
                       onDragStart={(e) => {
+                        // Jika sedang aktif touch drag di layar HP, batalkan HTML5 drag bawaan agar tidak muncul kotak hitam & badge (+) dari OS Android
+                        if (touchDraggingTireRef.current) {
+                          e.preventDefault();
+                          return;
+                        }
                         globalActiveDraggedBanId = ban.id;
                         e.dataTransfer.setData('text/plain', String(ban.id));
                         e.dataTransfer.effectAllowed = 'copyMove';
                         setDraggedTireId(ban.id);
                         setDraggedSourceWheelId(placedAtWheel || null);
 
-                        // Ambil HANYA elemen grafik 3D ban bulat agar saat ditarik (drag), yang melayang hanya gambar 3D ban murni (bukan kotak kartu teks)
                         const graphicEl = e.currentTarget.querySelector('.vs-tire-graphic-wrap') as HTMLElement;
                         if (graphicEl && e.dataTransfer.setDragImage) {
                           const w = graphicEl.offsetWidth || 58;
@@ -2027,13 +2126,25 @@ export default function VehicleSchematic3D({
                       title="Pegang & Tarik ban ini ke 3D atau denah unit"
                     >
                       <div className="vs-card-left">
-                        <span className="vs-drag-handle" title="Tarik Ban">⠿</span>
-                        <RealisticTireGraphic
-                          ban={ban}
-                          size={58}
-                          isAssigned={Boolean(placedAtWheel)}
-                          assignedCode={placedMeta?.code || (placedAtWheel ? placedAtWheel.toUpperCase() : null)}
-                        />
+                        <span
+                          className="vs-drag-handle"
+                          title="Tarik Ban ke Roda (Sentuh & Geser)"
+                          onTouchStart={(e) => handleTouchStart(ban, e)}
+                        >
+                          ⠿
+                        </span>
+                        <div
+                          className="vs-tire-touch-trigger"
+                          title="Sentuh & Geser gambar ban ke unit"
+                          onTouchStart={(e) => handleTouchStart(ban, e)}
+                        >
+                          <RealisticTireGraphic
+                            ban={ban}
+                            size={58}
+                            isAssigned={Boolean(placedAtWheel)}
+                            assignedCode={placedMeta?.code || (placedAtWheel ? placedAtWheel.toUpperCase() : null)}
+                          />
+                        </div>
                         <div className="vs-card-info">
                           <div className="vs-card-header-row">
                             <span className="vs-card-brand">{ban.merk}</span>
@@ -2155,6 +2266,38 @@ export default function VehicleSchematic3D({
           onBorrowTire={handleBorrowTire}
           borrowedTireIds={borrowedTires.map((t) => t.id)}
         />
+      )}
+
+      {/* ── FLOATING TOUCH TIRE (DRAG AND DROP LAYAR SENTUH HP) ── */}
+      {touchDraggingTire && touchCoords && (
+        <div
+          className="vs-floating-touch-tire"
+          style={{
+            left: `${touchCoords.x}px`,
+            top: `${touchCoords.y}px`
+          }}
+        >
+          <RealisticTireGraphic
+            ban={touchDraggingTire}
+            size={76}
+            isAssigned={Boolean(touchTargetWheelId)}
+            assignedCode={
+              touchTargetWheelId
+                ? wheelConfig?.wheels.find((w) => w.id === touchTargetWheelId)?.code || touchTargetWheelId.toUpperCase()
+                : null
+            }
+          />
+          <div className="vs-floating-touch-label">
+            <span className="vs-floating-touch-brand">{touchDraggingTire.merk}</span>
+            {touchTargetWheelId ? (
+              <span className="vs-floating-touch-target">
+                ➜ Pasang di {wheelConfig?.wheels.find((w) => w.id === touchTargetWheelId)?.code || touchTargetWheelId.toUpperCase()}
+              </span>
+            ) : (
+              <span className="vs-floating-touch-hint">Geser ke roda kendaraan</span>
+            )}
+          </div>
+        </div>
       )}
     </div>
   );

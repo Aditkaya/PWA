@@ -1,3 +1,4 @@
+
 import { useEffect, useRef, useState, useMemo } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -24,6 +25,8 @@ interface VehicleAnimation3DProps {
   onRemoveTireFromWheel?: (wheelId: string) => void;
   onReturnBorrowedTire?: (tireId: number) => void;
   draggedTireId?: number | null;
+  touchCoords?: { x: number; y: number } | null;
+  onTargetWheelChange?: (wheelId: string | null) => void;
 }
 
 // Preset Sudut & Target Kamera yang dioptimasi untuk setiap jenis kendaraan (Framing Jelas & Proporsional di HP & Desktop)
@@ -206,7 +209,9 @@ export default function VehicleAnimation3D({
   onDropTireToWheel,
   onRemoveTireFromWheel,
   onReturnBorrowedTire,
-  draggedTireId
+  draggedTireId,
+  touchCoords,
+  onTargetWheelChange
 }: VehicleAnimation3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
@@ -1597,7 +1602,25 @@ export default function VehicleAnimation3D({
     return closestWheelId;
   };
 
-  // Drag over ke area kanvas 3D
+  // Handler deteksi sentuhan / touch drag dari layar HP secara realtime
+  useEffect(() => {
+    if (!touchCoords) {
+      if (dndHoverWheelIdRef.current) {
+        setDndTarget(null);
+        setIsCanvasDragOver(false);
+        onTargetWheelChange?.(null);
+      }
+      return;
+    }
+    setIsCanvasDragOver(true);
+    const targetId = getWheelAtCoords(touchCoords.x, touchCoords.y);
+    if (targetId !== dndHoverWheelIdRef.current) {
+      setDndTarget(targetId);
+      onTargetWheelChange?.(targetId);
+    }
+  }, [touchCoords, onTargetWheelChange]);
+
+  // Drag over ke area kanvas 3D (Desktop Mouse)
   const handleCanvasDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';

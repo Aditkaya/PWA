@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { globalActiveDraggedBanId, type StockBanItem, type WheelMeta } from './VehicleSchematic3D';
+import { globalActiveDraggedBanId, TireDetailModal, type StockBanItem, type WheelMeta } from './VehicleSchematic3D';
 
 export interface VehicleWheelConfig {
   wheelCount?: number;
@@ -21,47 +21,180 @@ interface VehicleAnimation3DProps {
   wheelConfig?: VehicleWheelConfig | null;
   category?: string;
   onDropTireToWheel?: (wheelId: string, banId: number) => void;
+  onRemoveTireFromWheel?: (wheelId: string) => void;
+  onReturnBorrowedTire?: (tireId: number) => void;
   draggedTireId?: number | null;
 }
 
-// Preset Sudut & Target Kamera yang dioptimasi untuk setiap jenis kendaraan (Framing Seimbang di HP & Desktop)
+// Preset Sudut & Target Kamera yang dioptimasi untuk setiap jenis kendaraan (Framing Jelas & Proporsional di HP & Desktop)
 const getVehicleCameraPreset = (count: number) => {
   if (count === 4) {
     // Forklift: Sudut 3/4 depan-kiri
     return {
-      target: new THREE.Vector3(0, 0.9, 0.1),
-      perspective: new THREE.Vector3(-5.6, 3.4, 4.8),
-      top: new THREE.Vector3(0.001, 9.5, 0.1),
-      side: new THREE.Vector3(-7.2, 1.5, 0.1)
+      target: new THREE.Vector3(0, 0.8, 0.1),
+      perspective: new THREE.Vector3(-4.8, 2.8, 4.2),
+      top: new THREE.Vector3(0.001, 5.5, 0.1),
+      side: new THREE.Vector3(-4.2, 0.9, 0.1)
     };
   }
   if (count === 6) {
     // Tractor Head: Menampakkan kabin depan, grille, sasis, tapal kuda, dan seluruh gandar
     return {
-      target: new THREE.Vector3(0, 1.25, 0.2),
-      perspective: new THREE.Vector3(-8.2, 4.2, 7.2),
-      top: new THREE.Vector3(0.001, 12.5, 0.2),
-      side: new THREE.Vector3(-10.2, 1.8, 0.2)
+      target: new THREE.Vector3(0, 1.15, 0.1),
+      perspective: new THREE.Vector3(-7.2, 3.6, 6.2),
+      top: new THREE.Vector3(0.001, 7.0, 0.1),
+      side: new THREE.Vector3(-5.8, 1.15, 0.1)
     };
   }
   if (count === 8) {
     // Chassis Trailer 20ft (Panjang 7.8 unit)
     return {
-      target: new THREE.Vector3(0, 0.8, -0.4),
-      perspective: new THREE.Vector3(-10.5, 5.6, 8.4),
-      top: new THREE.Vector3(0.001, 14.5, -0.4),
-      side: new THREE.Vector3(-12.5, 1.8, -0.4)
+      target: new THREE.Vector3(0, 0.75, -0.6),
+      perspective: new THREE.Vector3(-8.8, 4.5, 7.2),
+      top: new THREE.Vector3(0.001, 7.8, -0.6),
+      side: new THREE.Vector3(-7.2, 0.95, -0.6)
     };
   }
   // 12 Roda (Chassis Trailer 40ft: Panjang 11.2 unit)
-  // Target tepat di tengah sasis, jarak mundur kamera proporsional agar SELURUH trailer pas terlihat di layar HP
+  // Kamera samping dan atas didekatkan secara proporsional agar kendaraan memenuhi layar dan detail roda tampak jelas
   return {
-    target: new THREE.Vector3(0, 0.8, -0.6),
-    perspective: new THREE.Vector3(-13.2, 7.2, 10.5),
-    top: new THREE.Vector3(0.001, 18.5, -0.6),
-    side: new THREE.Vector3(-15.5, 2.0, -0.6)
+    target: new THREE.Vector3(0, 0.75, -1.0),
+    perspective: new THREE.Vector3(-10.8, 5.5, 8.8),
+    top: new THREE.Vector3(0.001, 8.8, -1.0),
+    side: new THREE.Vector3(-8.8, 0.95, -1.0)
   };
 };
+
+// Batas Zoom Maksimal Kamera agar Kamera Selalu Berada di Dalam Batas Ruang Bengkel 3D
+const getMaxCameraDistance = (count: number) => {
+  if (count <= 4) return 8.0;
+  if (count <= 6) return 11.0;
+  if (count <= 8) return 13.5;
+  return 16.0;
+};
+
+// Generator Tekstur Lantai Garasi Bengkel Industri (Industrial Workshop Epoxy Floor with Service Bay 01 Markings)
+const createWorkshopFloorTexture = () => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1024;
+  canvas.height = 1024;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return new THREE.CanvasTexture(canvas);
+
+  // 1. Dasar Lantai Epoxy Bengkel Abu-abu Industri (Industrial Polished Gray Epoxy)
+  ctx.fillStyle = '#1e2430';
+  ctx.fillRect(0, 0, 1024, 1024);
+
+  // Butiran Tekstur Beton/Semen Halus
+  const imgData = ctx.getImageData(0, 0, 1024, 1024);
+  const data = imgData.data;
+  for (let i = 0; i < data.length; i += 4) {
+    const n = (Math.random() - 0.5) * 14;
+    data[i] = Math.min(255, Math.max(0, data[i] + n));
+    data[i + 1] = Math.min(255, Math.max(0, data[i + 1] + n));
+    data[i + 2] = Math.min(255, Math.max(0, data[i + 2] + n + 2));
+  }
+  ctx.putImageData(imgData, 0, 0);
+
+  // 2. Garis Sambungan Cor Lantai Beton (Concrete Slab Expansion Grid)
+  ctx.strokeStyle = '#141822';
+  ctx.lineWidth = 3;
+  for (let p = 0; p <= 1024; p += 128) {
+    ctx.beginPath();
+    ctx.moveTo(p, 0);
+    ctx.lineTo(p, 1024);
+    ctx.stroke();
+
+    ctx.beginPath();
+    ctx.moveTo(0, p);
+    ctx.lineTo(1024, p);
+    ctx.stroke();
+  }
+
+  // 3. Service Bay Stall (Area Parkir Servis Truk)
+  const bayX = 180, bayY = 80, bayW = 664, bayH = 864;
+  ctx.fillStyle = '#242c3b';
+  ctx.fillRect(bayX, bayY, bayW, bayH);
+
+  // 4. Garis Pembatas Hazard Kuning-Hitam (Yellow & Black Diagonal Safety Border)
+  ctx.save();
+  ctx.lineWidth = 20;
+  ctx.strokeStyle = '#eab308';
+  ctx.strokeRect(bayX, bayY, bayW, bayH);
+  ctx.restore();
+
+  // Strip Diagonal Hitam pada Garis Hazard
+  ctx.fillStyle = '#0f172a';
+  for (let x = bayX; x < bayX + bayW; x += 36) {
+    ctx.beginPath();
+    ctx.moveTo(x, bayY - 10);
+    ctx.lineTo(x + 16, bayY - 10);
+    ctx.lineTo(x + 6, bayY + 10);
+    ctx.lineTo(x - 10, bayY + 10);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(x, bayY + bayH - 10);
+    ctx.lineTo(x + 16, bayY + bayH - 10);
+    ctx.lineTo(x + 6, bayY + bayH + 10);
+    ctx.lineTo(x - 10, bayY + bayH + 10);
+    ctx.fill();
+  }
+  for (let y = bayY; y < bayY + bayH; y += 36) {
+    ctx.beginPath();
+    ctx.moveTo(bayX - 10, y);
+    ctx.lineTo(bayX - 10, y + 16);
+    ctx.lineTo(bayX + 10, y + 6);
+    ctx.lineTo(bayX + 10, y - 10);
+    ctx.fill();
+
+    ctx.beginPath();
+    ctx.moveTo(bayX + bayW - 10, y);
+    ctx.lineTo(bayX + bayW - 10, y + 16);
+    ctx.lineTo(bayX + bayW + 10, y + 6);
+    ctx.lineTo(bayX + bayW + 10, y - 10);
+    ctx.fill();
+  }
+
+  // 5. Dyno Pit / Area Roller Pengujian Tengah (Recessed Metal Plate)
+  ctx.fillStyle = '#111722';
+  ctx.fillRect(bayX + 70, bayY + 180, bayW - 140, bayH - 360);
+  ctx.strokeStyle = '#38bdf8';
+  ctx.lineWidth = 2;
+  ctx.strokeRect(bayX + 70, bayY + 180, bayW - 140, bayH - 360);
+
+  // 6. Garis Putus-Putus Jalur Roda
+  ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+  ctx.setLineDash([20, 20]);
+  ctx.lineWidth = 4;
+  ctx.beginPath();
+  ctx.moveTo(340, bayY + 40);
+  ctx.lineTo(340, bayY + bayH - 40);
+  ctx.stroke();
+
+  ctx.beginPath();
+  ctx.moveTo(684, bayY + 40);
+  ctx.lineTo(684, bayY + bayH - 40);
+  ctx.stroke();
+  ctx.setLineDash([]);
+
+  // 7. Stensil Teks Bengkel
+  ctx.fillStyle = '#fbbf24';
+  ctx.font = 'bold 34px monospace';
+  ctx.textAlign = 'center';
+  ctx.fillText('▶ SERVICE BAY 01 ◀', 512, bayY + 68);
+
+  ctx.fillStyle = 'rgba(255, 255, 255, 0.7)';
+  ctx.font = 'bold 24px monospace';
+  ctx.fillText('TIRE & BRAKE INSPECTION AREA', 512, bayY + bayH - 50);
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.ClampToEdgeWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.needsUpdate = true;
+  return texture;
+};
+
 
 export default function VehicleAnimation3D({
   wheelCount,
@@ -71,6 +204,8 @@ export default function VehicleAnimation3D({
   wheelConfig,
   category,
   onDropTireToWheel,
+  onRemoveTireFromWheel,
+  onReturnBorrowedTire,
   draggedTireId
 }: VehicleAnimation3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -113,6 +248,9 @@ export default function VehicleAnimation3D({
   const [cameraView, setCameraView] = useState<'perspective' | 'top' | 'side'>('perspective');
   const [hoveredWheelId, setHoveredWheelId] = useState<string | null>(null);
 
+  // State Modal Detail Data Ban yang Terpasang
+  const [detailModalTire, setDetailModalTire] = useState<{ tire: StockBanItem; wheelId: string } | null>(null);
+
   // State & Ref untuk Drag and Drop langsung ke 3D canvas
   const [dndHoverWheelId, setDndHoverWheelId] = useState<string | null>(null);
   const dndHoverWheelIdRef = useRef<string | null>(null);
@@ -145,7 +283,7 @@ export default function VehicleAnimation3D({
     }
 
     const width = container.clientWidth || 360;
-    const height = container.clientHeight || Math.min(Math.max(window.innerHeight * 0.44, 340), 440);
+    const height = container.clientHeight || Math.min(Math.max(window.innerHeight * 0.54, 360), 500);
 
     // 1. Renderer (High Fidelity, Vivid Lighting)
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
@@ -158,8 +296,10 @@ export default function VehicleAnimation3D({
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // 2. Scene
+    // 2. Scene dengan background & fog bernuansa garasi malam/indoor profesional
     const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x0a0f1d);
+    scene.fog = new THREE.Fog(0x0a0f1d, 22, 45);
     sceneRef.current = scene;
 
     // 3. Camera & Preset Posisi
@@ -171,13 +311,15 @@ export default function VehicleAnimation3D({
     camera.lookAt(presets.target);
     cameraRef.current = camera;
 
-    // 4. OrbitControls
+    // 4. OrbitControls dengan pembatas ketat agar kamera tidak keluar dari area animasi 3D
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.06;
-    controls.minDistance = 3.2;
-    controls.maxDistance = 40;
+    controls.enablePan = false; // Batasi: matikan panning agar kamera tidak digeser keluar dari area animasi 3D
+    controls.minDistance = 3.0; // Batas zoom in terdekat
+    controls.maxDistance = getMaxCameraDistance(wheelCount); // Batas zoom out terjauh agar tidak tembus dinding luar bengkel
     controls.maxPolarAngle = Math.PI / 2 - 0.04; // Jangan tembus ke bawah lantai
+    controls.minPolarAngle = 0.05; // Mencegah kamera terbalik saat diputar ke atas
     controls.target.copy(presets.target);
     controls.autoRotate = false; // TIDAK BERPUTAR saat awal
     controls.autoRotateSpeed = 1.2;
@@ -212,28 +354,321 @@ export default function VehicleAnimation3D({
     frontFillLight.position.set(0, 5, 12);
     scene.add(frontFillLight);
 
-    // 6. Lantai Studio Showroom Mewah (Bukan Grid Neon Terang)
-    // Grid halus warna slate netral
-    const gridHelper = new THREE.GridHelper(30, 48, 0x334155, 0x1e293b);
-    gridHelper.position.y = -0.01;
-    scene.add(gridHelper);
+    // ═════════════════════════════════════════════════════════════════════════════
+    // ── 6. LINGKUNGAN 3D GARASI BENGKEL (HEAVY FLEET WORKSHOP GARAGE) ──
+    // ═════════════════════════════════════════════════════════════════════════════
 
-    // Cincin Platform Meja Putar Showroom (Subtle Turntable Ring)
-    const ringGeo = new THREE.RingGeometry(6.4, 6.46, 64);
-    const ringMat = new THREE.MeshBasicMaterial({ color: 0x38bdf8, transparent: true, opacity: 0.22, side: THREE.DoubleSide });
-    const turntableRing = new THREE.Mesh(ringGeo, ringMat);
-    turntableRing.rotation.x = -Math.PI / 2;
-    turntableRing.position.y = -0.008;
-    scene.add(turntableRing);
+    // A. Dasar Pondasi Luas & Lantai Epoxy Garasi Bengkel (Mencegah tampilan void hitam di tepi kanvas)
+    const baseFloorGeo = new THREE.PlaneGeometry(120, 120);
+    const baseFloorMat = new THREE.MeshStandardMaterial({
+      color: 0x0f172a,
+      roughness: 0.92,
+      metalness: 0.08,
+    });
+    const baseFloorMesh = new THREE.Mesh(baseFloorGeo, baseFloorMat);
+    baseFloorMesh.rotation.x = -Math.PI / 2;
+    baseFloorMesh.position.set(0, -0.015, 0);
+    baseFloorMesh.receiveShadow = true;
+    scene.add(baseFloorMesh);
 
-    // Soft Drop Shadow Floor (Menerima bayangan kontak realistis di bawah ban)
-    const shadowGeo = new THREE.PlaneGeometry(30, 30);
-    const shadowMat = new THREE.ShadowMaterial({ opacity: 0.55 });
+    const floorTexture = createWorkshopFloorTexture();
+    floorTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
+    const floorGeo = new THREE.PlaneGeometry(36, 46);
+    const floorMat = new THREE.MeshStandardMaterial({
+      map: floorTexture,
+      roughness: 0.38,
+      metalness: 0.22,
+    });
+    const floorMesh = new THREE.Mesh(floorGeo, floorMat);
+    floorMesh.rotation.x = -Math.PI / 2;
+    floorMesh.position.set(0, -0.005, 0);
+    floorMesh.receiveShadow = true;
+    scene.add(floorMesh);
+
+    // B. Soft Contact Shadow Plane di atas Lantai
+    const shadowGeo = new THREE.PlaneGeometry(32, 42);
+    const shadowMat = new THREE.ShadowMaterial({ opacity: 0.58 });
     const shadowPlane = new THREE.Mesh(shadowGeo, shadowMat);
     shadowPlane.rotation.x = -Math.PI / 2;
-    shadowPlane.position.y = -0.005;
+    shadowPlane.position.y = -0.002;
     shadowPlane.receiveShadow = true;
     scene.add(shadowPlane);
+
+    // C. Dyno / Brake Test Roller Cylinders (Roller Pengujian Putaran Roda di Lantai)
+    const rollerMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.85, roughness: 0.25 });
+    const rollerHousingMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.9, roughness: 0.4 });
+    const dynoRollers: THREE.Mesh[] = [];
+
+    // Letakkan roller uji putar pada area gandar (z = -1.9, -3.3, -4.7, 1.6, dll)
+    const rollerZPositions = wheelCount === 4
+      ? [1.05, -0.95]
+      : wheelCount === 6
+        ? [1.6, -1.6]
+        : wheelCount === 8
+          ? [-1.9, -3.3]
+          : [-1.9, -3.3, -4.7];
+
+    rollerZPositions.forEach((rz) => {
+      [-1.25, 1.25].forEach((rx) => {
+        // Dudukan frame roller
+        const housing = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.06, 0.8), rollerHousingMat);
+        housing.position.set(rx, 0.01, rz);
+        scene.add(housing);
+
+        // Sepasang roller silinder putar
+        [-0.22, 0.22].forEach((offsetZ) => {
+          const rollerGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.76, 20);
+          rollerGeo.rotateZ(Math.PI / 2);
+          const rollerMesh = new THREE.Mesh(rollerGeo, rollerMat);
+          rollerMesh.position.set(rx, 0.04, rz + offsetZ);
+          rollerMesh.castShadow = true;
+          scene.add(rollerMesh);
+          dynoRollers.push(rollerMesh);
+        });
+      });
+    });
+
+    // D. Dinding Garasi Bengkel (Workshop Walls)
+    const wallConcreteMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.85, metalness: 0.1 });
+    const wallPanelMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.7, metalness: 0.3 });
+    const steelBeamMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.75, roughness: 0.35 });
+    const yellowHazardMat = new THREE.MeshStandardMaterial({ color: 0xeab308, metalness: 0.4, roughness: 0.4 });
+    const windowGlassMat = new THREE.MeshStandardMaterial({
+      color: 0x38bdf8,
+      emissive: 0x0284c7,
+      emissiveIntensity: 0.4,
+      transparent: true,
+      opacity: 0.75,
+    });
+
+    // 1. DINDING BELAKANG (Rear Wall: z = -22.5)
+    const backWall = new THREE.Mesh(new THREE.BoxGeometry(36, 11, 0.5), wallConcreteMat);
+    backWall.position.set(0, 5.5, -22.5);
+    scene.add(backWall);
+
+    // Pintu Garasi Geser / Overhead Rolling Door Besar
+    const rollDoorFrame = new THREE.Mesh(new THREE.BoxGeometry(16.5, 9.2, 0.4), steelBeamMat);
+    rollDoorFrame.position.set(0, 4.6, -22.1);
+    scene.add(rollDoorFrame);
+
+    const rollDoorMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.65, roughness: 0.45 });
+    const rollDoor = new THREE.Mesh(new THREE.BoxGeometry(15.8, 8.8, 0.15), rollDoorMat);
+    rollDoor.position.set(0, 4.5, -22.0);
+    scene.add(rollDoor);
+
+    // Lis horizontal bilah rolling door
+    for (let ry = 0.8; ry <= 8.5; ry += 0.8) {
+      const slat = new THREE.Mesh(new THREE.BoxGeometry(15.8, 0.05, 0.18), steelBeamMat);
+      slat.position.set(0, ry, -21.95);
+      scene.add(slat);
+    }
+
+    // Safety stripe bar kuning di bagian bawah rolling door
+    const doorBottomStripe = new THREE.Mesh(new THREE.BoxGeometry(15.8, 0.35, 0.22), yellowHazardMat);
+    doorBottomStripe.position.set(0, 0.25, -21.95);
+    scene.add(doorBottomStripe);
+
+    // Papan Nama Bengkel LED di atas pintu belakang
+    const signBox = new THREE.Mesh(new THREE.BoxGeometry(12, 1.2, 0.25), new THREE.MeshStandardMaterial({ color: 0x0f172a }));
+    signBox.position.set(0, 9.8, -22.1);
+    scene.add(signBox);
+    const signFace = new THREE.Mesh(
+      new THREE.BoxGeometry(11.6, 0.85, 0.05),
+      new THREE.MeshStandardMaterial({ color: 0x0284c7, emissive: 0x0284c7, emissiveIntensity: 0.6 })
+    );
+    signFace.position.set(0, 9.8, -21.95);
+    scene.add(signFace);
+
+    // 1.B DINDING DEPAN (Front Entrance Wall: z = +22.5) - Menutup total batas ruang bengkel agar tidak tampak luar kosong
+    const frontWall = new THREE.Mesh(new THREE.BoxGeometry(36, 11, 0.5), wallConcreteMat);
+    frontWall.position.set(0, 5.5, 22.5);
+    scene.add(frontWall);
+
+    // Pintu Masuk Rolling Door Depan (Front Bay Entrance)
+    const frontDoorFrame = new THREE.Mesh(new THREE.BoxGeometry(16.5, 9.2, 0.4), steelBeamMat);
+    frontDoorFrame.position.set(0, 4.6, 22.1);
+    scene.add(frontDoorFrame);
+
+    const frontRollDoor = new THREE.Mesh(new THREE.BoxGeometry(15.8, 8.8, 0.15), rollDoorMat);
+    frontRollDoor.position.set(0, 4.5, 22.0);
+    scene.add(frontRollDoor);
+
+    for (let ry = 0.8; ry <= 8.5; ry += 0.8) {
+      const slat = new THREE.Mesh(new THREE.BoxGeometry(15.8, 0.05, 0.18), steelBeamMat);
+      slat.position.set(0, ry, 21.95);
+      scene.add(slat);
+    }
+
+    const frontDoorBottomStripe = new THREE.Mesh(new THREE.BoxGeometry(15.8, 0.35, 0.22), yellowHazardMat);
+    frontDoorBottomStripe.position.set(0, 0.25, 21.95);
+    scene.add(frontDoorBottomStripe);
+
+    const frontSignBox = new THREE.Mesh(new THREE.BoxGeometry(12, 1.2, 0.25), new THREE.MeshStandardMaterial({ color: 0x0f172a }));
+    frontSignBox.position.set(0, 9.8, 22.1);
+    scene.add(frontSignBox);
+    const frontSignFace = new THREE.Mesh(
+      new THREE.BoxGeometry(11.6, 0.85, 0.05),
+      new THREE.MeshStandardMaterial({ color: 0x059669, emissive: 0x059669, emissiveIntensity: 0.6 })
+    );
+    frontSignFace.position.set(0, 9.8, 21.95);
+    scene.add(frontSignFace);
+
+    // 2. DINDING SAMPING KIRI (Left Wall: x = -17.5)
+    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.5, 11, 46), wallPanelMat);
+    leftWall.position.set(-17.5, 5.5, 0);
+    scene.add(leftWall);
+
+    // 3. DINDING SAMPING KANAN (Right Wall: x = +17.5)
+    const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.5, 11, 46), wallPanelMat);
+    rightWall.position.set(17.5, 5.5, 0);
+    scene.add(rightWall);
+
+    // Jendela Kaca Pabrik Atas pada Dinding Kiri & Kanan
+    for (let wz = -16; wz <= 16; wz += 8) {
+      const winL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.2, 4.8), windowGlassMat);
+      winL.position.set(-17.2, 7.8, wz);
+      scene.add(winL);
+
+      const winR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.2, 4.8), windowGlassMat);
+      winR.position.set(17.2, 7.8, wz);
+      scene.add(winR);
+    }
+
+    // Tiang Kolom Baja H-Beam Struktur Bengkel (kiri & kanan)
+    for (let cz = -20; cz <= 20; cz += 8) {
+      [-17.1, 17.1].forEach((cx) => {
+        const col = new THREE.Mesh(new THREE.BoxGeometry(0.5, 11, 0.5), steelBeamMat);
+        col.position.set(cx, 5.5, cz);
+        scene.add(col);
+
+        const baseHazard = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.9, 0.58), yellowHazardMat);
+        baseHazard.position.set(cx, 0.45, cz);
+        scene.add(baseHazard);
+      });
+    }
+
+    // E. Rangka Atap Kuda-Kuda Baja & Lampu Gantung Bengkel (Roof Trusses & Shop Lights)
+    const ceilingGroup = new THREE.Group();
+    scene.add(ceilingGroup);
+
+    for (let tz = -16; tz <= 16; tz += 10.6) {
+      const truss = new THREE.Mesh(new THREE.BoxGeometry(35, 0.4, 0.35), steelBeamMat);
+      truss.position.set(0, 11.5, tz);
+      ceilingGroup.add(truss);
+    }
+
+    // Lampu Strip LED Industri Bengkel (Di Sisi Kiri & Kanan, Tidak Menutupi Tengah)
+    [-6.5, 6.5].forEach((lx) => {
+      [-8, 8].forEach((lz) => {
+        const fixture = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.15, 8.5), steelBeamMat);
+        fixture.position.set(lx, 11.2, lz);
+        ceilingGroup.add(fixture);
+
+        const tube = new THREE.Mesh(
+          new THREE.BoxGeometry(0.25, 0.05, 8.2),
+          new THREE.MeshBasicMaterial({ color: 0xffffff })
+        );
+        tube.position.set(lx, 11.1, lz);
+        ceilingGroup.add(tube);
+      });
+    });
+
+    // F. PERALATAN & PROPERTI BENGKEL NYATA (REALISTIC WORKSHOP EQUIPMENT)
+    // 1. RAK BAN BERTINGKAT BENGKEL (Double-Tier Truck Tire Storage Rack) di Sisi Kanan (x = 15.2, z = 3)
+    const rackFrameMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.3 });
+    const rackTireRubberMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.9, metalness: 0.1 });
+    const rackRimMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9, roughness: 0.2 });
+
+    const rackLeft = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.8, 1.2), rackFrameMat);
+    rackLeft.position.set(15.2, 1.4, 0.8);
+    const rackRight = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.8, 1.2), rackFrameMat);
+    rackRight.position.set(15.2, 1.4, 6.2);
+    const rackBeamLower = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 5.5), rackFrameMat);
+    rackBeamLower.position.set(15.2, 0.45, 3.5);
+    const rackBeamUpper = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 5.5), rackFrameMat);
+    rackBeamUpper.position.set(15.2, 1.75, 3.5);
+    scene.add(rackLeft, rackRight, rackBeamLower, rackBeamUpper);
+
+    // Deretan Ban Cadangan di Rak
+    for (let rz = 1.4; rz <= 5.6; rz += 0.82) {
+      // Tingkat bawah
+      const rt1 = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.24, 20), rackTireRubberMat);
+      rt1.rotateZ(Math.PI / 2);
+      rt1.position.set(15.2, 0.72, rz);
+      const rr1 = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.25, 16), rackRimMat);
+      rr1.rotateZ(Math.PI / 2);
+      rr1.position.set(15.2, 0.72, rz);
+      scene.add(rt1, rr1);
+
+      // Tingkat atas
+      const rt2 = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.24, 20), rackTireRubberMat);
+      rt2.rotateZ(Math.PI / 2);
+      rt2.position.set(15.2, 2.05, rz);
+      const rr2 = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.25, 16), rackRimMat);
+      rr2.rotateZ(Math.PI / 2);
+      rr2.position.set(15.2, 2.05, rz);
+      scene.add(rt2, rr2);
+    }
+
+    // 2. LEMARI PERKAKAS MEKANIK MERAH (Heavy-Duty Red Mechanic Tool Chest) di Sisi Kiri (x = -15.4, z = 4)
+    const toolRedMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, metalness: 0.65, roughness: 0.3 });
+    const toolChromeMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, metalness: 0.95, roughness: 0.1 });
+    const toolBox = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.4, 2.2), toolRedMat);
+    toolBox.position.set(-15.4, 0.8, 4);
+    toolBox.castShadow = true;
+    scene.add(toolBox);
+    for (let dy = 0.35; dy <= 1.35; dy += 0.22) {
+      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.04, 1.8), toolChromeMat);
+      handle.position.set(-14.78, dy, 4);
+      scene.add(handle);
+    }
+
+    // Meja Kerja Mekanik (Workbench) dengan Tanggem Catok
+    const benchTop = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.12, 3.2), new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.8 }));
+    benchTop.position.set(-15.3, 0.95, -2);
+    const benchLegs = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.9, 3.0), steelBeamMat);
+    benchLegs.position.set(-15.3, 0.45, -2);
+    const benchVise = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.3, 0.35), new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.8 }));
+    benchVise.position.set(-14.75, 1.15, -2.8);
+    scene.add(benchTop, benchLegs, benchVise);
+
+    // 3. DRUM OLI / PELUMAS INDUSTRI (200L Oil Drums) di Sisi Kanan (x = 15.4, z = -10)
+    const oilBlueMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.6, roughness: 0.35 });
+    const oilYellowMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.6, roughness: 0.35 });
+    [
+      { x: 15.4, z: -9.4, mat: oilBlueMat },
+      { x: 15.4, z: -10.6, mat: oilBlueMat },
+      { x: 14.5, z: -10.0, mat: oilYellowMat }
+    ].forEach((d) => {
+      const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 1.15, 18), d.mat);
+      drum.position.set(d.x, 0.58, d.z);
+      drum.castShadow = true;
+      const rimTop = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.04, 18), steelBeamMat);
+      rimTop.position.set(d.x, 1.15, d.z);
+      scene.add(drum, rimTop);
+    });
+
+    // 4. KOMPRESOR ANGIN INDUSTRI (Air Compressor) di Sisi Kiri (x = -15.4, z = -10)
+    const compTank = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 1.8, 18), toolRedMat);
+    compTank.rotateZ(Math.PI / 2);
+    compTank.position.set(-15.4, 0.65, -10);
+    compTank.castShadow = true;
+    const compMotor = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.7), new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.8 }));
+    compMotor.position.set(-15.4, 1.15, -10);
+    scene.add(compTank, compMotor);
+
+    // 5. TRAFFIC SAFETY CONES (Kerucut Pengaman Bengkel) di Sudut Depan Bay
+    const coneOrangeMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.5 });
+    const coneWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.4 });
+    [-5.8, 5.8].forEach((cx) => {
+      const coneBase = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.05, 0.65), coneOrangeMat);
+      coneBase.position.set(cx, 0.03, 11.5);
+      const coneBody = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.85, 16), coneOrangeMat);
+      coneBody.position.set(cx, 0.45, 11.5);
+      const coneStripe = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.17, 0.18, 16), coneWhiteMat);
+      coneStripe.position.set(cx, 0.45, 11.5);
+      scene.add(coneBase, coneBody, coneStripe);
+    });
 
     // Group Utama Truk / Kendaraan
     const vehicleGroup = new THREE.Group();
@@ -856,6 +1291,10 @@ export default function VehicleAnimation3D({
         if (hitWheelId) {
           const tire = getTireForWheelRef.current(hitWheelId);
           onWheelClickRef.current?.(hitWheelId, tire);
+          if (tire) {
+            // Jika ban yang sudah terpasang ditekan, munculkan modal detail data ban
+            setDetailModalTire({ tire, wheelId: hitWheelId });
+          }
         }
       }
     };
@@ -897,31 +1336,49 @@ export default function VehicleAnimation3D({
       const delta = clock.getDelta();
       const time = clock.getElapsedTime();
 
-      // 1. Controls Update
+      // 1. Controls Update & Guardrail Pembatas Kamera
       controls.update();
 
-      // 2. Animasi Putar Ban (Rolling Tires) - Hanya aktif jika user menekan tombol jalan
-      if (isRollingRef.current) {
-        const rollSpeed = 1.4 * delta;
-        wheelsMeshMap.current.forEach((wheelGroup, wId) => {
-          const assignedTire = getTireForWheelRef.current(wId);
-          if (assignedTire) {
-            wheelGroup.children.forEach((child) => {
-              if (
-                child.name === 'tireMesh' ||
-                child.name === 'treadMesh' ||
-                child.name === 'rimMesh' ||
-                child.name === 'hubMesh'
-              ) {
-                child.rotation.x += rollSpeed;
-              }
-            });
-          }
-        });
-      }
+      // Guardrail pengaman batas posisi kamera (tidak keluar menembus atap ataupun lantai garasi)
+      if (camera.position.y > 10.2) camera.position.y = 10.2;
+      if (camera.position.y < 0.25) camera.position.y = 0.25;
 
-      // 3. Efek Suspensi Berayun Lembut (Idling Realistis)
-      vehicleGroup.position.y = Math.sin(time * 2.2) * 0.02;
+      // Sembunyikan elemen atap/lampu bengkel secara otomatis saat kamera melihat tegak lurus dari atas
+      const isViewingFromTop = camera.position.y > 4.5 && Math.abs(camera.position.x) < 2.5;
+      ceilingGroup.visible = !isViewingFromTop;
+
+      // 2. Animasi Putar Roda & Dyno Rollers (Testing / Rolling Simulation in Workshop Bay)
+      if (isRollingRef.current) {
+        const testSpeed = 4.0;
+        const rollSpeed = (testSpeed / tireRadius) * delta;
+
+        // A. Putar Roda-Roda Truk
+        wheelsMeshMap.current.forEach((wheelGroup) => {
+          wheelGroup.children.forEach((child) => {
+            if (
+              child.name === 'tireMesh' ||
+              child.name === 'treadMesh' ||
+              child.name === 'rimMesh' ||
+              child.name === 'hubMesh' ||
+              child.name === 'brakeDrum' ||
+              child.name === 'studsMesh'
+            ) {
+              child.rotation.x += rollSpeed;
+            }
+          });
+        });
+
+        // B. Putar Dyno Inspection Rollers di Lantai Bengkel Secara Sinkron
+        dynoRollers.forEach((roller) => {
+          roller.rotation.x += rollSpeed * 1.4;
+        });
+
+        // C. Getaran Mesin & Suspensi Dinamis saat Uji Putar (Dyno Test Vibration)
+        vehicleGroup.position.y = Math.sin(time * 10.0) * 0.010 + Math.cos(time * 16.0) * 0.005;
+      } else {
+        // Efek Idling Mesin Lembut saat Parkir / Diam di Bay Bengkel
+        vehicleGroup.position.y = Math.sin(time * 2.0) * 0.005;
+      }
 
       // 4. Update Visual Status Roda Terpasang / Seleksi Aktif / Drag Target
       wheelsMeshMap.current.forEach((wheelGroup, wId) => {
@@ -941,24 +1398,50 @@ export default function VehicleAnimation3D({
         const assignedTire = getTireForWheelRef.current(wId);
         const hasTire = Boolean(assignedTire);
 
-        // ── ATURAN UTAMA: Jika ban belum terpakai / terpasang, sembunyikan ban fisik ──
-        if (tireMesh) tireMesh.visible = hasTire;
-        if (treadMesh) treadMesh.visible = hasTire;
-        if (rimMesh) rimMesh.visible = hasTire;
-        if (hubMesh) hubMesh.visible = hasTire;
+        // ── ATURAN UTAMA: Tampilkan ban fisik 3D jika roda sudah terpasang ATAU sedang disasar saat drag ban (live 3D preview) ──
+        const showPhysicalTire = hasTire || isDndHover;
+        if (tireMesh) {
+          tireMesh.visible = showPhysicalTire;
+          const tMat = tireMesh.material as THREE.MeshStandardMaterial;
+          if (isDndHover && !hasTire) {
+            tMat.emissive.setHex(0x064e3b);
+            tMat.emissiveIntensity = 0.35;
+          } else {
+            tMat.emissive.setHex(0x000000);
+            tMat.emissiveIntensity = 0;
+          }
+        }
+        if (treadMesh) treadMesh.visible = showPhysicalTire;
+        if (rimMesh) {
+          rimMesh.visible = showPhysicalTire;
+          const mat = rimMesh.material as THREE.MeshStandardMaterial;
+          if (isDndHover) {
+            mat.color.setHex(0x10b981);
+            mat.emissive.setHex(0x047857);
+            mat.emissiveIntensity = 0.85;
+          } else if (hasTire) {
+            if (isSelected) {
+              mat.color.setHex(0x38bdf8);
+              mat.emissive.setHex(0x075985);
+              mat.emissiveIntensity = 0.6;
+            } else {
+              mat.color.setHex(0xe2e8f0);
+              mat.emissive.setHex(0x000000);
+              mat.emissiveIntensity = 0;
+            }
+          }
+        }
+        if (hubMesh) hubMesh.visible = showPhysicalTire;
 
-        // Tromol, kaliper rem, dan siluet ghost tire hanya muncul jika ban BELUM dipasang (atau sedang disasar DnD)
-        if (brakeDrum) brakeDrum.visible = !hasTire;
-        if (brakeCaliper) brakeCaliper.visible = !hasTire;
-        if (studsMesh) studsMesh.visible = !hasTire;
+        // Tromol, kaliper rem, dan baut hanya muncul jika ban belum terpasang DAN tidak sedang preview DnD
+        if (brakeDrum) brakeDrum.visible = !showPhysicalTire;
+        if (brakeCaliper) brakeCaliper.visible = !showPhysicalTire;
+        if (studsMesh) studsMesh.visible = !showPhysicalTire;
 
         if (ghostTireMesh) {
-          ghostTireMesh.visible = !hasTire || isDndHover;
+          ghostTireMesh.visible = !hasTire && !isDndHover;
           const gtMat = ghostTireMesh.material as THREE.MeshStandardMaterial;
-          if (isDndHover) {
-            gtMat.color.setHex(0x10b981); // Emerald glow saat drag over
-            gtMat.opacity = 0.35;
-          } else if (isSelected) {
+          if (isSelected) {
             gtMat.color.setHex(0x38bdf8);
             gtMat.opacity = 0.16;
           } else {
@@ -968,12 +1451,9 @@ export default function VehicleAnimation3D({
         }
 
         if (ghostLine) {
-          ghostLine.visible = !hasTire || isDndHover;
+          ghostLine.visible = !hasTire && !isDndHover;
           const glMat = ghostLine.material as THREE.LineBasicMaterial;
-          if (isDndHover) {
-            glMat.color.setHex(0x34d399);
-            glMat.opacity = 0.85;
-          } else if (isSelected) {
+          if (isSelected) {
             glMat.color.setHex(0x7dd3fc);
             glMat.opacity = 0.55;
           } else {
@@ -998,24 +1478,6 @@ export default function VehicleAnimation3D({
             halo.rotation.x = Math.sin(time * 3) * 0.1;
           }
         }
-
-        // Velg / Rim warna saat terpasang & terpilih
-        if (hasTire && rimMesh) {
-          const mat = rimMesh.material as THREE.MeshStandardMaterial;
-          if (isDndHover) {
-            mat.color.setHex(0x10b981);
-            mat.emissive.setHex(0x064e3b);
-            mat.emissiveIntensity = 0.8;
-          } else if (isSelected) {
-            mat.color.setHex(0x38bdf8);
-            mat.emissive.setHex(0x075985);
-            mat.emissiveIntensity = 0.6;
-          } else {
-            mat.color.setHex(0xe2e8f0);
-            mat.emissive.setHex(0x000000);
-            mat.emissiveIntensity = 0;
-          }
-        }
       });
 
       renderer.render(scene, camera);
@@ -1027,7 +1489,7 @@ export default function VehicleAnimation3D({
     const handleResize = () => {
       if (!container || !rendererRef.current || !cameraRef.current) return;
       const w = container.clientWidth || 360;
-      const h = container.clientHeight || Math.min(Math.max(window.innerHeight * 0.44, 340), 440);
+      const h = container.clientHeight || Math.min(Math.max(window.innerHeight * 0.54, 360), 500);
       const isMob = w < 500;
       cameraRef.current.fov = isMob ? 48 : 40;
       cameraRef.current.aspect = w / h;
@@ -1042,6 +1504,9 @@ export default function VehicleAnimation3D({
       renderer.domElement.removeEventListener('pointerdown', handlePointerDown);
       renderer.domElement.removeEventListener('pointermove', handlePointerMove);
       if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
+      floorTexture.dispose();
+      floorMat.dispose();
+      shadowMat.dispose();
       renderer.dispose();
       controls.dispose();
     };
@@ -1062,6 +1527,9 @@ export default function VehicleAnimation3D({
     setIsAutoRotate(false);
     const presets = getVehicleCameraPreset(wheelCount);
     controlsRef.current.target.copy(presets.target);
+    controlsRef.current.enablePan = false;
+    controlsRef.current.minDistance = 3.0;
+    controlsRef.current.maxDistance = getMaxCameraDistance(wheelCount);
 
     if (view === 'perspective') {
       cameraRef.current.position.copy(presets.perspective);
@@ -1221,9 +1689,9 @@ export default function VehicleAnimation3D({
             type="button"
             className={`vs-3d-tool-btn ${isRolling ? 'active' : ''}`}
             onClick={() => setIsRolling(!isRolling)}
-            title={isRolling ? 'Jeda Animasi Ban Berjalan' : 'Jalankan Ban'}
+            title={isRolling ? 'Jeda Uji Putaran Roda di Bay Bengkel' : 'Mulai Uji Putaran Roda di Bay Bengkel'}
           >
-            🚗 {isRolling ? 'Ban Jalan' : 'Ban Diam'}
+            🔧 {isRolling ? 'Uji Putar Roda' : 'Roda Diam'}
           </button>
         </div>
       </div>
@@ -1281,9 +1749,44 @@ export default function VehicleAnimation3D({
 
             <div className="vs-3d-tag-right">
               {activeTire ? (
-                <span className="vs-3d-tire-pill vs-3d-tire-pill--ok">
-                  ✓ #{activeTire.nomor_seri} • {activeTire.merk}
-                </span>
+                <div className="vs-3d-assigned-actions">
+                  <span
+                    className="vs-3d-tire-pill vs-3d-tire-pill--ok vs-3d-tire-pill--clickable"
+                    onClick={() => {
+                      if (activeTire && selectedWheelId) {
+                        setDetailModalTire({ tire: activeTire, wheelId: selectedWheelId });
+                      }
+                    }}
+                    title="Tekan untuk melihat detail data ban"
+                  >
+                    ✓ #{activeTire.nomor_seri} • {activeTire.merk} 📋
+                  </span>
+                  <button
+                    type="button"
+                    className="vs-3d-detail-btn"
+                    onClick={() => {
+                      if (activeTire && selectedWheelId) {
+                        setDetailModalTire({ tire: activeTire, wheelId: selectedWheelId });
+                      }
+                    }}
+                    title="Lihat rincian lengkap data ban ini"
+                  >
+                    ℹ️ Detail Ban
+                  </button>
+                  <button
+                    type="button"
+                    className="vs-detach-btn vs-detach-btn--pill"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      if (selectedWheelId) {
+                        onRemoveTireFromWheel?.(selectedWheelId);
+                      }
+                    }}
+                    title="Copot ban dari posisi roda ini dan kembalikan ke inventori"
+                  >
+                    ✕ Copot Ban
+                  </button>
+                </div>
               ) : (
                 <span className="vs-3d-tire-pill vs-3d-tire-pill--empty">
                   ⚪ Dudukan Kosong (Belum Terpasang)
@@ -1297,10 +1800,29 @@ export default function VehicleAnimation3D({
           </div>
         ) : (
           <div className="vs-3d-hint-text">
-            <span>👆 Geser untuk memutar • Klik roda untuk detail • Tarik kartu ban ke roda untuk memasang</span>
+            <span>👆 Geser untuk memutar • Klik ban terpasang untuk melihat data detail • Tarik kartu ban ke roda untuk memasang</span>
           </div>
         )}
       </div>
+
+      {/* ── 4. MODAL POPUP DETAIL LENGKAP DATA BAN ── */}
+      {detailModalTire && (
+        <TireDetailModal
+          tire={detailModalTire.tire}
+          wheelId={detailModalTire.wheelId}
+          wheelMeta={wheelConfig?.wheels.find((w) => w.id === detailModalTire.wheelId) || null}
+          onClose={() => setDetailModalTire(null)}
+          onRemove={() => {
+            if (detailModalTire.wheelId) {
+              onRemoveTireFromWheel?.(detailModalTire.wheelId);
+            }
+          }}
+          onReturn={() => {
+            onReturnBorrowedTire?.(detailModalTire.tire.id);
+            setDetailModalTire(null);
+          }}
+        />
+      )}
     </div>
   );
 }

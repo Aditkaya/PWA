@@ -957,7 +957,7 @@
 
 .vs-3d-viewport {
   width: 100%;
-  height: clamp(280px, 44vh, 380px);
+  height: clamp(340px, 56vh, 480px);
   display: block;
   touch-action: none;
 }
@@ -1405,6 +1405,58 @@
 
 .vs-detach-btn:hover {
   background: rgba(239, 68, 68, 0.2);
+}
+
+.vs-3d-assigned-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.vs-detach-btn--pill {
+  background: rgba(239, 68, 68, 0.18);
+  border: 1px solid rgba(239, 68, 68, 0.45);
+  color: #fca5a5;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+  padding: 3px 8px;
+  border-radius: 6px;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.vs-detach-btn--pill:hover {
+  background: rgba(239, 68, 68, 0.35);
+  border-color: #ef4444;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(239, 68, 68, 0.35);
+}
+
+.vs-detach-btn--pill:active {
+  transform: translateY(0);
+}
+
+.vs-btn-quick-assign {
+  cursor: pointer;
+  transition: all 0.2s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+
+.vs-btn-quick-assign:hover {
+  background: rgba(56, 189, 248, 0.3);
+  border-color: #38bdf8;
+  color: #ffffff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(56, 189, 248, 0.3);
+}
+
+.vs-btn-quick-assign:active {
+  transform: translateY(0);
 }
 
 /* 2. DROP ZONES CARD (SLOT PENEMPATAN RODA) */
@@ -1868,4 +1920,569 @@
   align-items: center;
   gap: 6px;
 }
+
+/* ── Interactive Detail Pill & Detail Button ── */
+.vs-3d-tire-pill--clickable {
+  cursor: pointer;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  transition: all 0.15s ease;
+  user-select: none;
+}
+
+.vs-3d-tire-pill--clickable:hover {
+  background: rgba(16, 185, 129, 0.35);
+  border-color: #34d399;
+  box-shadow: 0 0 10px rgba(16, 185, 129, 0.35);
+  transform: translateY(-1px);
+}
+
+.vs-3d-detail-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 6px;
+  font-family: ui-monospace, monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: rgba(56, 189, 248, 0.18);
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  color: #38bdf8;
+  transition: all 0.14s ease;
+  white-space: nowrap;
+}
+
+.vs-3d-detail-btn:hover {
+  background: rgba(56, 189, 248, 0.32);
+  border-color: #7dd3fc;
+  color: #fff;
+  box-shadow: 0 0 10px rgba(56, 189, 248, 0.35);
+  transform: translateY(-1px);
+}
+
+/* ── Tire Detail Modal ── */
+.vs-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 9999;
+  background: rgba(3, 7, 18, 0.78);
+  backdrop-filter: blur(8px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  animation: vsFadeIn 0.2s ease-out;
+}
+
+@keyframes vsFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.vs-modal-card {
+  width: 100%;
+  max-width: 500px;
+  max-height: 88vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, #0e1e38 0%, #081224 100%);
+  border: 1.5px solid rgba(56, 189, 248, 0.4);
+  border-radius: 16px;
+  box-shadow:
+    0 0 0 1px rgba(0, 0, 0, 0.8),
+    0 24px 50px rgba(0, 0, 0, 0.9),
+    0 0 30px rgba(56, 189, 248, 0.15);
+  overflow: hidden;
+  animation: vsModalPop 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@keyframes vsModalPop {
+  from {
+    transform: scale(0.92) translateY(12px);
+    opacity: 0;
+  }
+  to {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+  }
+}
+
+.vs-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: rgba(15, 23, 42, 0.9);
+  border-bottom: 1px solid rgba(56, 189, 248, 0.2);
+}
+
+.vs-modal-title-group {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.vs-modal-icon {
+  font-size: 1.4rem;
+}
+
+.vs-modal-title {
+  margin: 0;
+  font-size: 1.05rem;
+  font-weight: 800;
+  color: #f8fafc;
+  letter-spacing: 0.3px;
+}
+
+.vs-modal-subtitle {
+  font-size: 0.74rem;
+  color: #94a3b8;
+  font-family: ui-monospace, monospace;
+}
+
+.vs-modal-close-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  color: #cbd5e1;
+  width: 32px;
+  height: 32px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 1rem;
+  transition: all 0.15s ease;
+}
+
+.vs-modal-close-btn:hover {
+  background: rgba(239, 68, 68, 0.25);
+  border-color: #ef4444;
+  color: #fff;
+}
+
+.vs-modal-body {
+  padding: 16px 18px;
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.vs-modal-hero {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: rgba(15, 28, 54, 0.7);
+  border: 1px solid rgba(56, 189, 248, 0.28);
+  border-radius: 12px;
+  padding: 12px 14px;
+}
+
+.vs-modal-hero-info {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  flex: 1;
+}
+
+.vs-modal-hero-brand {
+  font-size: 1.15rem;
+  font-weight: 900;
+  color: #38bdf8;
+  letter-spacing: 0.5px;
+}
+
+.vs-modal-hero-serial {
+  font-family: ui-monospace, monospace;
+  font-size: 0.92rem;
+  font-weight: 800;
+  color: #34d399;
+}
+
+.vs-modal-tags-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 3px;
+}
+
+.vs-modal-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-family: ui-monospace, monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+}
+
+.vs-modal-tag--ok {
+  background: rgba(16, 185, 129, 0.2);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.45);
+}
+
+.vs-modal-tag--info {
+  background: rgba(56, 189, 248, 0.18);
+  color: #7dd3fc;
+  border: 1px solid rgba(56, 189, 248, 0.4);
+}
+
+.vs-modal-tag--amber {
+  background: rgba(245, 158, 11, 0.18);
+  color: #fbbf24;
+  border: 1px solid rgba(245, 158, 11, 0.4);
+}
+
+.vs-modal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+@media (max-width: 480px) {
+  .vs-modal-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.vs-modal-field {
+  background: rgba(15, 23, 42, 0.65);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 8px;
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vs-modal-field-label {
+  font-size: 0.66rem;
+  color: #94a3b8;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.vs-modal-field-value {
+  font-size: 0.82rem;
+  color: #f1f5f9;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+}
+
+.vs-modal-footer {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  padding: 12px 18px;
+  background: rgba(10, 18, 32, 0.95);
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+/* ── Inter-Unit Tire Borrowing Feature ── */
+.vs-borrow-trigger-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 5px 12px;
+  border-radius: 8px;
+  font-family: ui-monospace, monospace;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.25) 0%, rgba(99, 102, 241, 0.25) 100%);
+  border: 1px solid rgba(56, 189, 248, 0.5);
+  color: #38bdf8;
+  backdrop-filter: blur(8px);
+  transition: all 0.16s ease;
+  white-space: nowrap;
+}
+
+.vs-borrow-trigger-btn:hover {
+  background: linear-gradient(135deg, rgba(14, 165, 233, 0.4) 0%, rgba(99, 102, 241, 0.4) 100%);
+  border-color: #7dd3fc;
+  color: #fff;
+  box-shadow: 0 0 14px rgba(56, 189, 248, 0.4);
+  transform: translateY(-1px);
+}
+
+.vs-tray-actions-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.vs-tray-borrowed-pill {
+  display: inline-flex;
+  align-items: center;
+  padding: 2px 8px;
+  border-radius: 999px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+}
+
+.vs-borrowed-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.64rem;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+  color: #fbbf24;
+  background: rgba(245, 158, 11, 0.12);
+  border: 1px solid rgba(245, 158, 11, 0.3);
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-top: 2px;
+}
+
+.vs-return-btn {
+  padding: 4px 8px;
+  border-radius: 6px;
+  font-size: 0.68rem;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+  cursor: pointer;
+  background: rgba(245, 158, 11, 0.15);
+  border: 1px solid rgba(245, 158, 11, 0.4);
+  color: #fbbf24;
+  transition: all 0.14s ease;
+  white-space: nowrap;
+}
+
+.vs-return-btn:hover {
+  background: rgba(245, 158, 11, 0.3);
+  border-color: #f59e0b;
+  color: #fff;
+  transform: translateY(-1px);
+}
+
+/* ── Borrow Tire Modal UI ── */
+.vs-borrow-modal {
+  max-width: 540px;
+}
+
+.vs-borrow-toast {
+  background: rgba(16, 185, 129, 0.2);
+  border: 1px solid #10b981;
+  color: #34d399;
+  border-radius: 8px;
+  padding: 8px 12px;
+  font-size: 0.78rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  animation: vsFadeSlide 0.2s ease-out;
+}
+
+.vs-borrow-donor-selector {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  background: rgba(15, 28, 54, 0.5);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 12px;
+  padding: 12px;
+}
+
+.vs-borrow-section-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 0.78rem;
+  font-weight: 700;
+  color: #cbd5e1;
+}
+
+.vs-borrow-badge-count {
+  font-size: 0.68rem;
+  font-family: ui-monospace, monospace;
+  background: rgba(56, 189, 248, 0.15);
+  border: 1px solid rgba(56, 189, 248, 0.3);
+  color: #7dd3fc;
+  padding: 1px 6px;
+  border-radius: 999px;
+}
+
+.vs-borrow-select-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vs-borrow-search-input {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(10, 18, 32, 0.9);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  color: #f1f5f9;
+  padding: 7px 10px;
+  border-radius: 8px;
+  font-size: 0.78rem;
+  font-family: inherit;
+  outline: none;
+  transition: border-color 0.15s ease;
+}
+
+.vs-borrow-search-input:focus {
+  border-color: #38bdf8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.3);
+}
+
+.vs-borrow-select {
+  width: 100%;
+  box-sizing: border-box;
+  background: rgba(10, 18, 32, 0.95);
+  border: 1px solid rgba(56, 189, 248, 0.35);
+  color: #38bdf8;
+  font-weight: 700;
+  padding: 8px 10px;
+  border-radius: 8px;
+  font-size: 0.82rem;
+  font-family: inherit;
+  outline: none;
+  cursor: pointer;
+}
+
+.vs-borrow-select option {
+  background: #0f172a;
+  color: #f8fafc;
+}
+
+.vs-borrow-loading,
+.vs-borrow-empty {
+  text-align: center;
+  padding: 16px;
+  font-size: 0.78rem;
+  color: #94a3b8;
+  font-family: ui-monospace, monospace;
+}
+
+.vs-borrow-tires-section {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vs-borrow-tires-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 280px;
+  overflow-y: auto;
+  padding-right: 4px;
+}
+
+.vs-borrow-tire-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: rgba(15, 23, 42, 0.75);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 10px;
+  padding: 8px 12px;
+  transition: all 0.15s ease;
+}
+
+.vs-borrow-tire-item:hover {
+  background: rgba(15, 28, 54, 0.9);
+  border-color: rgba(56, 189, 248, 0.35);
+}
+
+.vs-borrow-tire-item.is-borrowed {
+  border-color: rgba(16, 185, 129, 0.35);
+  background: rgba(6, 30, 24, 0.6);
+}
+
+.vs-borrow-tire-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+  flex: 1;
+}
+
+.vs-borrow-tire-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.vs-borrow-tire-top {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.vs-borrow-tire-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.7rem;
+  color: #94a3b8;
+  flex-wrap: wrap;
+}
+
+.vs-borrow-masak-pill {
+  font-size: 0.64rem;
+  font-family: ui-monospace, monospace;
+  background: rgba(245, 158, 11, 0.15);
+  color: #fbbf24;
+  padding: 1px 5px;
+  border-radius: 3px;
+  border: 1px solid rgba(245, 158, 11, 0.3);
+}
+
+.vs-borrow-status-badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 0.72rem;
+  font-weight: 700;
+  font-family: ui-monospace, monospace;
+  color: #34d399;
+  background: rgba(16, 185, 129, 0.16);
+  border: 1px solid rgba(16, 185, 129, 0.4);
+  padding: 4px 8px;
+  border-radius: 6px;
+  white-space: nowrap;
+}
+
+.vs-borrow-btn-action {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 6px 12px;
+  border-radius: 8px;
+  font-family: ui-monospace, monospace;
+  font-size: 0.74rem;
+  font-weight: 700;
+  cursor: pointer;
+  background: linear-gradient(135deg, rgba(16, 185, 129, 0.25) 0%, rgba(5, 150, 105, 0.35) 100%);
+  border: 1px solid #10b981;
+  color: #34d399;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.vs-borrow-btn-action:hover {
+  background: #10b981;
+  color: #fff;
+  box-shadow: 0 0 12px rgba(16, 185, 129, 0.45);
+  transform: translateY(-1px);
+}
+
+
 

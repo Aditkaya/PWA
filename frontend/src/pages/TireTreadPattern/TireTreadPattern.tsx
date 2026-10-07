@@ -14,7 +14,11 @@ import {
   CheckCircle2,
   RefreshCw,
   MapPin,
-  Calendar
+  Calendar,
+  Eye,
+  EyeOff,
+  ChevronDown,
+  ChevronUp
 } from 'lucide-react';
 import './TireTreadPattern.css';
 import VehicleSchematic3D from './VehicleSchematic3D';
@@ -269,6 +273,9 @@ export default function TireTreadPattern() {
   // Posisi Roda yang Sedang Dipilih
   const [selectedWheelId, setSelectedWheelId] = useState<string | null>(null);
 
+  // Toggle Hide / Unhide Bagian Spesifikasi & Rekomendasi Unit
+  const [showUnitSpecs, setShowUnitSpecs] = useState<boolean>(true);
+
   // Ambil data dari database sesuai kategori yang dipilih
   useEffect(() => {
     if (!selectedCategory) {
@@ -495,87 +502,116 @@ export default function TireTreadPattern() {
             />
           </div>
 
-          {/* Detail Spesifikasi Unit */}
-          <div className="unit-detail-grid">
-            <div className="unit-detail-item">
-              <span className="unit-detail-label">Jenis Armada</span>
-              <span className="unit-detail-val">{selectedUnit.jenis}</span>
-            </div>
-            <div className="unit-detail-item">
-              <span className="unit-detail-label">
-                {selectedCategory.id === 'forklift' ? 'Kode Alat' : 'Kode No'}
-              </span>
-              <span className="unit-detail-val">
-                {selectedUnit.kode_alat || selectedUnit.kode_no || '-'}
-              </span>
-            </div>
+          {/* Tombol Toggle Hide / Unhide Spesifikasi & Rekomendasi Unit */}
+          <div className="unit-specs-toggle-container">
+            <button
+              type="button"
+              className={`btn-toggle-unit-specs ${!showUnitSpecs ? 'is-collapsed' : ''}`}
+              onClick={() => setShowUnitSpecs(!showUnitSpecs)}
+              title={showUnitSpecs ? 'Sembunyikan Informasi Spesifikasi & Rekomendasi Unit' : 'Tampilkan Informasi Spesifikasi & Rekomendasi Unit'}
+            >
+              <div className="toggle-specs-left">
+                {showUnitSpecs ? <EyeOff size={16} /> : <Eye size={16} />}
+                <span>
+                  {showUnitSpecs
+                    ? 'Sembunyikan Spesifikasi & Rekomendasi Unit'
+                    : 'Tampilkan Spesifikasi & Rekomendasi Unit'}
+                </span>
+              </div>
+              <div className="toggle-specs-right">
+                <span className="toggle-specs-status">
+                  {showUnitSpecs ? 'Hide' : 'Unhide'}
+                </span>
+                {showUnitSpecs ? <ChevronUp size={16} /> : <ChevronDown size={16} />}
+              </div>
+            </button>
+          </div>
 
-            {(selectedCategory.id === 'tractor-head' || selectedCategory.id === 'chassis-container') && (
-              <>
+          {showUnitSpecs && (
+            <div className="unit-specs-collapsible-content">
+              {/* Detail Spesifikasi Unit */}
+              <div className="unit-detail-grid">
                 <div className="unit-detail-item">
-                  <span className="unit-detail-label">Nomor Plat Polisi</span>
-                  <span className="unit-detail-val" style={{ color: '#38bdf8' }}>
-                    {selectedUnit.nomor_polisi && selectedUnit.nomor_polisi !== '0'
-                      ? selectedUnit.nomor_polisi
-                      : '-'}
-                  </span>
+                  <span className="unit-detail-label">Jenis Armada</span>
+                  <span className="unit-detail-val">{selectedUnit.jenis}</span>
                 </div>
                 <div className="unit-detail-item">
-                  <span className="unit-detail-label">Nomor Uji KIR</span>
-                  <span className="unit-detail-val" style={{ color: '#34d399' }}>
-                    {selectedUnit.no_kir || selectedUnit.nomor_kir || '-'}
+                  <span className="unit-detail-label">
+                    {selectedCategory.id === 'forklift' ? 'Kode Alat' : 'Kode No'}
+                  </span>
+                  <span className="unit-detail-val">
+                    {selectedUnit.kode_alat || selectedUnit.kode_no || '-'}
                   </span>
                 </div>
-              </>
-            )}
 
-            <div className="unit-detail-item">
-              <span className="unit-detail-label">Jumlah Roda</span>
-              <span className="unit-detail-val" style={{ color: '#fbbf24', fontWeight: 700 }}>
-                {selectedWheelConfig.wheelCount} Roda ({selectedWheelConfig.chassisType})
-              </span>
-            </div>
+                {(selectedCategory.id === 'tractor-head' || selectedCategory.id === 'chassis-container') && (
+                  <>
+                    <div className="unit-detail-item">
+                      <span className="unit-detail-label">Nomor Plat Polisi</span>
+                      <span className="unit-detail-val" style={{ color: '#38bdf8' }}>
+                        {selectedUnit.nomor_polisi && selectedUnit.nomor_polisi !== '0'
+                          ? selectedUnit.nomor_polisi
+                          : '-'}
+                      </span>
+                    </div>
+                    <div className="unit-detail-item">
+                      <span className="unit-detail-label">Nomor Uji KIR</span>
+                      <span className="unit-detail-val" style={{ color: '#34d399' }}>
+                        {selectedUnit.no_kir || selectedUnit.nomor_kir || '-'}
+                      </span>
+                    </div>
+                  </>
+                )}
 
-            {selectedUnit.lokasi && (
-              <div className="unit-detail-item">
-                <span className="unit-detail-label">Lokasi Operasional</span>
-                <span className="unit-detail-val">{selectedUnit.lokasi}</span>
+                <div className="unit-detail-item">
+                  <span className="unit-detail-label">Jumlah Roda</span>
+                  <span className="unit-detail-val" style={{ color: '#fbbf24', fontWeight: 700 }}>
+                    {selectedWheelConfig.wheelCount} Roda ({selectedWheelConfig.chassisType})
+                  </span>
+                </div>
+
+                {selectedUnit.lokasi && (
+                  <div className="unit-detail-item">
+                    <span className="unit-detail-label">Lokasi Operasional</span>
+                    <span className="unit-detail-val">{selectedUnit.lokasi}</span>
+                  </div>
+                )}
               </div>
-            )}
-          </div>
 
-          {/* Ringkasan Rekomendasi Pola Tapak Ban */}
-          <div className="simple-info-block">
-            <div className="simple-info-title">
-              Rekomendasi Pola Tapak Ban ({selectedWheelConfig.wheelCount} RODA)
-            </div>
-            <div style={{ fontSize: '0.82rem', color: '#94a3b8', lineHeight: 1.45, marginBottom: '6px' }}>
-              {selectedWheelConfig.treadPatternSummary}
-            </div>
-            {selectedCategory.tireInfo.map((info, idx) => (
-              <div key={idx} className="simple-info-row">
-                <span className="simple-row-label">{info.label}</span>
-                <span className="simple-row-value">{info.detail}</span>
+              {/* Ringkasan Rekomendasi Pola Tapak Ban */}
+              <div className="simple-info-block">
+                <div className="simple-info-title">
+                  Rekomendasi Pola Tapak Ban ({selectedWheelConfig.wheelCount} RODA)
+                </div>
+                <div style={{ fontSize: '0.82rem', color: '#94a3b8', lineHeight: 1.45, marginBottom: '6px' }}>
+                  {selectedWheelConfig.treadPatternSummary}
+                </div>
+                {selectedCategory.tireInfo.map((info, idx) => (
+                  <div key={idx} className="simple-info-row">
+                    <span className="simple-row-label">{info.label}</span>
+                    <span className="simple-row-value">{info.detail}</span>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
 
-          <div
-            style={{
-              background: 'rgba(16, 185, 129, 0.1)',
-              border: '1px solid rgba(16, 185, 129, 0.25)',
-              borderRadius: '10px',
-              padding: '10px 14px',
-              display: 'flex',
-              alignItems: 'center',
-              gap: '8px',
-              fontSize: '0.82rem',
-              color: '#10b981'
-            }}
-          >
-            <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
-            <span>Denah 3D {selectedWheelConfig.wheelCount} RODA siap digunakan untuk pemantauan rotasi & keausan ban.</span>
-          </div>
+              <div
+                style={{
+                  background: 'rgba(16, 185, 129, 0.1)',
+                  border: '1px solid rgba(16, 185, 129, 0.25)',
+                  borderRadius: '10px',
+                  padding: '10px 14px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '8px',
+                  fontSize: '0.82rem',
+                  color: '#10b981'
+                }}
+              >
+                <CheckCircle2 size={16} style={{ flexShrink: 0 }} />
+                <span>Denah 3D {selectedWheelConfig.wheelCount} RODA siap digunakan untuk pemantauan rotasi & keausan ban.</span>
+              </div>
+            </div>
+          )}
 
           {/* Tombol Kembali ke Daftar Unit */}
           <div className="unit-bottom-actions">

@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import './VehicleSchematic3D.css';
 import VehicleAnimation3D from './VehicleAnimation3D';
 
@@ -27,6 +27,13 @@ export interface StockBanItem {
   status_ban_luar?: string | null;
   mobil_id?: number | null;
   alat_berat_id?: number | null;
+  isBorrowed?: boolean;
+  borrowedMeta?: {
+    donorUnitId: number | string;
+    donorUnitName: string;
+    donorCategory?: string;
+    borrowedAt?: string;
+  };
 }
 
 export interface WheelMeta {
@@ -752,6 +759,532 @@ export function RealisticTireGraphic({
 }
 
 /* ═══════════════════════════════════════════════════════════════
+   TIRE DETAIL MODAL (DETAIL LENGKAP DATA BAN TERPASANG)
+   ═══════════════════════════════════════════════════════════════ */
+export interface TireDetailModalProps {
+  tire: StockBanItem;
+  wheelMeta?: WheelMeta | null;
+  wheelId?: string | null;
+  onClose: () => void;
+  onRemove?: () => void;
+  onReturn?: () => void;
+}
+
+export function TireDetailModal({
+  tire,
+  wheelMeta,
+  wheelId,
+  onClose,
+  onRemove,
+  onReturn
+}: TireDetailModalProps) {
+  const wheelCode = wheelMeta?.code || (wheelId ? wheelId.toUpperCase() : null);
+  const wheelName = wheelMeta?.name || (wheelId ? `Roda ${wheelId}` : 'Roda Unit');
+
+  return (
+    <div className="vs-modal-backdrop" onClick={onClose}>
+      <div className="vs-modal-card" onClick={(e) => e.stopPropagation()}>
+        <div className="vs-modal-header">
+          <div className="vs-modal-title-group">
+            <span className="vs-modal-icon">🛞</span>
+            <div>
+              <h3 className="vs-modal-title">Detail Data Ban Unit</h3>
+              <span className="vs-modal-subtitle">
+                {wheelCode ? `Posisi [${wheelCode}] • ${wheelName}` : 'Informasi Spesifikasi Ban'}
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            className="vs-modal-close-btn"
+            onClick={onClose}
+            title="Tutup Modal"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="vs-modal-body">
+          {/* Hero Banner Kartu Ban */}
+          <div className="vs-modal-hero">
+            <RealisticTireGraphic
+              ban={tire}
+              size={76}
+              isAssigned={true}
+              assignedCode={wheelCode}
+            />
+            <div className="vs-modal-hero-info">
+              <span className="vs-modal-hero-brand">{tire.merk || 'TIRE'}</span>
+              <span className="vs-modal-hero-serial">#{tire.nomor_seri}</span>
+              <div className="vs-modal-tags-row">
+                <span className="vs-modal-tag vs-modal-tag--ok">
+                  ✓ Terpasang di Unit
+                </span>
+                <span className="vs-modal-tag vs-modal-tag--info">
+                  {tire.kondisi || 'Standar'}
+                </span>
+                {tire.isBorrowed && (
+                  <span className="vs-modal-tag vs-modal-tag--amber">
+                    🏷️ Pinjaman: {tire.borrowedMeta?.donorUnitName || 'Unit Lain'}
+                  </span>
+                )}
+                {tire.status_masak && (
+                  <span className="vs-modal-tag vs-modal-tag--amber">
+                    Masak: {tire.status_masak}
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Grid Rincian Data Ban */}
+          <div className="vs-modal-grid">
+            {tire.isBorrowed && (
+              <div
+                className="vs-modal-field"
+                style={{
+                  gridColumn: '1 / -1',
+                  background: 'rgba(245, 158, 11, 0.12)',
+                  border: '1px solid rgba(245, 158, 11, 0.4)'
+                }}
+              >
+                <span className="vs-modal-field-label" style={{ color: '#fbbf24' }}>
+                  Status Kepemilikan Ban
+                </span>
+                <span className="vs-modal-field-value" style={{ color: '#fef08a' }}>
+                  🏷️ Ban Pinjaman dari Unit: {tire.borrowedMeta?.donorUnitName || 'Unit Lain'}
+                </span>
+                {tire.borrowedMeta?.borrowedAt && (
+                  <span style={{ fontSize: '0.68rem', color: '#fde68a', marginTop: '2px' }}>
+                    Dipinjam pada: {new Date(tire.borrowedMeta.borrowedAt).toLocaleDateString('id-ID', { dateStyle: 'medium' })}
+                  </span>
+                )}
+              </div>
+            )}
+
+            <div className="vs-modal-field">
+              <span className="vs-modal-field-label">Nomor Seri</span>
+              <span className="vs-modal-field-value" style={{ color: '#34d399' }}>
+                #{tire.nomor_seri}
+              </span>
+            </div>
+
+            <div className="vs-modal-field">
+              <span className="vs-modal-field-label">Merk Ban</span>
+              <span className="vs-modal-field-value">{tire.merk || '-'}</span>
+            </div>
+
+            <div className="vs-modal-field">
+              <span className="vs-modal-field-label">Ukuran / Dimensi</span>
+              <span className="vs-modal-field-value">{tire.ukuran || '-'}</span>
+            </div>
+
+            <div className="vs-modal-field">
+              <span className="vs-modal-field-label">Kondisi Ban</span>
+              <span className="vs-modal-field-value">{tire.kondisi || '-'}</span>
+            </div>
+
+            {wheelCode && (
+              <div className="vs-modal-field">
+                <span className="vs-modal-field-label">Posisi Terpasang</span>
+                <span className="vs-modal-field-value" style={{ color: '#38bdf8' }}>
+                  [{wheelCode}] {wheelName}
+                </span>
+              </div>
+            )}
+
+            {wheelMeta?.patternName && (
+              <div className="vs-modal-field">
+                <span className="vs-modal-field-label">Standar Pola Tapak</span>
+                <span className="vs-modal-field-value" style={{ color: '#fbbf24' }}>
+                  {wheelMeta.patternName}
+                </span>
+              </div>
+            )}
+
+            <div className="vs-modal-field">
+              <span className="vs-modal-field-label">Status Masak (Vulkanisir)</span>
+              <span className="vs-modal-field-value">{tire.status_masak || '-'}</span>
+            </div>
+
+            <div className="vs-modal-field">
+              <span className="vs-modal-field-label">Jumlah Masak</span>
+              <span className="vs-modal-field-value">
+                {tire.jumlah_masak != null ? `${tire.jumlah_masak} Kali` : '0 Kali'}
+              </span>
+            </div>
+
+            <div className="vs-modal-field">
+              <span className="vs-modal-field-label">Status Ban Luar</span>
+              <span className="vs-modal-field-value">{tire.status_ban_luar || '-'}</span>
+            </div>
+
+            <div className="vs-modal-field">
+              <span className="vs-modal-field-label">Lokasi / Gudang</span>
+              <span className="vs-modal-field-value">{tire.lokasi || '-'}</span>
+            </div>
+
+            {tire.nomor_faktur && (
+              <div className="vs-modal-field">
+                <span className="vs-modal-field-label">Nomor Faktur</span>
+                <span className="vs-modal-field-value">{tire.nomor_faktur}</span>
+              </div>
+            )}
+
+            {tire.nomor_bukti && (
+              <div className="vs-modal-field">
+                <span className="vs-modal-field-label">Nomor Bukti</span>
+                <span className="vs-modal-field-value">{tire.nomor_bukti}</span>
+              </div>
+            )}
+
+            {tire.tanggal_digunakan && (
+              <div className="vs-modal-field">
+                <span className="vs-modal-field-label">Tanggal Digunakan</span>
+                <span className="vs-modal-field-value">{tire.tanggal_digunakan}</span>
+              </div>
+            )}
+
+            {tire.tanggal_masuk && !tire.tanggal_digunakan && (
+              <div className="vs-modal-field">
+                <span className="vs-modal-field-label">Tanggal Masuk</span>
+                <span className="vs-modal-field-value">{tire.tanggal_masuk}</span>
+              </div>
+            )}
+
+            {tire.harga_beli && (
+              <div className="vs-modal-field">
+                <span className="vs-modal-field-label">Harga Beli</span>
+                <span className="vs-modal-field-value" style={{ color: '#f59e0b' }}>
+                  {typeof tire.harga_beli === 'number'
+                    ? `Rp ${tire.harga_beli.toLocaleString('id-ID')}`
+                    : `Rp ${Number(tire.harga_beli).toLocaleString('id-ID') || tire.harga_beli}`}
+                </span>
+              </div>
+            )}
+
+            {tire.keterangan && (
+              <div className="vs-modal-field" style={{ gridColumn: '1 / -1' }}>
+                <span className="vs-modal-field-label">Keterangan / Catatan</span>
+                <span className="vs-modal-field-value" style={{ fontFamily: 'inherit', fontWeight: 500 }}>
+                  {tire.keterangan}
+                </span>
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="vs-modal-footer">
+          {tire.isBorrowed && onReturn && (
+            <button
+              type="button"
+              className="vs-return-btn"
+              style={{ padding: '7px 14px', fontSize: '0.78rem' }}
+              onClick={() => {
+                onReturn();
+                onClose();
+              }}
+              title="Kembalikan ban pinjaman ini ke unit asalnya"
+            >
+              ↩️ Kembalikan ke Unit Asal
+            </button>
+          )}
+          {onRemove && (
+            <button
+              type="button"
+              className="vs-detach-btn"
+              style={{ padding: '7px 14px', fontSize: '0.78rem' }}
+              onClick={() => {
+                onRemove();
+                onClose();
+              }}
+              title="Copot ban ini dari posisi roda"
+            >
+              ✕ Copot Dari Roda
+            </button>
+          )}
+          <button
+            type="button"
+            className="vs-3d-tool-btn"
+            style={{
+              padding: '7px 16px',
+              fontSize: '0.78rem',
+              background: 'rgba(56, 189, 248, 0.2)',
+              borderColor: '#38bdf8',
+              color: '#fff'
+            }}
+            onClick={onClose}
+          >
+            Tutup
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
+   BORROW TIRE MODAL (PINJAM BAN DARI UNIT SESAMA JENIS)
+   ═══════════════════════════════════════════════════════════════ */
+export interface BorrowTireModalProps {
+  currentUnitId: number | string | null;
+  category?: string;
+  categoryLabel?: string;
+  onClose: () => void;
+  onBorrowTire: (tire: StockBanItem, donorUnit: { id: number | string; name: string }) => void;
+  borrowedTireIds: number[];
+}
+
+export function BorrowTireModal({
+  currentUnitId,
+  category,
+  categoryLabel,
+  onClose,
+  onBorrowTire,
+  borrowedTireIds
+}: BorrowTireModalProps) {
+  const [donorUnits, setDonorUnits] = useState<any[]>([]);
+  const [isLoadingUnits, setIsLoadingUnits] = useState<boolean>(true);
+  const [selectedDonorId, setSelectedDonorId] = useState<string | number | ''>('');
+  const [donorTires, setDonorTires] = useState<StockBanItem[]>([]);
+  const [isLoadingTires, setIsLoadingTires] = useState<boolean>(false);
+  const [searchUnit, setSearchUnit] = useState<string>('');
+  const [successToast, setSuccessToast] = useState<string | null>(null);
+
+  // 1. Ambil daftar unit sesama kategori
+  useEffect(() => {
+    if (!category) return;
+    setIsLoadingUnits(true);
+    fetch(`/api/tire-tread/units?category=${category}`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.status === 'success' && Array.isArray(json.data)) {
+          const filtered = json.data.filter((u: any) => String(u.id) !== String(currentUnitId));
+          setDonorUnits(filtered);
+          if (filtered.length > 0) {
+            setSelectedDonorId(filtered[0].id);
+          }
+        }
+      })
+      .catch((err) => console.error('Error fetching donor units:', err))
+      .finally(() => setIsLoadingUnits(false));
+  }, [category, currentUnitId]);
+
+  // 2. Ambil daftar ban dari unit donor yang dipilih
+  useEffect(() => {
+    if (!selectedDonorId) {
+      setDonorTires([]);
+      return;
+    }
+    setIsLoadingTires(true);
+    const q = category === 'forklift'
+      ? `alat_berat_id=${encodeURIComponent(String(selectedDonorId))}`
+      : `mobil_id=${encodeURIComponent(String(selectedDonorId))}`;
+
+    fetch(`/api/tire-tread/tires?${q}`)
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.status === 'success' && Array.isArray(json.data)) {
+          setDonorTires(json.data);
+        } else {
+          setDonorTires([]);
+        }
+      })
+      .catch((err) => console.error('Error fetching donor tires:', err))
+      .finally(() => setIsLoadingTires(false));
+  }, [selectedDonorId, category]);
+
+  const currentDonorUnit = useMemo(() => {
+    return donorUnits.find((u) => String(u.id) === String(selectedDonorId)) || null;
+  }, [donorUnits, selectedDonorId]);
+
+  const donorUnitDisplayName = useMemo(() => {
+    if (!currentDonorUnit) return 'Unit Donor';
+    return (
+      currentDonorUnit.nomor_polisi ||
+      currentDonorUnit.kode_no ||
+      currentDonorUnit.kode_alat ||
+      currentDonorUnit.nama ||
+      `Unit #${currentDonorUnit.id}`
+    );
+  }, [currentDonorUnit]);
+
+  const filteredDonorUnits = useMemo(() => {
+    if (!searchUnit) return donorUnits;
+    const q = searchUnit.toLowerCase();
+    return donorUnits.filter((u) => {
+      const code = (u.kode_no || u.kode_alat || '').toLowerCase();
+      const nopol = (u.nomor_polisi || '').toLowerCase();
+      const nama = (u.nama || '').toLowerCase();
+      const jenis = (u.jenis || '').toLowerCase();
+      return code.includes(q) || nopol.includes(q) || nama.includes(q) || jenis.includes(q);
+    });
+  }, [donorUnits, searchUnit]);
+
+  const handleBorrow = (tire: StockBanItem) => {
+    onBorrowTire(tire, {
+      id: selectedDonorId,
+      name: donorUnitDisplayName
+    });
+    setSuccessToast(`✓ Ban #${tire.nomor_seri} (${tire.merk}) berhasil dipinjam!`);
+    setTimeout(() => {
+      setSuccessToast(null);
+    }, 2800);
+  };
+
+  return (
+    <div className="vs-modal-backdrop" onClick={onClose}>
+      <div className="vs-modal-card vs-borrow-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="vs-modal-header">
+          <div className="vs-modal-title-group">
+            <span className="vs-modal-icon">🔄</span>
+            <div>
+              <h3 className="vs-modal-title">Pinjam Ban Sesama Jenis</h3>
+              <span className="vs-modal-subtitle">
+                {categoryLabel ? `Armada ${categoryLabel}` : 'Inter-Unit Tire Borrowing'}
+              </span>
+            </div>
+          </div>
+          <button type="button" className="vs-modal-close-btn" onClick={onClose} title="Tutup">
+            ✕
+          </button>
+        </div>
+
+        <div className="vs-modal-body">
+          {successToast && (
+            <div className="vs-borrow-toast">
+              <span>{successToast}</span>
+            </div>
+          )}
+
+          {/* Section 1: Pilih Unit Donor */}
+          <div className="vs-borrow-donor-selector">
+            <div className="vs-borrow-section-title">
+              <span>1. Pilih Unit Donor (Sumber Peminjaman)</span>
+              <span className="vs-borrow-badge-count">{donorUnits.length} Unit Tersedia</span>
+            </div>
+
+            {isLoadingUnits ? (
+              <div className="vs-borrow-loading">⟳ Memuat daftar unit sesama armada...</div>
+            ) : donorUnits.length === 0 ? (
+              <div className="vs-borrow-empty">Tidak ada unit lain dalam kategori ini untuk dipinjamkan.</div>
+            ) : (
+              <div className="vs-borrow-select-wrap">
+                <input
+                  type="text"
+                  placeholder="Cari plat nomor / kode unit..."
+                  value={searchUnit}
+                  onChange={(e) => setSearchUnit(e.target.value)}
+                  className="vs-borrow-search-input"
+                />
+                <select
+                  value={selectedDonorId}
+                  onChange={(e) => setSelectedDonorId(e.target.value)}
+                  className="vs-borrow-select"
+                >
+                  {filteredDonorUnits.map((u) => {
+                    const label = `${u.nomor_polisi ? u.nomor_polisi + ' • ' : ''}${u.kode_no || u.kode_alat || ''} (${u.jenis || u.merek || 'Armada'}${u.lokasi ? ' - ' + u.lokasi : ''})`;
+                    return (
+                      <option key={u.id} value={u.id}>
+                        {label}
+                      </option>
+                    );
+                  })}
+                </select>
+              </div>
+            )}
+          </div>
+
+          {/* Section 2: Daftar Ban Unit Donor */}
+          <div className="vs-borrow-tires-section">
+            <div className="vs-borrow-section-title">
+              <span>2. Pilih Ban dari Unit: <strong>{donorUnitDisplayName}</strong></span>
+              <span className="vs-borrow-badge-count">{donorTires.length} Ban</span>
+            </div>
+
+            {isLoadingTires ? (
+              <div className="vs-borrow-loading">⟳ Memuat data ban unit donor...</div>
+            ) : donorTires.length === 0 ? (
+              <div className="vs-borrow-empty">
+                Unit <strong>{donorUnitDisplayName}</strong> belum memiliki ban aktif terdaftar.
+              </div>
+            ) : (
+              <div className="vs-borrow-tires-list">
+                {donorTires.map((tire) => {
+                  const isAlreadyBorrowed = borrowedTireIds.includes(tire.id);
+                  return (
+                    <div
+                      key={tire.id}
+                      className={`vs-borrow-tire-item ${isAlreadyBorrowed ? 'is-borrowed' : ''}`}
+                    >
+                      <div className="vs-borrow-tire-left">
+                        <RealisticTireGraphic ban={tire} size={50} />
+                        <div className="vs-borrow-tire-info">
+                          <div className="vs-borrow-tire-top">
+                            <span className="vs-card-brand">{tire.merk}</span>
+                            <span className="vs-card-serial-pill">#{tire.nomor_seri}</span>
+                          </div>
+                          <div className="vs-borrow-tire-meta">
+                            <span>{tire.ukuran}</span>
+                            <span className="vs-card-cond-pill">{tire.kondisi}</span>
+                            {tire.status_masak && (
+                              <span className="vs-borrow-masak-pill">Masak: {tire.status_masak}</span>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="vs-borrow-tire-right">
+                        {isAlreadyBorrowed ? (
+                          <span className="vs-borrow-status-badge">
+                            ✓ Sedang Dipinjam
+                          </span>
+                        ) : (
+                          <button
+                            type="button"
+                            className="vs-borrow-btn-action"
+                            onClick={() => handleBorrow(tire)}
+                            title={`Pinjam ban #${tire.nomor_seri} ke unit saat ini`}
+                          >
+                            📥 Pinjam Ban
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </div>
+
+        <div className="vs-modal-footer">
+          <div style={{ flex: 1, fontSize: '0.74rem', color: '#94a3b8' }}>
+            {borrowedTireIds.length > 0
+              ? `🏷️ ${borrowedTireIds.length} ban saat ini berstatus pinjaman di unit ini.`
+              : 'Ban yang dipinjam akan otomatis muncul di inventori unit saat ini.'}
+          </div>
+          <button
+            type="button"
+            className="vs-3d-tool-btn"
+            style={{
+              padding: '7px 18px',
+              fontSize: '0.8rem',
+              background: 'rgba(56, 189, 248, 0.2)',
+              borderColor: '#38bdf8',
+              color: '#fff'
+            }}
+            onClick={onClose}
+          >
+            Selesai
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/* ═══════════════════════════════════════════════════════════════
    MAIN COMPONENT — DROPDOWN TIRE ASSIGNMENT
    ═══════════════════════════════════════════════════════════════ */
 export default function VehicleSchematic3D({
@@ -785,6 +1318,13 @@ export default function VehicleSchematic3D({
       ? `tire_assign_alat_${activeAlatBeratId}`
       : null;
 
+  // Key penyimpanan ban pinjaman antar-unit sesama jenis
+  const borrowedStorageKey = activeMobilId
+    ? `tire_borrowed_mobil_${activeMobilId}`
+    : activeAlatBeratId
+      ? `tire_borrowed_alat_${activeAlatBeratId}`
+      : null;
+
   // State mapping roda -> stockBanId (awalannya kosong {})
   const [assignments, setAssignments] = useState<Record<string, number>>(() => {
     if (!storageKey) return {};
@@ -810,6 +1350,44 @@ export default function VehicleSchematic3D({
     }
   }, [storageKey]);
 
+  // State ban pinjaman antar-unit sesama jenis
+  const [borrowedTires, setBorrowedTires] = useState<StockBanItem[]>(() => {
+    if (!borrowedStorageKey) return [];
+    try {
+      const saved = localStorage.getItem(borrowedStorageKey);
+      return saved ? JSON.parse(saved) : [];
+    } catch {
+      return [];
+    }
+  });
+
+  useEffect(() => {
+    if (!borrowedStorageKey) {
+      setBorrowedTires([]);
+      return;
+    }
+    try {
+      const saved = localStorage.getItem(borrowedStorageKey);
+      setBorrowedTires(saved ? JSON.parse(saved) : []);
+    } catch {
+      setBorrowedTires([]);
+    }
+  }, [borrowedStorageKey]);
+
+  const saveBorrowedTires = (nextBorrowed: StockBanItem[]) => {
+    setBorrowedTires(nextBorrowed);
+    if (borrowedStorageKey) {
+      try {
+        localStorage.setItem(borrowedStorageKey, JSON.stringify(nextBorrowed));
+      } catch (e) {
+        console.error('Error saving borrowed tires:', e);
+      }
+    }
+  };
+
+  // Status Sinkronisasi Database MySQL: 'synced' | 'saving' | 'error' | 'idle'
+  const [dbSyncStatus, setDbSyncStatus] = useState<'synced' | 'saving' | 'error' | 'idle'>('idle');
+
   // Simpan ke state dan localStorage
   const saveAssignments = (newAssigns: Record<string, number>) => {
     setAssignments(newAssigns);
@@ -821,6 +1399,65 @@ export default function VehicleSchematic3D({
       }
     }
   };
+
+  // Muat posisi ban terpasang dari database MySQL saat unit dipilih
+  useEffect(() => {
+    if (!activeMobilId && !activeAlatBeratId) return;
+
+    let isMounted = true;
+    const q = activeMobilId
+      ? `mobil_id=${encodeURIComponent(String(activeMobilId))}`
+      : `alat_berat_id=${encodeURIComponent(String(activeAlatBeratId))}`;
+
+    fetch(`/api/tire-tread/installations?${q}`)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        return res.json();
+      })
+      .then((json) => {
+        if (!isMounted) return;
+        if (json.status === 'success' && json.data) {
+          const dbAssigns: Record<string, number> = json.data.assignments || {};
+          // Jika ada record terpasang di database, gunakan data DB dan sinkronkan localStorage
+          if (Object.keys(dbAssigns).length > 0) {
+            setAssignments(dbAssigns);
+            if (storageKey) {
+              try {
+                localStorage.setItem(storageKey, JSON.stringify(dbAssigns));
+              } catch {}
+            }
+          }
+          // Jika ada ban pinjaman yang terdaftar di database untuk unit ini, sinkronkan ke borrowedTires
+          if (Array.isArray(json.data.borrowed) && json.data.borrowed.length > 0) {
+            setBorrowedTires((prev) => {
+              const merged = [...prev];
+              json.data.borrowed.forEach((bt: StockBanItem) => {
+                if (!merged.some((m) => m.id === bt.id)) {
+                  merged.push(bt);
+                }
+              });
+              if (borrowedStorageKey) {
+                try {
+                  localStorage.setItem(borrowedStorageKey, JSON.stringify(merged));
+                } catch {}
+              }
+              return merged;
+            });
+          }
+          setDbSyncStatus('synced');
+        }
+      })
+      .catch((err) => {
+        if (isMounted) {
+          console.warn('Gagal memuat instalasi ban dari database:', err);
+          setDbSyncStatus('idle');
+        }
+      });
+
+    return () => {
+      isMounted = false;
+    };
+  }, [activeMobilId, activeAlatBeratId, storageKey, borrowedStorageKey]);
 
   // Ambil daftar ban terpakai unit dari API stock_bans
   useEffect(() => {
@@ -877,11 +1514,82 @@ export default function VehicleSchematic3D({
 
 
 
+  // State Modal Pinjam Ban Antar-Unit
+  const [isBorrowModalOpen, setIsBorrowModalOpen] = useState<boolean>(false);
+
+  // Gabungan ban unit asli + ban yang sedang dipinjam
+  const allTires = useMemo(() => {
+    const list = [...tires];
+    borrowedTires.forEach((bt) => {
+      if (!list.some((t) => t.id === bt.id)) {
+        list.push(bt);
+      }
+    });
+    return list;
+  }, [tires, borrowedTires]);
+
+  // State modal detail ban untuk Blueprint 2D & list tray
+  const [blueprintDetailTire, setBlueprintDetailTire] = useState<{ tire: StockBanItem; wheelId: string } | null>(null);
+
+  // Handler pinjam ban dari unit donor
+  const handleBorrowTire = (tire: StockBanItem, donorUnit: { id: number | string; name: string }) => {
+    const newBorrowed: StockBanItem = {
+      ...tire,
+      isBorrowed: true,
+      borrowedMeta: {
+        donorUnitId: donorUnit.id,
+        donorUnitName: donorUnit.name,
+        donorCategory: category || 'unit',
+        borrowedAt: new Date().toISOString()
+      }
+    };
+    const nextList = [...borrowedTires.filter((t) => t.id !== tire.id), newBorrowed];
+    saveBorrowedTires(nextList);
+  };
+
+  // Handler kembalikan ban pinjaman ke unit asalnya
+  const handleReturnTire = (tireId: number) => {
+    // 1. Lepas dari dudukan roda jika sedang terpasang di salah satu roda
+    const nextAssigns = { ...assignments };
+    let changed = false;
+    let removedWheelId: string | null = null;
+    for (const [wKey, bVal] of Object.entries(nextAssigns)) {
+      if (bVal === tireId) {
+        delete nextAssigns[wKey];
+        changed = true;
+        removedWheelId = wKey;
+      }
+    }
+    if (changed) {
+      saveAssignments(nextAssigns);
+      if (removedWheelId) {
+        fetch('/api/tire-tread/installations/remove', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            mobil_id: activeMobilId,
+            alat_berat_id: activeAlatBeratId,
+            wheel_id: removedWheelId
+          })
+        }).catch(() => {});
+      }
+    }
+
+    // 2. Hapus dari daftar ban pinjaman
+    const nextBorrowed = borrowedTires.filter((t) => t.id !== tireId);
+    saveBorrowedTires(nextBorrowed);
+
+    // 3. Jika sedang dibuka di modal detail blueprint, tutup
+    if (blueprintDetailTire?.tire.id === tireId) {
+      setBlueprintDetailTire(null);
+    }
+  };
+
   // Mencari ban yang terpasang pada suatu posisi roda
   const getTireForWheel = (wheelId: string): StockBanItem | null => {
     const banId = assignments[wheelId];
     if (!banId) return null;
-    return tires.find((t) => t.id === banId) || null;
+    return allTires.find((t) => t.id === banId) || null;
   };
 
   // Handler klik roda pada diagram atau saat memilih posisi dari dropdown
@@ -889,9 +1597,12 @@ export default function VehicleSchematic3D({
     setInternalWheelId(wheelId);
     const tire = getTireForWheel(wheelId);
     onWheelClick?.(wheelId, tire);
+    if (tire && viewMode === 'blueprint') {
+      setBlueprintDetailTire({ tire, wheelId });
+    }
   };
 
-  // Pasang ban tertentu ke posisi roda
+  // Pasang ban tertentu ke posisi roda dan simpan ke database
   const handleAssignTire = (wheelId: string, banId: number) => {
     const nextAssigns = { ...assignments };
     // Jika ban ini sebelumnya terpasang di roda lain, lepas dari roda lama
@@ -903,40 +1614,105 @@ export default function VehicleSchematic3D({
     nextAssigns[wheelId] = banId;
     saveAssignments(nextAssigns);
 
-    const assignedTire = tires.find((t) => t.id === banId) || null;
+    const assignedTire = allTires.find((t) => t.id === banId) || null;
+    const wheelMeta = wheelConfig?.wheels.find((w) => w.id === wheelId);
     setInternalWheelId(wheelId);
     onWheelClick?.(wheelId, assignedTire);
+
+    // Kirim mutasi simpan ke database MySQL
+    setDbSyncStatus('saving');
+    fetch('/api/tire-tread/installations/assign', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mobil_id: activeMobilId,
+        alat_berat_id: activeAlatBeratId,
+        category,
+        wheel_id: wheelId,
+        wheel_code: wheelMeta?.code || wheelId.toUpperCase(),
+        wheel_name: wheelMeta?.name || `Roda ${wheelId}`,
+        stock_ban_id: banId,
+        nomor_seri: assignedTire?.nomor_seri,
+        merk: assignedTire?.merk,
+        ukuran: assignedTire?.ukuran,
+        kondisi: assignedTire?.kondisi,
+        is_borrowed: assignedTire?.isBorrowed ? 1 : 0,
+        donor_unit_id: assignedTire?.borrowedMeta?.donorUnitId || null,
+        donor_unit_name: assignedTire?.borrowedMeta?.donorUnitName || null,
+        donor_category: assignedTire?.borrowedMeta?.donorCategory || null,
+        borrowed_at: assignedTire?.borrowedMeta?.borrowedAt || null
+      })
+    })
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.status === 'success') {
+          setDbSyncStatus('synced');
+        } else {
+          setDbSyncStatus('error');
+        }
+      })
+      .catch((err) => {
+        console.warn('Gagal menyimpan posisi ban ke database:', err);
+        setDbSyncStatus('error');
+      });
   };
 
-
-
-  // Lepas ban dari posisi roda
+  // Lepas ban dari posisi roda dan hapus dari database
   const handleRemoveTire = (wheelId: string) => {
     const nextAssigns = { ...assignments };
     delete nextAssigns[wheelId];
     saveAssignments(nextAssigns);
     onWheelClick?.(wheelId, null);
+
+    // Hapus dari database MySQL
+    setDbSyncStatus('saving');
+    fetch('/api/tire-tread/installations/remove', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mobil_id: activeMobilId,
+        alat_berat_id: activeAlatBeratId,
+        wheel_id: wheelId
+      })
+    })
+      .then((res) => res.json())
+      .then(() => setDbSyncStatus('synced'))
+      .catch((err) => {
+        console.warn('Gagal mencopot ban dari database:', err);
+        setDbSyncStatus('error');
+      });
   };
 
-
-
-  // Reset/Kosongkan seluruh posisi roda
+  // Reset/Kosongkan seluruh posisi roda pada unit di database
   const handleReset = () => {
     saveAssignments({});
     onWheelClick?.(activeWheelId, null);
+
+    setDbSyncStatus('saving');
+    fetch('/api/tire-tread/installations/reset', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mobil_id: activeMobilId,
+        alat_berat_id: activeAlatBeratId
+      })
+    })
+      .then((res) => res.json())
+      .then(() => setDbSyncStatus('synced'))
+      .catch((err) => {
+        console.warn('Gagal mengosongkan ban di database:', err);
+        setDbSyncStatus('error');
+      });
   };
 
-  // Data roda dan ban yang sedang aktif dipilih
-
-
-  // Filter tray kartu ban: 'all' | 'ready' | 'placed'
-  const [trayFilter, setTrayFilter] = useState<'all' | 'ready' | 'placed'>('all');
+  // Filter tray kartu ban: 'ready' | 'placed' | 'all' (default 'ready' agar ban yang terpasang otomatis hilang dari daftar inventori)
+  const [trayFilter, setTrayFilter] = useState<'ready' | 'placed' | 'all'>('ready');
 
   const assignedCount = Object.keys(assignments).length;
-  const unassignedTiresCount = tires.filter((t) => !Object.values(assignments).includes(t.id)).length;
+  const unassignedTiresCount = allTires.filter((t) => !Object.values(assignments).includes(t.id)).length;
 
   // Filtered tires for tray display
-  const displayedTires = tires.filter((ban) => {
+  const displayedTires = allTires.filter((ban) => {
     const isPlaced = Object.values(assignments).includes(ban.id);
     if (trayFilter === 'ready') return !isPlaced;
     if (trayFilter === 'placed') return isPlaced;
@@ -985,6 +1761,21 @@ export default function VehicleSchematic3D({
                 ) : (
                   <span className="vs-status-pill vs-status-pill--neutral">⚪ 0/{wheelCount} Terpasang</span>
                 )}
+
+                {/* Status Persistensi Database MySQL */}
+                {dbSyncStatus === 'saving' ? (
+                  <span className="vs-status-pill vs-status-pill--loading" title="Menyimpan perubahan posisi ban ke database MySQL">
+                    ☁️ ⟳ Menyimpan ke DB...
+                  </span>
+                ) : dbSyncStatus === 'synced' && assignedCount > 0 ? (
+                  <span className="vs-status-pill vs-status-pill--ok" title="Seluruh posisi ban tersimpan permanen di database MySQL">
+                    ☁️ DB Tersimpan ✓
+                  </span>
+                ) : dbSyncStatus === 'error' ? (
+                  <span className="vs-status-pill vs-status-pill--warn" title="Gagal tersambung ke database, data disimpan lokal">
+                    ☁️ ⚠ Offline (Lokal)
+                  </span>
+                ) : null}
               </div>
 
               <div className="vs-legend-row">
@@ -1008,6 +1799,8 @@ export default function VehicleSchematic3D({
                 onDropTireToWheel={(targetWheelId, banId) => {
                   handleAssignTire(targetWheelId, banId);
                 }}
+                onRemoveTireFromWheel={handleRemoveTire}
+                onReturnBorrowedTire={handleReturnTire}
                 draggedTireId={draggedTireId}
               />
             ) : (
@@ -1023,6 +1816,65 @@ export default function VehicleSchematic3D({
                 )}
                 {wheelCount === 4 && (
                   <Schema4Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} />
+                )}
+
+                {/* Status Bar untuk Blueprint 2D */}
+                {activeWheelId && (
+                  <div className="vs-3d-status-bar" style={{ marginTop: '12px' }}>
+                    <div className="vs-3d-wheel-tag">
+                      <div className="vs-3d-tag-left">
+                        <span className="vs-3d-code-pill">
+                          [{wheelConfig?.wheels.find((w) => w.id === activeWheelId)?.code || activeWheelId.toUpperCase()}]
+                        </span>
+                        <span className="vs-3d-wheel-title">
+                          {wheelConfig?.wheels.find((w) => w.id === activeWheelId)?.name || `Roda ${activeWheelId}`}
+                        </span>
+                      </div>
+
+                      <div className="vs-3d-tag-right">
+                        {getTireForWheel(activeWheelId) ? (
+                          <div className="vs-3d-assigned-actions">
+                            <span
+                              className="vs-3d-tire-pill vs-3d-tire-pill--ok vs-3d-tire-pill--clickable"
+                              onClick={() => {
+                                const t = getTireForWheel(activeWheelId);
+                                if (t) setBlueprintDetailTire({ tire: t, wheelId: activeWheelId });
+                              }}
+                              title="Tekan untuk melihat detail data ban"
+                            >
+                              ✓ #{getTireForWheel(activeWheelId)?.nomor_seri} • {getTireForWheel(activeWheelId)?.merk} 📋
+                            </span>
+                            <button
+                              type="button"
+                              className="vs-3d-detail-btn"
+                              onClick={() => {
+                                const t = getTireForWheel(activeWheelId);
+                                if (t) setBlueprintDetailTire({ tire: t, wheelId: activeWheelId });
+                              }}
+                              title="Lihat rincian lengkap data ban ini"
+                            >
+                              ℹ️ Detail Ban
+                            </button>
+                            <button
+                              type="button"
+                              className="vs-detach-btn vs-detach-btn--pill"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleRemoveTire(activeWheelId);
+                              }}
+                              title="Copot ban dari posisi roda ini dan kembalikan ke inventori"
+                            >
+                              ✕ Copot Ban
+                            </button>
+                          </div>
+                        ) : (
+                          <span className="vs-3d-tire-pill vs-3d-tire-pill--empty">
+                            ⚪ Dudukan Kosong (Belum Terpasang)
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  </div>
                 )}
               </div>
             )}
@@ -1056,30 +1908,40 @@ export default function VehicleSchematic3D({
                 <span className="vs-tray-counter-badge">
                   {unassignedTiresCount} siap • {assignedCount}/{wheelCount} terpasang
                 </span>
+                {borrowedTires.length > 0 && (
+                  <span className="vs-tray-borrowed-pill" title={`${borrowedTires.length} ban pinjaman dari unit sesama armada`}>
+                    🏷️ {borrowedTires.length} Pinjaman
+                  </span>
+                )}
               </div>
 
-              {assignedCount > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                 <button
                   type="button"
-                  className="vs-detach-all-btn"
-                  onClick={handleReset}
-                  title="Lepas semua ban dari seluruh posisi roda unit ini"
+                  className="vs-borrow-trigger-btn"
+                  onClick={() => setIsBorrowModalOpen(true)}
+                  title="Pinjam ban dari unit lain dalam armada sesama jenis"
                 >
-                  ↺ Lepas Semua
+                  <span>🔄</span>
+                  <span>Pinjam Ban</span>
                 </button>
-              )}
+
+                {assignedCount > 0 && (
+                  <button
+                    type="button"
+                    className="vs-detach-all-btn"
+                    onClick={handleReset}
+                    title="Lepas semua ban dari seluruh posisi roda unit ini"
+                  >
+                    ↺ Lepas Semua
+                  </button>
+                )}
+              </div>
             </div>
 
             {/* Filter Tabs & Panduan Drag */}
             <div className="vs-tray-controls">
               <div className="vs-filter-tabs">
-                <button
-                  type="button"
-                  className={`vs-filter-tab ${trayFilter === 'all' ? 'active' : ''}`}
-                  onClick={() => setTrayFilter('all')}
-                >
-                  Semua ({tires.length})
-                </button>
                 <button
                   type="button"
                   className={`vs-filter-tab ${trayFilter === 'ready' ? 'active' : ''}`}
@@ -1094,6 +1956,13 @@ export default function VehicleSchematic3D({
                 >
                   Terpasang ({assignedCount})
                 </button>
+                <button
+                  type="button"
+                  className={`vs-filter-tab ${trayFilter === 'all' ? 'active' : ''}`}
+                  onClick={() => setTrayFilter('all')}
+                >
+                  Semua ({allTires.length})
+                </button>
               </div>
 
               <span className="vs-tray-hint-mini">
@@ -1103,13 +1972,22 @@ export default function VehicleSchematic3D({
 
             {/* List Kartu Ban */}
             <div className="vs-tray-list">
-              {tires.length === 0 ? (
+              {allTires.length === 0 ? (
                 <div className="vs-tray-empty">
                   {isLoading ? '⟳ Memuat data inventori ban...' : 'Tidak ada data ban terdaftar untuk unit ini.'}
                 </div>
               ) : displayedTires.length === 0 ? (
                 <div className="vs-tray-empty">
-                  Tidak ada ban yang cocok dengan filter yang dipilih.
+                  {trayFilter === 'ready' && assignedCount > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center' }}>
+                      <span style={{ color: '#10b981', fontWeight: 600 }}>✓ Semua ban ({assignedCount}) sudah terpasang ke roda unit</span>
+                      <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                        Copot ban dari posisi roda atau pilih tab "Terpasang" untuk melepas ban.
+                      </span>
+                    </div>
+                  ) : (
+                    'Tidak ada ban yang cocok dengan filter yang dipilih.'
+                  )}
                 </div>
               ) : (
                 displayedTires.map((ban) => {
@@ -1127,6 +2005,14 @@ export default function VehicleSchematic3D({
                         e.dataTransfer.effectAllowed = 'copyMove';
                         setDraggedTireId(ban.id);
                         setDraggedSourceWheelId(placedAtWheel || null);
+
+                        // Ambil HANYA elemen grafik 3D ban bulat agar saat ditarik (drag), yang melayang hanya gambar 3D ban murni (bukan kotak kartu teks)
+                        const graphicEl = e.currentTarget.querySelector('.vs-tire-graphic-wrap') as HTMLElement;
+                        if (graphicEl && e.dataTransfer.setDragImage) {
+                          const w = graphicEl.offsetWidth || 58;
+                          const h = graphicEl.offsetHeight || 58;
+                          e.dataTransfer.setDragImage(graphicEl, w / 2, h / 2);
+                        }
                       }}
                       onDragEnd={() => {
                         setTimeout(() => {
@@ -1152,10 +2038,31 @@ export default function VehicleSchematic3D({
                           <div className="vs-card-header-row">
                             <span className="vs-card-brand">{ban.merk}</span>
                             <span className="vs-card-serial-pill">#{ban.nomor_seri}</span>
+                            {ban.isBorrowed && (
+                              <span
+                                className="vs-borrowed-tag"
+                                title={`Dipinjam dari unit ${ban.borrowedMeta?.donorUnitName || 'lain'}`}
+                              >
+                                🏷️ Pinjam: {ban.borrowedMeta?.donorUnitName || 'Unit Lain'}
+                              </span>
+                            )}
                           </div>
                           <div className="vs-card-meta-row">
                             <span className="vs-card-spec">{ban.ukuran}</span>
                             <span className="vs-card-cond-pill">{ban.kondisi}</span>
+                            {ban.isBorrowed && (
+                              <button
+                                type="button"
+                                className="vs-return-btn"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleReturnTire(ban.id);
+                                }}
+                                title={`Kembalikan ban ini ke ${ban.borrowedMeta?.donorUnitName || 'unit asal'}`}
+                              >
+                                ↩️ Kembalikan
+                              </button>
+                            )}
                           </div>
                         </div>
                       </div>
@@ -1163,25 +2070,43 @@ export default function VehicleSchematic3D({
                       <div className="vs-card-right">
                         {placedAtWheel ? (
                           <div className="vs-card-assigned-actions">
-                            <span className="vs-status-badge vs-status-badge--placed">
+                            <span
+                              className="vs-status-badge vs-status-badge--placed"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setBlueprintDetailTire({ tire: ban, wheelId: placedAtWheel });
+                              }}
+                              style={{ cursor: 'pointer' }}
+                              title="Klik untuk melihat detail data ban"
+                            >
                               ✓ [{placedMeta?.code || placedAtWheel.toUpperCase()}]
                             </span>
                             <button
                               type="button"
-                              className="vs-detach-btn"
-                              title="Lepas ban dari posisi roda ini"
+                              className="vs-detach-btn vs-detach-btn--pill"
+                              title="Copot ban dari posisi roda ini dan kembalikan ke inventori"
                               onClick={(e) => {
                                 e.stopPropagation();
                                 handleRemoveTire(placedAtWheel);
                               }}
                             >
-                              ✕
+                              ✕ Copot
                             </button>
                           </div>
                         ) : (
-                          <span className="vs-status-badge vs-status-badge--ready">
+                          <button
+                            type="button"
+                            className="vs-status-badge vs-status-badge--ready vs-btn-quick-assign"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              if (activeWheelId) {
+                                handleAssignTire(activeWheelId, ban.id);
+                              }
+                            }}
+                            title={`Klik untuk pasang langsung ke roda [${wheelConfig?.wheels.find((w) => w.id === activeWheelId)?.code || activeWheelId.toUpperCase()}]`}
+                          >
                             ⚪ Siap Pasang
-                          </span>
+                          </button>
                         )}
                       </div>
                     </div>
@@ -1192,6 +2117,45 @@ export default function VehicleSchematic3D({
           </div>
         </div>
       </div>
+
+      {/* ── MODAL DETAIL BAN UNTUK BLUEPRINT 2D & TRAY ── */}
+      {blueprintDetailTire && (
+        <TireDetailModal
+          tire={blueprintDetailTire.tire}
+          wheelId={blueprintDetailTire.wheelId}
+          wheelMeta={wheelConfig?.wheels.find((w) => w.id === blueprintDetailTire.wheelId) || null}
+          onClose={() => setBlueprintDetailTire(null)}
+          onRemove={() => {
+            if (blueprintDetailTire.wheelId) {
+              handleRemoveTire(blueprintDetailTire.wheelId);
+            }
+          }}
+          onReturn={() => {
+            handleReturnTire(blueprintDetailTire.tire.id);
+            setBlueprintDetailTire(null);
+          }}
+        />
+      )}
+
+      {/* ── MODAL PINJAM BAN ANTAR-UNIT SESAMA JENIS ── */}
+      {isBorrowModalOpen && (
+        <BorrowTireModal
+          currentUnitId={activeMobilId || activeAlatBeratId || null}
+          category={category}
+          categoryLabel={
+            category === 'tractor-head'
+              ? 'Tractor Head'
+              : category === 'chassis-container'
+              ? 'Chassis Container'
+              : category === 'forklift'
+              ? 'Forklift'
+              : undefined
+          }
+          onClose={() => setIsBorrowModalOpen(false)}
+          onBorrowTire={handleBorrowTire}
+          borrowedTireIds={borrowedTires.map((t) => t.id)}
+        />
+      )}
     </div>
   );
 }

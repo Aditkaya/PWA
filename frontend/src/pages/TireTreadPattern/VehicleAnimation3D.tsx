@@ -242,6 +242,11 @@ export default function VehicleAnimation3D({
     onDropTireToWheelRef.current = onDropTireToWheel;
   }, [onDropTireToWheel]);
 
+  const touchCoordsRef = useRef(touchCoords);
+  useEffect(() => {
+    touchCoordsRef.current = touchCoords;
+  }, [touchCoords]);
+
   // Default awal: TIDAK BERPUTAR & BAN DIAM (sesuai permintaan user)
   const [isAutoRotate, setIsAutoRotate] = useState<boolean>(false);
   const [isRolling, setIsRolling] = useState<boolean>(false);
@@ -1272,13 +1277,39 @@ export default function VehicleAnimation3D({
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
-    const handlePointerDown = (event: MouseEvent | TouchEvent) => {
-      const rect = renderer.domElement.getBoundingClientRect();
-      const clientX = 'touches' in event ? event.touches[0].clientX : event.clientX;
-      const clientY = 'touches' in event ? event.touches[0].clientY : event.clientY;
+    // ── TAP DETECTION (Mencegah sentuhan saat memutar/geser kamera 3D memicu detail ban) ──
+    let pointerDownPos: { x: number; y: number } | null = null;
+    let pointerDownTime = 0;
 
-      mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+    const handlePointerDown = (event: PointerEvent) => {
+      // Hanya tangkap tombol utama (left click / single touch)
+      if (event.button !== 0 && event.pointerType === 'mouse') return;
+      pointerDownPos = { x: event.clientX, y: event.clientY };
+      pointerDownTime = Date.now();
+    };
+
+    const handlePointerUp = (event: PointerEvent) => {
+      if (!pointerDownPos) return;
+      if (event.button !== 0 && event.pointerType === 'mouse') return;
+
+      const dist = Math.hypot(event.clientX - pointerDownPos.x, event.clientY - pointerDownPos.y);
+      const elapsed = Date.now() - pointerDownTime;
+      pointerDownPos = null;
+
+      // SYARAT MUTLAK HARUS DI-TAP (Bukan sekadar sentuh / geser / rotasi kamera 3D):
+      // 1. Pergeseran jari/kursor maksimal 8 pixel (toleransi sentuhan jari di layar HP)
+      // 2. Durasi sentuhan singkat maksimal 300 ms
+      // Jika digeser untuk memutar kamera 3D (OrbitControls), fungsi ini langsung return dan TIDAK membuka detail!
+      if (dist > 8 || elapsed > 300) {
+        return;
+      }
+
+      // Jangan buka modal jika sedang aktif drag ban dari tray inventori
+      if (touchCoordsRef.current || dndHoverWheelIdRef.current) return;
+
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
 
       raycaster.setFromCamera(mouse, camera);
       const wheelMeshes: THREE.Object3D[] = [];
@@ -1297,14 +1328,21 @@ export default function VehicleAnimation3D({
           const tire = getTireForWheelRef.current(hitWheelId);
           onWheelClickRef.current?.(hitWheelId, tire);
           if (tire) {
-            // Jika ban yang sudah terpasang ditekan, munculkan modal detail data ban
+            // Hanya munculkan modal detail saat benar-benar di-tap cepat
             setDetailModalTire({ tire, wheelId: hitWheelId });
           }
         }
       }
     };
 
-    const handlePointerMove = (event: MouseEvent) => {
+    const handlePointerCancel = () => {
+      pointerDownPos = null;
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      // Di layar sentuh HP (touch), gerakan jari memutar kamera tidak memicu hover state
+      if (event.pointerType === 'touch') return;
+
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
@@ -1331,6 +1369,8 @@ export default function VehicleAnimation3D({
     };
 
     renderer.domElement.addEventListener('pointerdown', handlePointerDown);
+    renderer.domElement.addEventListener('pointerup', handlePointerUp);
+    renderer.domElement.addEventListener('pointercancel', handlePointerCancel);
     renderer.domElement.addEventListener('pointermove', handlePointerMove);
 
     // ── ANIMATION LOOP ──
@@ -1507,6 +1547,8 @@ export default function VehicleAnimation3D({
     return () => {
       window.removeEventListener('resize', handleResize);
       renderer.domElement.removeEventListener('pointerdown', handlePointerDown);
+      renderer.domElement.removeEventListener('pointerup', handlePointerUp);
+      renderer.domElement.removeEventListener('pointercancel', handlePointerCancel);
       renderer.domElement.removeEventListener('pointermove', handlePointerMove);
       if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
       floorTexture.dispose();

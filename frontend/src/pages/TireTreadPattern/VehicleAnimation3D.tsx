@@ -1,4 +1,3 @@
-
 import { useEffect, useRef, useState, useMemo } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
@@ -29,46 +28,62 @@ interface VehicleAnimation3DProps {
   onTargetWheelChange?: (wheelId: string | null) => void;
 }
 
-// Preset Sudut & Target Kamera yang dioptimasi untuk setiap jenis kendaraan (Framing Jelas & Proporsional di HP & Desktop)
+export type WheelCoord = {
+  id: string;
+  x: number;
+  y: number;
+  z: number;
+  side: 'L' | 'R';
+  isDual?: boolean;
+  isOuter?: boolean;
+  isInner?: boolean;
+  partnerId?: string;
+  axleGroup: string;
+};
+
+// Preset Sudut & Target Kamera yang dioptimasi untuk setiap jenis kendaraan
 const getVehicleCameraPreset = (count: number) => {
   if (count === 4) {
-    // Forklift: Sudut 3/4 depan-kiri
     return {
       target: new THREE.Vector3(0, 0.8, 0.1),
       perspective: new THREE.Vector3(-4.8, 2.8, 4.2),
       top: new THREE.Vector3(0.001, 5.5, 0.1),
-      side: new THREE.Vector3(-4.2, 0.9, 0.1)
+      side: new THREE.Vector3(-4.2, 0.9, 0.1),
+      dualFocus: new THREE.Vector3(-3.4, 2.0, 1.6),
+      dualTarget: new THREE.Vector3(-0.4, 0.6, 0.1)
     };
   }
   if (count === 6) {
-    // Tractor Head: Menampakkan kabin depan, grille, sasis, tapal kuda, dan seluruh gandar
     return {
       target: new THREE.Vector3(0, 1.15, 0.1),
       perspective: new THREE.Vector3(-7.2, 3.6, 6.2),
       top: new THREE.Vector3(0.001, 7.0, 0.1),
-      side: new THREE.Vector3(-5.8, 1.15, 0.1)
+      side: new THREE.Vector3(-5.8, 1.15, 0.1),
+      dualFocus: new THREE.Vector3(-4.2, 2.2, -0.2), // Elevated 45° angle clearly exposing inner & outer dual rear wheels
+      dualTarget: new THREE.Vector3(-0.6, 0.7, -1.7)
     };
   }
   if (count === 8) {
-    // Chassis Trailer 20ft (Panjang 7.8 unit)
     return {
       target: new THREE.Vector3(0, 0.75, -0.6),
       perspective: new THREE.Vector3(-8.8, 4.5, 7.2),
       top: new THREE.Vector3(0.001, 7.8, -0.6),
-      side: new THREE.Vector3(-7.2, 0.95, -0.6)
+      side: new THREE.Vector3(-7.2, 0.95, -0.6),
+      dualFocus: new THREE.Vector3(-4.6, 2.3, -1.0),
+      dualTarget: new THREE.Vector3(-0.6, 0.65, -2.1)
     };
   }
-  // 12 Roda (Chassis Trailer 40ft: Panjang 11.2 unit)
-  // Kamera samping dan atas didekatkan secara proporsional agar kendaraan memenuhi layar dan detail roda tampak jelas
+  // 12 Roda
   return {
     target: new THREE.Vector3(0, 0.75, -1.0),
     perspective: new THREE.Vector3(-10.8, 5.5, 8.8),
     top: new THREE.Vector3(0.001, 8.8, -1.0),
-    side: new THREE.Vector3(-8.8, 0.95, -1.0)
+    side: new THREE.Vector3(-8.8, 0.95, -1.0),
+    dualFocus: new THREE.Vector3(-5.2, 2.4, -1.8),
+    dualTarget: new THREE.Vector3(-0.6, 0.65, -3.3)
   };
 };
 
-// Batas Zoom Maksimal Kamera agar Kamera Selalu Berada di Dalam Batas Ruang Bengkel 3D
 const getMaxCameraDistance = (count: number) => {
   if (count <= 4) return 8.0;
   if (count <= 6) return 11.0;
@@ -76,7 +91,7 @@ const getMaxCameraDistance = (count: number) => {
   return 16.0;
 };
 
-// Generator Tekstur Lantai Garasi Bengkel Industri (Industrial Workshop Epoxy Floor with Service Bay 01 Markings)
+// Generator Tekstur Lantai Garasi Bengkel Industri Realistis
 const createWorkshopFloorTexture = () => {
   const canvas = document.createElement('canvas');
   canvas.width = 1024;
@@ -84,7 +99,7 @@ const createWorkshopFloorTexture = () => {
   const ctx = canvas.getContext('2d');
   if (!ctx) return new THREE.CanvasTexture(canvas);
 
-  // 1. Dasar Lantai Epoxy Bengkel Abu-abu Industri (Industrial Polished Gray Epoxy)
+  // 1. Dasar Lantai Epoxy Bengkel Abu-abu Industri
   ctx.fillStyle = '#1e2430';
   ctx.fillRect(0, 0, 1024, 1024);
 
@@ -99,7 +114,7 @@ const createWorkshopFloorTexture = () => {
   }
   ctx.putImageData(imgData, 0, 0);
 
-  // 2. Garis Sambungan Cor Lantai Beton (Concrete Slab Expansion Grid)
+  // 2. Garis Sambungan Cor Lantai Beton
   ctx.strokeStyle = '#141822';
   ctx.lineWidth = 3;
   for (let p = 0; p <= 1024; p += 128) {
@@ -114,12 +129,12 @@ const createWorkshopFloorTexture = () => {
     ctx.stroke();
   }
 
-  // 3. Service Bay Stall (Area Parkir Servis Truk)
+  // 3. Service Bay Stall
   const bayX = 180, bayY = 80, bayW = 664, bayH = 864;
   ctx.fillStyle = '#242c3b';
   ctx.fillRect(bayX, bayY, bayW, bayH);
 
-  // 4. Garis Pembatas Hazard Kuning-Hitam (Yellow & Black Diagonal Safety Border)
+  // 4. Garis Pembatas Hazard Kuning-Hitam
   ctx.save();
   ctx.lineWidth = 20;
   ctx.strokeStyle = '#eab308';
@@ -159,7 +174,7 @@ const createWorkshopFloorTexture = () => {
     ctx.fill();
   }
 
-  // 5. Dyno Pit / Area Roller Pengujian Tengah (Recessed Metal Plate)
+  // 5. Dyno Pit / Area Roller Pengujian Tengah
   ctx.fillStyle = '#111722';
   ctx.fillRect(bayX + 70, bayY + 180, bayW - 140, bayH - 360);
   ctx.strokeStyle = '#38bdf8';
@@ -198,6 +213,39 @@ const createWorkshopFloorTexture = () => {
   return texture;
 };
 
+// Generator Tekstur Alur Tapak Ban Realistis (Commercial Truck Radial Tread Pattern)
+const createTireTreadTexture = () => {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512;
+  canvas.height = 128;
+  const ctx = canvas.getContext('2d');
+  if (!ctx) return null;
+
+  ctx.fillStyle = '#1a1a1e';
+  ctx.fillRect(0, 0, 512, 128);
+
+  // Longitudinal main grooves
+  ctx.fillStyle = '#08080a';
+  ctx.fillRect(0, 24, 512, 14);
+  ctx.fillRect(0, 57, 512, 14);
+  ctx.fillRect(0, 90, 512, 14);
+
+  // Lateral sipes & rib blocks
+  ctx.fillStyle = '#0d0d10';
+  for (let x = 0; x < 512; x += 16) {
+    ctx.fillRect(x, 4, 3, 20);
+    ctx.fillRect(x + 8, 38, 3, 19);
+    ctx.fillRect(x, 71, 3, 19);
+    ctx.fillRect(x + 8, 104, 3, 20);
+  }
+
+  const texture = new THREE.CanvasTexture(canvas);
+  texture.wrapS = THREE.RepeatWrapping;
+  texture.wrapT = THREE.ClampToEdgeWrapping;
+  texture.repeat.set(4, 1);
+  texture.needsUpdate = true;
+  return texture;
+};
 
 export default function VehicleAnimation3D({
   wheelCount,
@@ -220,6 +268,9 @@ export default function VehicleAnimation3D({
   const sceneRef = useRef<THREE.Scene | null>(null);
   const wheelsMeshMap = useRef<Map<string, THREE.Group>>(new Map());
   const animationFrameId = useRef<number | null>(null);
+
+  // Map data koordinat & metadata roda
+  const wheelCoordsMapRef = useRef<Map<string, WheelCoord>>(new Map());
 
   // Synchronized refs for 60fps render loop
   const selectedWheelIdRef = useRef<string | null>(selectedWheelId);
@@ -247,7 +298,7 @@ export default function VehicleAnimation3D({
     touchCoordsRef.current = touchCoords;
   }, [touchCoords]);
 
-  // Default awal: TIDAK BERPUTAR & BAN DIAM (sesuai permintaan user)
+  // Status Auto Rotate & Rolling Dyno Test
   const [isAutoRotate, setIsAutoRotate] = useState<boolean>(false);
   const [isRolling, setIsRolling] = useState<boolean>(false);
   const isRollingRef = useRef<boolean>(false);
@@ -255,7 +306,14 @@ export default function VehicleAnimation3D({
     isRollingRef.current = isRolling;
   }, [isRolling]);
 
-  const [cameraView, setCameraView] = useState<'perspective' | 'top' | 'side'>('perspective');
+  // Mode Pisahkan Roda Ganda (Exploded Dual Wheels View)
+  const [isDualSeparated, setIsDualSeparated] = useState<boolean>(false);
+  const isDualSeparatedRef = useRef<boolean>(false);
+  useEffect(() => {
+    isDualSeparatedRef.current = isDualSeparated;
+  }, [isDualSeparated]);
+
+  const [cameraView, setCameraView] = useState<'perspective' | 'top' | 'side' | 'dualFocus'>('perspective');
   const [hoveredWheelId, setHoveredWheelId] = useState<string | null>(null);
 
   // State Modal Detail Data Ban yang Terpasang
@@ -265,11 +323,42 @@ export default function VehicleAnimation3D({
   const [dndHoverWheelId, setDndHoverWheelId] = useState<string | null>(null);
   const dndHoverWheelIdRef = useRef<string | null>(null);
   const [isCanvasDragOver, setIsCanvasDragOver] = useState<boolean>(false);
+  const isDraggingRef = useRef<boolean>(false);
+
+  useEffect(() => {
+    isDraggingRef.current = Boolean(isCanvasDragOver || draggedTireId || touchCoords);
+  }, [isCanvasDragOver, draggedTireId, touchCoords]);
 
   const setDndTarget = (id: string | null) => {
     dndHoverWheelIdRef.current = id;
     setDndHoverWheelId(id);
   };
+
+  // Transisi Animasi Kamera Halus (Cinematic Lerp)
+  const cameraTransitionRef = useRef<{
+    active: boolean;
+    startPos: THREE.Vector3;
+    targetPos: THREE.Vector3;
+    startTarget: THREE.Vector3;
+    targetTarget: THREE.Vector3;
+    progress: number;
+  } | null>(null);
+
+  const triggerCameraTransition = (targetPos: THREE.Vector3, targetLookAt: THREE.Vector3) => {
+    if (!cameraRef.current || !controlsRef.current) return;
+    setIsAutoRotate(false);
+    cameraTransitionRef.current = {
+      active: true,
+      startPos: cameraRef.current.position.clone(),
+      targetPos: targetPos.clone(),
+      startTarget: controlsRef.current.target.clone(),
+      targetTarget: targetLookAt.clone(),
+      progress: 0
+    };
+  };
+
+  // Animasi Pasang Ban (Mounting Slide-in & Flash Shockwave)
+  const mountingAnims = useRef<Map<string, { startTime: number; duration: number }>>(new Map());
 
   // Status roda aktif
   const activeMeta = useMemo(() => {
@@ -282,12 +371,92 @@ export default function VehicleAnimation3D({
     return getTireForWheel(selectedWheelId);
   }, [selectedWheelId, getTireForWheel]);
 
+  // Info pasangan roda ganda (jika ada roda dalam/luar)
+  const activePartnerInfo = useMemo(() => {
+    if (!selectedWheelId) return null;
+    const coord = wheelCoordsMapRef.current.get(selectedWheelId);
+    if (!coord?.isDual || !coord.partnerId) return null;
+    const partnerMeta = wheelConfig?.wheels.find((w) => w.id === coord.partnerId);
+    return {
+      partnerId: coord.partnerId,
+      partnerCode: partnerMeta?.code || coord.partnerId.toUpperCase(),
+      partnerName: partnerMeta?.name || `Roda ${coord.partnerId}`,
+      isOuter: Boolean(coord.isOuter),
+      isInner: Boolean(coord.isInner)
+    };
+  }, [selectedWheelId, wheelConfig]);
+
+  // ── BANGUN KOORDINAT RODA SESUAI JUMLAH RODA ──
+  const wheelCoords = useMemo(() => {
+    let list: WheelCoord[] = [];
+    if (wheelCount === 4) {
+      list = [
+        { id: 'w1', x: -0.9, y: 0.45, z: 1.1, side: 'L', axleGroup: 'Gandar Depan' },
+        { id: 'w2', x: 0.9, y: 0.45, z: 1.1, side: 'R', axleGroup: 'Gandar Depan' },
+        { id: 'w3', x: -0.85, y: 0.4, z: -1.0, side: 'L', axleGroup: 'Gandar Belakang' },
+        { id: 'w4', x: 0.85, y: 0.4, z: -1.0, side: 'R', axleGroup: 'Gandar Belakang' }
+      ];
+    } else if (wheelCount === 6) {
+      list = [
+        { id: 'w1', x: -1.15, y: 0.52, z: 2.1, side: 'L', isDual: false, axleGroup: 'Gandar 1 (Kemudi)' },
+        { id: 'w2', x: 1.15, y: 0.52, z: 2.1, side: 'R', isDual: false, axleGroup: 'Gandar 1 (Kemudi)' },
+        { id: 'w3', x: -1.36, y: 0.52, z: -1.7, side: 'L', isDual: true, isOuter: true, partnerId: 'w4', axleGroup: 'Gandar 2 (Penggerak Ganda)' },
+        { id: 'w4', x: -1.04, y: 0.52, z: -1.7, side: 'L', isDual: true, isInner: true, partnerId: 'w3', axleGroup: 'Gandar 2 (Penggerak Ganda)' },
+        { id: 'w5', x: 1.04, y: 0.52, z: -1.7, side: 'R', isDual: true, isInner: true, partnerId: 'w6', axleGroup: 'Gandar 2 (Penggerak Ganda)' },
+        { id: 'w6', x: 1.36, y: 0.52, z: -1.7, side: 'R', isDual: true, isOuter: true, partnerId: 'w5', axleGroup: 'Gandar 2 (Penggerak Ganda)' }
+      ];
+    } else if (wheelCount === 8) {
+      list = [
+        { id: 'w1', x: -1.36, y: 0.52, z: -1.4, side: 'L', isDual: true, isOuter: true, partnerId: 'w2', axleGroup: 'Gandar 1' },
+        { id: 'w2', x: -1.04, y: 0.52, z: -1.4, side: 'L', isDual: true, isInner: true, partnerId: 'w1', axleGroup: 'Gandar 1' },
+        { id: 'w3', x: 1.04, y: 0.52, z: -1.4, side: 'R', isDual: true, isInner: true, partnerId: 'w4', axleGroup: 'Gandar 1' },
+        { id: 'w4', x: 1.36, y: 0.52, z: -1.4, side: 'R', isDual: true, isOuter: true, partnerId: 'w3', axleGroup: 'Gandar 1' },
+        { id: 'w5', x: -1.36, y: 0.52, z: -2.8, side: 'L', isDual: true, isOuter: true, partnerId: 'w6', axleGroup: 'Gandar 2' },
+        { id: 'w6', x: -1.04, y: 0.52, z: -2.8, side: 'L', isDual: true, isInner: true, partnerId: 'w5', axleGroup: 'Gandar 2' },
+        { id: 'w7', x: 1.04, y: 0.52, z: -2.8, side: 'R', isDual: true, isInner: true, partnerId: 'w8', axleGroup: 'Gandar 2' },
+        { id: 'w8', x: 1.36, y: 0.52, z: -2.8, side: 'R', isDual: true, isOuter: true, partnerId: 'w7', axleGroup: 'Gandar 2' }
+      ];
+    } else {
+      list = [
+        { id: 'w1', x: -1.36, y: 0.52, z: -1.9, side: 'L', isDual: true, isOuter: true, partnerId: 'w2', axleGroup: 'Gandar 1' },
+        { id: 'w2', x: -1.04, y: 0.52, z: -1.9, side: 'L', isDual: true, isInner: true, partnerId: 'w1', axleGroup: 'Gandar 1' },
+        { id: 'w3', x: 1.04, y: 0.52, z: -1.9, side: 'R', isDual: true, isInner: true, partnerId: 'w4', axleGroup: 'Gandar 1' },
+        { id: 'w4', x: 1.36, y: 0.52, z: -1.9, side: 'R', isDual: true, isOuter: true, partnerId: 'w3', axleGroup: 'Gandar 1' },
+        { id: 'w5', x: -1.36, y: 0.52, z: -3.3, side: 'L', isDual: true, isOuter: true, partnerId: 'w6', axleGroup: 'Gandar 2' },
+        { id: 'w6', x: -1.04, y: 0.52, z: -3.3, side: 'L', isDual: true, isInner: true, partnerId: 'w5', axleGroup: 'Gandar 2' },
+        { id: 'w7', x: 1.04, y: 0.52, z: -3.3, side: 'R', isDual: true, isInner: true, partnerId: 'w8', axleGroup: 'Gandar 2' },
+        { id: 'w8', x: 1.36, y: 0.52, z: -3.3, side: 'R', isDual: true, isOuter: true, partnerId: 'w7', axleGroup: 'Gandar 2' },
+        { id: 'w9', x: -1.36, y: 0.52, z: -4.7, side: 'L', isDual: true, isOuter: true, partnerId: 'w10', axleGroup: 'Gandar 3' },
+        { id: 'w10', x: -1.04, y: 0.52, z: -4.7, side: 'L', isDual: true, isInner: true, partnerId: 'w9', axleGroup: 'Gandar 3' },
+        { id: 'w11', x: 1.04, y: 0.52, z: -4.7, side: 'R', isDual: true, isInner: true, partnerId: 'w12', axleGroup: 'Gandar 3' },
+        { id: 'w12', x: 1.36, y: 0.52, z: -4.7, side: 'R', isDual: true, isOuter: true, partnerId: 'w11', axleGroup: 'Gandar 3' }
+      ];
+    }
+    const map = new Map<string, WheelCoord>();
+    list.forEach((c) => map.set(c.id, c));
+    wheelCoordsMapRef.current = map;
+    return list;
+  }, [wheelCount]);
+
+  // Kelompok Roda untuk Ribbon Navigasi Cepat
+  const axleGroups = useMemo(() => {
+    const groups: { label: string; wheels: WheelCoord[] }[] = [];
+    wheelCoords.forEach((w) => {
+      let g = groups.find((grp) => grp.label === w.axleGroup);
+      if (!g) {
+        g = { label: w.axleGroup, wheels: [] };
+        groups.push(g);
+      }
+      g.wheels.push(w);
+    });
+    return groups;
+  }, [wheelCoords]);
+
   // Setup Three.js Scene
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    // Bersihkan isi container sebelumnya jika ada
     while (container.firstChild) {
       container.removeChild(container.firstChild);
     }
@@ -302,17 +471,17 @@ export default function VehicleAnimation3D({
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.25;
+    renderer.toneMappingExposure = 1.3;
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
-    // 2. Scene dengan background & fog bernuansa garasi malam/indoor profesional
+    // 2. Scene
     const scene = new THREE.Scene();
     scene.background = new THREE.Color(0x0a0f1d);
     scene.fog = new THREE.Fog(0x0a0f1d, 22, 45);
     sceneRef.current = scene;
 
-    // 3. Camera & Preset Posisi
+    // 3. Camera
     const presets = getVehicleCameraPreset(wheelCount);
     const isMobile = width < 500;
     const fov = isMobile ? 48 : 40;
@@ -321,32 +490,29 @@ export default function VehicleAnimation3D({
     camera.lookAt(presets.target);
     cameraRef.current = camera;
 
-    // 4. OrbitControls dengan pembatas ketat agar kamera tidak keluar dari area animasi 3D
+    // 4. OrbitControls
     const controls = new OrbitControls(camera, renderer.domElement);
     controls.enableDamping = true;
     controls.dampingFactor = 0.06;
-    controls.enablePan = false; // Batasi: matikan panning agar kamera tidak digeser keluar dari area animasi 3D
-    controls.minDistance = 3.0; // Batas zoom in terdekat
-    controls.maxDistance = getMaxCameraDistance(wheelCount); // Batas zoom out terjauh agar tidak tembus dinding luar bengkel
-    controls.maxPolarAngle = Math.PI / 2 - 0.04; // Jangan tembus ke bawah lantai
-    controls.minPolarAngle = 0.05; // Mencegah kamera terbalik saat diputar ke atas
+    controls.enablePan = false;
+    controls.minDistance = 3.0;
+    controls.maxDistance = getMaxCameraDistance(wheelCount);
+    controls.maxPolarAngle = Math.PI / 2 - 0.04;
+    controls.minPolarAngle = 0.05;
     controls.target.copy(presets.target);
-    controls.autoRotate = false; // TIDAK BERPUTAR saat awal
+    controls.autoRotate = false;
     controls.autoRotateSpeed = 1.2;
     controlsRef.current = controls;
 
-    // 5. Pencahayaan Studio Mewah & Seimbang (High-End Automotive Showroom Lighting)
-    // Ambient light seimbang agar sasis dan detail mekanikal jelas terlihat
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.25);
+    // 5. Pencahayaan Studio Automotive
+    const ambientLight = new THREE.AmbientLight(0xffffff, 1.35);
     scene.add(ambientLight);
 
-    // Skylight atas (soft sky to floor studio fill)
-    const hemiLight = new THREE.HemisphereLight(0xf8fafc, 0x0f172a, 1.15);
+    const hemiLight = new THREE.HemisphereLight(0xf8fafc, 0x0f172a, 1.2);
     hemiLight.position.set(0, 24, 0);
     scene.add(hemiLight);
 
-    // Main Key Light (Cahaya Utama dari Depan-Atas-Kanan)
-    const mainSun = new THREE.DirectionalLight(0xffffff, 2.4);
+    const mainSun = new THREE.DirectionalLight(0xffffff, 2.5);
     mainSun.position.set(9, 18, 11);
     mainSun.castShadow = true;
     mainSun.shadow.mapSize.width = 2048;
@@ -354,21 +520,15 @@ export default function VehicleAnimation3D({
     mainSun.shadow.bias = -0.0003;
     scene.add(mainSun);
 
-    // Soft Rim Light dari Sisi Belakang-Kiri (Memberi definisi siluet bodi tanpa silau)
-    const rimLight = new THREE.DirectionalLight(0x93c5fd, 1.4);
+    const rimLight = new THREE.DirectionalLight(0x93c5fd, 1.5);
     rimLight.position.set(-11, 9, -7);
     scene.add(rimLight);
 
-    // Front Fill Light Lembut (Menerangi fascia depan dan gandar)
-    const frontFillLight = new THREE.DirectionalLight(0xffffff, 1.0);
+    const frontFillLight = new THREE.DirectionalLight(0xffffff, 1.1);
     frontFillLight.position.set(0, 5, 12);
     scene.add(frontFillLight);
 
-    // ═════════════════════════════════════════════════════════════════════════════
-    // ── 6. LINGKUNGAN 3D GARASI BENGKEL (HEAVY FLEET WORKSHOP GARAGE) ──
-    // ═════════════════════════════════════════════════════════════════════════════
-
-    // A. Dasar Pondasi Luas & Lantai Epoxy Garasi Bengkel (Mencegah tampilan void hitam di tepi kanvas)
+    // 6. LINGKUNGAN BENGKEL
     const baseFloorGeo = new THREE.PlaneGeometry(120, 120);
     const baseFloorMat = new THREE.MeshStandardMaterial({
       color: 0x0f172a,
@@ -386,8 +546,8 @@ export default function VehicleAnimation3D({
     const floorGeo = new THREE.PlaneGeometry(36, 46);
     const floorMat = new THREE.MeshStandardMaterial({
       map: floorTexture,
-      roughness: 0.38,
-      metalness: 0.22,
+      roughness: 0.36,
+      metalness: 0.24,
     });
     const floorMesh = new THREE.Mesh(floorGeo, floorMat);
     floorMesh.rotation.x = -Math.PI / 2;
@@ -395,39 +555,27 @@ export default function VehicleAnimation3D({
     floorMesh.receiveShadow = true;
     scene.add(floorMesh);
 
-    // B. Soft Contact Shadow Plane di atas Lantai
-    const shadowGeo = new THREE.PlaneGeometry(32, 42);
-    const shadowMat = new THREE.ShadowMaterial({ opacity: 0.58 });
-    const shadowPlane = new THREE.Mesh(shadowGeo, shadowMat);
-    shadowPlane.rotation.x = -Math.PI / 2;
-    shadowPlane.position.y = -0.002;
-    shadowPlane.receiveShadow = true;
-    scene.add(shadowPlane);
-
-    // C. Dyno / Brake Test Roller Cylinders (Roller Pengujian Putaran Roda di Lantai)
-    const rollerMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.85, roughness: 0.25 });
+    // Dyno Rollers
+    const rollerMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.88, roughness: 0.22 });
     const rollerHousingMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.9, roughness: 0.4 });
     const dynoRollers: THREE.Mesh[] = [];
 
-    // Letakkan roller uji putar pada area gandar (z = -1.9, -3.3, -4.7, 1.6, dll)
     const rollerZPositions = wheelCount === 4
       ? [1.05, -0.95]
       : wheelCount === 6
-        ? [1.6, -1.6]
+        ? [1.6, -1.7]
         : wheelCount === 8
-          ? [-1.9, -3.3]
+          ? [-1.4, -2.8]
           : [-1.9, -3.3, -4.7];
 
     rollerZPositions.forEach((rz) => {
       [-1.25, 1.25].forEach((rx) => {
-        // Dudukan frame roller
-        const housing = new THREE.Mesh(new THREE.BoxGeometry(0.85, 0.06, 0.8), rollerHousingMat);
+        const housing = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.06, 0.85), rollerHousingMat);
         housing.position.set(rx, 0.01, rz);
         scene.add(housing);
 
-        // Sepasang roller silinder putar
-        [-0.22, 0.22].forEach((offsetZ) => {
-          const rollerGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.76, 20);
+        [-0.24, 0.24].forEach((offsetZ) => {
+          const rollerGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.78, 20);
           rollerGeo.rotateZ(Math.PI / 2);
           const rollerMesh = new THREE.Mesh(rollerGeo, rollerMat);
           rollerMesh.position.set(rx, 0.04, rz + offsetZ);
@@ -438,128 +586,10 @@ export default function VehicleAnimation3D({
       });
     });
 
-    // D. Dinding Garasi Bengkel (Workshop Walls)
-    const wallConcreteMat = new THREE.MeshStandardMaterial({ color: 0x1f2937, roughness: 0.85, metalness: 0.1 });
-    const wallPanelMat = new THREE.MeshStandardMaterial({ color: 0x111827, roughness: 0.7, metalness: 0.3 });
-    const steelBeamMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.75, roughness: 0.35 });
-    const yellowHazardMat = new THREE.MeshStandardMaterial({ color: 0xeab308, metalness: 0.4, roughness: 0.4 });
-    const windowGlassMat = new THREE.MeshStandardMaterial({
-      color: 0x38bdf8,
-      emissive: 0x0284c7,
-      emissiveIntensity: 0.4,
-      transparent: true,
-      opacity: 0.75,
-    });
-
-    // 1. DINDING BELAKANG (Rear Wall: z = -22.5)
-    const backWall = new THREE.Mesh(new THREE.BoxGeometry(36, 11, 0.5), wallConcreteMat);
-    backWall.position.set(0, 5.5, -22.5);
-    scene.add(backWall);
-
-    // Pintu Garasi Geser / Overhead Rolling Door Besar
-    const rollDoorFrame = new THREE.Mesh(new THREE.BoxGeometry(16.5, 9.2, 0.4), steelBeamMat);
-    rollDoorFrame.position.set(0, 4.6, -22.1);
-    scene.add(rollDoorFrame);
-
-    const rollDoorMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.65, roughness: 0.45 });
-    const rollDoor = new THREE.Mesh(new THREE.BoxGeometry(15.8, 8.8, 0.15), rollDoorMat);
-    rollDoor.position.set(0, 4.5, -22.0);
-    scene.add(rollDoor);
-
-    // Lis horizontal bilah rolling door
-    for (let ry = 0.8; ry <= 8.5; ry += 0.8) {
-      const slat = new THREE.Mesh(new THREE.BoxGeometry(15.8, 0.05, 0.18), steelBeamMat);
-      slat.position.set(0, ry, -21.95);
-      scene.add(slat);
-    }
-
-    // Safety stripe bar kuning di bagian bawah rolling door
-    const doorBottomStripe = new THREE.Mesh(new THREE.BoxGeometry(15.8, 0.35, 0.22), yellowHazardMat);
-    doorBottomStripe.position.set(0, 0.25, -21.95);
-    scene.add(doorBottomStripe);
-
-    // Papan Nama Bengkel LED di atas pintu belakang
-    const signBox = new THREE.Mesh(new THREE.BoxGeometry(12, 1.2, 0.25), new THREE.MeshStandardMaterial({ color: 0x0f172a }));
-    signBox.position.set(0, 9.8, -22.1);
-    scene.add(signBox);
-    const signFace = new THREE.Mesh(
-      new THREE.BoxGeometry(11.6, 0.85, 0.05),
-      new THREE.MeshStandardMaterial({ color: 0x0284c7, emissive: 0x0284c7, emissiveIntensity: 0.6 })
-    );
-    signFace.position.set(0, 9.8, -21.95);
-    scene.add(signFace);
-
-    // 1.B DINDING DEPAN (Front Entrance Wall: z = +22.5) - Menutup total batas ruang bengkel agar tidak tampak luar kosong
-    const frontWall = new THREE.Mesh(new THREE.BoxGeometry(36, 11, 0.5), wallConcreteMat);
-    frontWall.position.set(0, 5.5, 22.5);
-    scene.add(frontWall);
-
-    // Pintu Masuk Rolling Door Depan (Front Bay Entrance)
-    const frontDoorFrame = new THREE.Mesh(new THREE.BoxGeometry(16.5, 9.2, 0.4), steelBeamMat);
-    frontDoorFrame.position.set(0, 4.6, 22.1);
-    scene.add(frontDoorFrame);
-
-    const frontRollDoor = new THREE.Mesh(new THREE.BoxGeometry(15.8, 8.8, 0.15), rollDoorMat);
-    frontRollDoor.position.set(0, 4.5, 22.0);
-    scene.add(frontRollDoor);
-
-    for (let ry = 0.8; ry <= 8.5; ry += 0.8) {
-      const slat = new THREE.Mesh(new THREE.BoxGeometry(15.8, 0.05, 0.18), steelBeamMat);
-      slat.position.set(0, ry, 21.95);
-      scene.add(slat);
-    }
-
-    const frontDoorBottomStripe = new THREE.Mesh(new THREE.BoxGeometry(15.8, 0.35, 0.22), yellowHazardMat);
-    frontDoorBottomStripe.position.set(0, 0.25, 21.95);
-    scene.add(frontDoorBottomStripe);
-
-    const frontSignBox = new THREE.Mesh(new THREE.BoxGeometry(12, 1.2, 0.25), new THREE.MeshStandardMaterial({ color: 0x0f172a }));
-    frontSignBox.position.set(0, 9.8, 22.1);
-    scene.add(frontSignBox);
-    const frontSignFace = new THREE.Mesh(
-      new THREE.BoxGeometry(11.6, 0.85, 0.05),
-      new THREE.MeshStandardMaterial({ color: 0x059669, emissive: 0x059669, emissiveIntensity: 0.6 })
-    );
-    frontSignFace.position.set(0, 9.8, 21.95);
-    scene.add(frontSignFace);
-
-    // 2. DINDING SAMPING KIRI (Left Wall: x = -17.5)
-    const leftWall = new THREE.Mesh(new THREE.BoxGeometry(0.5, 11, 46), wallPanelMat);
-    leftWall.position.set(-17.5, 5.5, 0);
-    scene.add(leftWall);
-
-    // 3. DINDING SAMPING KANAN (Right Wall: x = +17.5)
-    const rightWall = new THREE.Mesh(new THREE.BoxGeometry(0.5, 11, 46), wallPanelMat);
-    rightWall.position.set(17.5, 5.5, 0);
-    scene.add(rightWall);
-
-    // Jendela Kaca Pabrik Atas pada Dinding Kiri & Kanan
-    for (let wz = -16; wz <= 16; wz += 8) {
-      const winL = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.2, 4.8), windowGlassMat);
-      winL.position.set(-17.2, 7.8, wz);
-      scene.add(winL);
-
-      const winR = new THREE.Mesh(new THREE.BoxGeometry(0.2, 2.2, 4.8), windowGlassMat);
-      winR.position.set(17.2, 7.8, wz);
-      scene.add(winR);
-    }
-
-    // Tiang Kolom Baja H-Beam Struktur Bengkel (kiri & kanan)
-    for (let cz = -20; cz <= 20; cz += 8) {
-      [-17.1, 17.1].forEach((cx) => {
-        const col = new THREE.Mesh(new THREE.BoxGeometry(0.5, 11, 0.5), steelBeamMat);
-        col.position.set(cx, 5.5, cz);
-        scene.add(col);
-
-        const baseHazard = new THREE.Mesh(new THREE.BoxGeometry(0.58, 0.9, 0.58), yellowHazardMat);
-        baseHazard.position.set(cx, 0.45, cz);
-        scene.add(baseHazard);
-      });
-    }
-
-    // E. Rangka Atap Kuda-Kuda Baja & Lampu Gantung Bengkel (Roof Trusses & Shop Lights)
+    // Rangka Atap Kuda-Kuda
     const ceilingGroup = new THREE.Group();
     scene.add(ceilingGroup);
+    const steelBeamMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.35 });
 
     for (let tz = -16; tz <= 16; tz += 10.6) {
       const truss = new THREE.Mesh(new THREE.BoxGeometry(35, 0.4, 0.35), steelBeamMat);
@@ -567,7 +597,6 @@ export default function VehicleAnimation3D({
       ceilingGroup.add(truss);
     }
 
-    // Lampu Strip LED Industri Bengkel (Di Sisi Kiri & Kanan, Tidak Menutupi Tengah)
     [-6.5, 6.5].forEach((lx) => {
       [-8, 8].forEach((lz) => {
         const fixture = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.15, 8.5), steelBeamMat);
@@ -583,140 +612,16 @@ export default function VehicleAnimation3D({
       });
     });
 
-    // F. PERALATAN & PROPERTI BENGKEL NYATA (REALISTIC WORKSHOP EQUIPMENT)
-    // 1. RAK BAN BERTINGKAT BENGKEL (Double-Tier Truck Tire Storage Rack) di Sisi Kanan (x = 15.2, z = 3)
-    const rackFrameMat = new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.3 });
-    const rackTireRubberMat = new THREE.MeshStandardMaterial({ color: 0x18181b, roughness: 0.9, metalness: 0.1 });
-    const rackRimMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9, roughness: 0.2 });
-
-    const rackLeft = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.8, 1.2), rackFrameMat);
-    rackLeft.position.set(15.2, 1.4, 0.8);
-    const rackRight = new THREE.Mesh(new THREE.BoxGeometry(0.08, 2.8, 1.2), rackFrameMat);
-    rackRight.position.set(15.2, 1.4, 6.2);
-    const rackBeamLower = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 5.5), rackFrameMat);
-    rackBeamLower.position.set(15.2, 0.45, 3.5);
-    const rackBeamUpper = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.08, 5.5), rackFrameMat);
-    rackBeamUpper.position.set(15.2, 1.75, 3.5);
-    scene.add(rackLeft, rackRight, rackBeamLower, rackBeamUpper);
-
-    // Deretan Ban Cadangan di Rak
-    for (let rz = 1.4; rz <= 5.6; rz += 0.82) {
-      // Tingkat bawah
-      const rt1 = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.24, 20), rackTireRubberMat);
-      rt1.rotateZ(Math.PI / 2);
-      rt1.position.set(15.2, 0.72, rz);
-      const rr1 = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.25, 16), rackRimMat);
-      rr1.rotateZ(Math.PI / 2);
-      rr1.position.set(15.2, 0.72, rz);
-      scene.add(rt1, rr1);
-
-      // Tingkat atas
-      const rt2 = new THREE.Mesh(new THREE.CylinderGeometry(0.48, 0.48, 0.24, 20), rackTireRubberMat);
-      rt2.rotateZ(Math.PI / 2);
-      rt2.position.set(15.2, 2.05, rz);
-      const rr2 = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.25, 16), rackRimMat);
-      rr2.rotateZ(Math.PI / 2);
-      rr2.position.set(15.2, 2.05, rz);
-      scene.add(rt2, rr2);
-    }
-
-    // 2. LEMARI PERKAKAS MEKANIK MERAH (Heavy-Duty Red Mechanic Tool Chest) di Sisi Kiri (x = -15.4, z = 4)
-    const toolRedMat = new THREE.MeshStandardMaterial({ color: 0xdc2626, metalness: 0.65, roughness: 0.3 });
-    const toolChromeMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, metalness: 0.95, roughness: 0.1 });
-    const toolBox = new THREE.Mesh(new THREE.BoxGeometry(1.2, 1.4, 2.2), toolRedMat);
-    toolBox.position.set(-15.4, 0.8, 4);
-    toolBox.castShadow = true;
-    scene.add(toolBox);
-    for (let dy = 0.35; dy <= 1.35; dy += 0.22) {
-      const handle = new THREE.Mesh(new THREE.BoxGeometry(0.06, 0.04, 1.8), toolChromeMat);
-      handle.position.set(-14.78, dy, 4);
-      scene.add(handle);
-    }
-
-    // Meja Kerja Mekanik (Workbench) dengan Tanggem Catok
-    const benchTop = new THREE.Mesh(new THREE.BoxGeometry(1.4, 0.12, 3.2), new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.8 }));
-    benchTop.position.set(-15.3, 0.95, -2);
-    const benchLegs = new THREE.Mesh(new THREE.BoxGeometry(1.3, 0.9, 3.0), steelBeamMat);
-    benchLegs.position.set(-15.3, 0.45, -2);
-    const benchVise = new THREE.Mesh(new THREE.BoxGeometry(0.35, 0.3, 0.35), new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.8 }));
-    benchVise.position.set(-14.75, 1.15, -2.8);
-    scene.add(benchTop, benchLegs, benchVise);
-
-    // 3. DRUM OLI / PELUMAS INDUSTRI (200L Oil Drums) di Sisi Kanan (x = 15.4, z = -10)
-    const oilBlueMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.6, roughness: 0.35 });
-    const oilYellowMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.6, roughness: 0.35 });
-    [
-      { x: 15.4, z: -9.4, mat: oilBlueMat },
-      { x: 15.4, z: -10.6, mat: oilBlueMat },
-      { x: 14.5, z: -10.0, mat: oilYellowMat }
-    ].forEach((d) => {
-      const drum = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 1.15, 18), d.mat);
-      drum.position.set(d.x, 0.58, d.z);
-      drum.castShadow = true;
-      const rimTop = new THREE.Mesh(new THREE.CylinderGeometry(0.44, 0.44, 0.04, 18), steelBeamMat);
-      rimTop.position.set(d.x, 1.15, d.z);
-      scene.add(drum, rimTop);
-    });
-
-    // 4. KOMPRESOR ANGIN INDUSTRI (Air Compressor) di Sisi Kiri (x = -15.4, z = -10)
-    const compTank = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 1.8, 18), toolRedMat);
-    compTank.rotateZ(Math.PI / 2);
-    compTank.position.set(-15.4, 0.65, -10);
-    compTank.castShadow = true;
-    const compMotor = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.5, 0.7), new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.8 }));
-    compMotor.position.set(-15.4, 1.15, -10);
-    scene.add(compTank, compMotor);
-
-    // 5. TRAFFIC SAFETY CONES (Kerucut Pengaman Bengkel) di Sudut Depan Bay
-    const coneOrangeMat = new THREE.MeshStandardMaterial({ color: 0xf97316, roughness: 0.5 });
-    const coneWhiteMat = new THREE.MeshStandardMaterial({ color: 0xf8fafc, roughness: 0.4 });
-    [-5.8, 5.8].forEach((cx) => {
-      const coneBase = new THREE.Mesh(new THREE.BoxGeometry(0.65, 0.05, 0.65), coneOrangeMat);
-      coneBase.position.set(cx, 0.03, 11.5);
-      const coneBody = new THREE.Mesh(new THREE.ConeGeometry(0.24, 0.85, 16), coneOrangeMat);
-      coneBody.position.set(cx, 0.45, 11.5);
-      const coneStripe = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.17, 0.18, 16), coneWhiteMat);
-      coneStripe.position.set(cx, 0.45, 11.5);
-      scene.add(coneBase, coneBody, coneStripe);
-    });
-
-    // Group Utama Truk / Kendaraan
+    // ── KELOMPOK UTAMA KENDARAAN ──
     const vehicleGroup = new THREE.Group();
     scene.add(vehicleGroup);
 
-    // ── MATERIAL RANGKA & BODI KENDARAAN (KONTRAST & JELAS DILIHAT) ──
-    // Sasis utama: baja titanium industri (slate 600) jelas batasnya, tidak hitam kelam
-    const frameMat = new THREE.MeshStandardMaterial({
-      color: 0x475569,
-      metalness: 0.72,
-      roughness: 0.32
-    });
+    const frameMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.75, roughness: 0.3 });
+    const crossmemberMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.82, roughness: 0.35 });
+    const chromeMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, metalness: 0.95, roughness: 0.1 });
+    const twistlockMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.7, roughness: 0.28 });
+    const hazardMat = new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.5, roughness: 0.3 });
 
-    const crossmemberMat = new THREE.MeshStandardMaterial({
-      color: 0x334155,
-      metalness: 0.8,
-      roughness: 0.35
-    });
-
-    const chromeMat = new THREE.MeshStandardMaterial({
-      color: 0xf1f5f9,
-      metalness: 0.95,
-      roughness: 0.12
-    });
-
-    const twistlockMat = new THREE.MeshStandardMaterial({
-      color: 0xf59e0b,
-      metalness: 0.7,
-      roughness: 0.28
-    });
-
-    const hazardMat = new THREE.MeshStandardMaterial({
-      color: 0xef4444,
-      metalness: 0.5,
-      roughness: 0.3
-    });
-
-    // Helper membuat Box
     const createBox = (w: number, h: number, d: number, mat: THREE.Material, x: number, y: number, z: number, castShadow = true) => {
       const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
       mesh.position.set(x, y, z);
@@ -726,7 +631,6 @@ export default function VehicleAnimation3D({
       return mesh;
     };
 
-    // Helper membuat Cylinder
     const createCylinder = (rt: number, rb: number, h: number, seg: number, mat: THREE.Material, x: number, y: number, z: number, rx = 0, rz = 0) => {
       const mesh = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat);
       mesh.position.set(x, y, z);
@@ -737,393 +641,226 @@ export default function VehicleAnimation3D({
       return mesh;
     };
 
-    // ── BANGUN MODEL FISIK KENDARAAN SESUAI TIPE (4, 6, 8, 12 RODA) ──
+    // Variabel komponen bergerak
+    let driveshaftMesh: THREE.Mesh | null = null;
+    let mudflapLeft: THREE.Mesh | null = null;
+    let mudflapRight: THREE.Mesh | null = null;
+
     if (wheelCount === 4) {
-      // ── FORKLIFT MODEL (4 RODA) ──
+      // Forklift
       const forkliftBodyMat = new THREE.MeshStandardMaterial({ color: 0xf97316, metalness: 0.5, roughness: 0.3 });
-      // Bodi Utama
       createBox(1.5, 0.9, 2.2, forkliftBodyMat, 0, 0.8, 0);
-      // Counterweight belakang
-      createBox(1.5, 0.8, 0.7, new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8, roughness: 0.4 }), 0, 0.75, -1.2);
-      // Kabin / Rollcage
+      createBox(1.5, 0.8, 0.7, new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8 }), 0, 0.75, -1.2);
       createBox(1.3, 1.4, 1.3, frameMat, 0, 1.9, -0.2);
-      // Tiang Mast Depan
       createBox(0.12, 2.6, 0.12, chromeMat, -0.55, 1.5, 1.25);
       createBox(0.12, 2.6, 0.12, chromeMat, 0.55, 1.5, 1.25);
-      createBox(1.2, 0.15, 0.1, chromeMat, 0, 0.8, 1.25);
-      // Garpu Forks
       createBox(0.14, 0.05, 1.4, chromeMat, -0.35, 0.2, 1.9);
       createBox(0.14, 0.05, 1.4, chromeMat, 0.35, 0.2, 1.9);
     } else if (wheelCount === 6) {
-      // ═════════════════════════════════════════════════════════════════════════════
-      // ── TRACTOR HEAD PRIME MOVER HEAVY-DUTY (6 RODA: LIVERY PUTIH - BIRU) ──
-      // ═════════════════════════════════════════════════════════════════════════════
+      // TRACTOR HEAD PRIME MOVER
+      const thCabWhiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.18, roughness: 0.2 });
+      const thCabBlueMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.35, roughness: 0.22 });
+      const thNavyStripeMat = new THREE.MeshStandardMaterial({ color: 0x1d4ed8, metalness: 0.45, roughness: 0.18 });
+      const thTrimMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.6, roughness: 0.4 });
+      const thGrilleMat = new THREE.MeshStandardMaterial({ color: 0x0b0f19, metalness: 0.9, roughness: 0.2 });
+      const thGlassMat = new THREE.MeshStandardMaterial({ color: 0x1e3a5f, metalness: 0.92, roughness: 0.06, transparent: true, opacity: 0.82 });
+      const thFifthWheelMat = new THREE.MeshStandardMaterial({ color: 0x111827, metalness: 0.94, roughness: 0.2 });
+      const thDeckMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9, roughness: 0.25 });
 
-      // 1. Warna Bodi Utama Kabin: Putih Bersih Mengkilap (Pure High-Gloss Fleet White)
-      const thCabWhiteMat = new THREE.MeshStandardMaterial({
-        color: 0xffffff,
-        metalness: 0.15,
-        roughness: 0.22,
-      });
-
-      // 2. Warna Bodi Bawah & Bumper: Biru Fleet Modern (Vibrant Royal Fleet Blue)
-      const thCabBlueMat = new THREE.MeshStandardMaterial({
-        color: 0x0284c7, // Biru Fleet Cerah & Tegas
-        metalness: 0.35,
-        roughness: 0.24,
-      });
-
-      // 3. Garis Striping Livery: Biru Elektrik Kontras (Deep Electric Blue Stripe)
-      const thNavyStripeMat = new THREE.MeshStandardMaterial({
-        color: 0x1d4ed8,
-        metalness: 0.45,
-        roughness: 0.2,
-      });
-
-      // Bumper & Trim: Dark Slate Trim & Segel Karet
-      const thTrimMat = new THREE.MeshStandardMaterial({
-        color: 0x0f172a,
-        metalness: 0.55,
-        roughness: 0.45
-      });
-
-      // Grille Louvers: Polished Chrome Radiator
-      const thGrilleMat = new THREE.MeshStandardMaterial({
-        color: 0x0f172a,
-        metalness: 0.85,
-        roughness: 0.25
-      });
-
-      // Kaca Kabin: Clear Tinted Blue Glass
-      const thGlassMat = new THREE.MeshStandardMaterial({
-        color: 0x1e3a5f,
-        metalness: 0.9,
-        roughness: 0.08,
-        transparent: true,
-        opacity: 0.8
-      });
-
-      // Sadel Fifth Wheel Tapal Kuda: Cast Steel Grease Plate
-      const thFifthWheelMat = new THREE.MeshStandardMaterial({
-        color: 0x111827,
-        metalness: 0.92,
-        roughness: 0.2
-      });
-
-      // Catwalk Pelat Sasis: Diamond Plate Silver
-      const thDeckMat = new THREE.MeshStandardMaterial({
-        color: 0x94a3b8,
-        metalness: 0.9,
-        roughness: 0.25
-      });
-
-      // ── 1. SASIS I-BEAM & CROSSMEMBERS UTAMA ──
-      // Sasis Utama Kiri & Kanan (Baja Industrial Slate Kokoh)
+      // Sasis Utama
       createBox(0.18, 0.34, 6.2, frameMat, -0.48, 0.75, 0);
       createBox(0.18, 0.34, 6.2, frameMat, 0.48, 0.75, 0);
-      // Balok Crossmembers Penghubung Sasis
+      createBox(1.72, 0.04, 1.25, thDeckMat, 0, 0.93, 0.25);
       for (let z = -2.4; z <= 2.4; z += 1.2) {
         createBox(0.9, 0.14, 0.14, crossmemberMat, 0, 0.75, z);
       }
-      // Bumper Sasis Belakang (Biru Fleet) & Lampu Truk LED Multi-Chamber
       createBox(2.14, 0.18, 0.12, thCabBlueMat, 0, 0.65, -2.95);
-      createBox(0.44, 0.12, 0.04, new THREE.MeshBasicMaterial({ color: 0xef4444 }), -0.76, 0.66, -3.02); // Lampu rem kiri
-      createBox(0.44, 0.12, 0.04, new THREE.MeshBasicMaterial({ color: 0xef4444 }), 0.76, 0.66, -3.02);  // Lampu rem kanan
-      createBox(0.12, 0.12, 0.04, new THREE.MeshBasicMaterial({ color: 0xf59e0b }), -0.46, 0.66, -3.02); // Sein mundur
-      createBox(0.12, 0.12, 0.04, new THREE.MeshBasicMaterial({ color: 0xf59e0b }), 0.46, 0.66, -3.02);  // Sein mundur
+      createBox(0.44, 0.12, 0.04, new THREE.MeshBasicMaterial({ color: 0xef4444 }), -0.76, 0.66, -3.02);
+      createBox(0.44, 0.12, 0.04, new THREE.MeshBasicMaterial({ color: 0xef4444 }), 0.76, 0.66, -3.02);
+      createBox(0.12, 0.12, 0.04, new THREE.MeshBasicMaterial({ color: 0xf59e0b }), -0.46, 0.66, -3.02);
+      createBox(0.12, 0.12, 0.04, new THREE.MeshBasicMaterial({ color: 0xf59e0b }), 0.46, 0.66, -3.02);
 
-      // ── 2. KABIN DEPAN (SCULPTED AERODYNAMIC EUROPEAN PRIME MOVER - PUTIH & BIRU) ──
-      // A. Lantai Bawah & Fascia Pijakan Kabin
+      // Kabin Depan
       createBox(2.26, 0.42, 2.15, thCabBlueMat, 0, 1.12, 1.78);
-
-      // B. Bodi Bawah Kabin & Spakbor Depan Terintegrasi (Biru Fleet Elegan)
       createBox(2.24, 0.62, 2.05, thCabBlueMat, 0, 1.58, 1.74);
-
-      // C. Bodi Tengah Kabin (Pintu & Pilar Kabin Utama - Putih Bersih)
       createBox(2.18, 0.88, 1.95, thCabWhiteMat, 0, 2.18, 1.68);
-
-      // Garis Aksen Samping Livery (Two-Tone Accent Stripe Biru Elektrik)
       createBox(2.20, 0.08, 1.96, thNavyStripeMat, 0, 1.88, 1.68);
       createBox(2.20, 0.04, 1.82, thCabBlueMat, 0, 1.98, 1.68);
 
-      // D. High-Roof Aerodynamic Cap (Atap Aerodinamis Putih)
       const roofFairing = createBox(2.12, 0.52, 1.84, thCabWhiteMat, 0, 2.76, 1.62);
       roofFairing.rotation.x = -0.07;
-
-      // Sayap Deflektor Samping Atap (Putih)
       createBox(0.05, 0.64, 0.68, thCabWhiteMat, -1.07, 2.72, 0.95);
       createBox(0.05, 0.64, 0.68, thCabWhiteMat, 1.07, 2.72, 0.95);
 
-      // Lampu Penanda Atap LED (Roof Clearance Marker Lamps)
       for (let lx = -0.75; lx <= 0.75; lx += 0.38) {
         createBox(0.08, 0.03, 0.06, new THREE.MeshBasicMaterial({ color: 0xfbbf24 }), lx, 3.02, 2.38);
       }
 
-      // E. Sayap Aerodinamis Sudut Depan (Corner Aero Vanes - Biru Fleet)
       const leftVane = createBox(0.06, 1.12, 0.28, thCabBlueMat, -1.14, 1.72, 2.65);
       leftVane.rotation.y = 0.18;
       const rightVane = createBox(0.06, 1.12, 0.28, thCabBlueMat, 1.14, 1.72, 2.65);
       rightVane.rotation.y = -0.18;
 
-      // Sayap Samping Belakang Kabin (Cab Rear Aero Wings - Biru Fleet)
       createBox(0.05, 1.75, 0.48, thCabBlueMat, -1.10, 2.12, 0.64);
       createBox(0.05, 1.75, 0.48, thCabBlueMat, 1.10, 2.12, 0.64);
 
-      // F. Kaca Depan Miring Aerodinamis (Raked Panoramic Windshield)
       const windshield = createBox(2.04, 0.98, 0.08, thGlassMat, 0, 2.26, 2.68);
       windshield.rotation.x = -0.18;
-
-      // Karet Bezel / Frame Kaca Depan
       const windshieldFrame = createBox(2.08, 0.04, 0.10, thTrimMat, 0, 1.78, 2.78);
       windshieldFrame.rotation.x = -0.18;
 
-      // Sunvisor Depan Aerodinamis di Atas Kaca (Biru Fleet)
       const sunvisor = createBox(2.16, 0.18, 0.32, thCabBlueMat, 0, 2.74, 2.74);
       sunvisor.rotation.x = -0.22;
-      // Garis LED Sunvisor
       createBox(1.65, 0.02, 0.04, new THREE.MeshBasicMaterial({ color: 0xe0f2fe }), 0, 2.76, 2.88);
 
-      // Wiper Kaca Depan Kembar
       createBox(0.62, 0.03, 0.02, thTrimMat, -0.42, 1.84, 2.72);
       createBox(0.62, 0.03, 0.02, thTrimMat, 0.42, 1.84, 2.72);
 
-      // G. Kaca Jendela Pintu Samping (Side Cab Windows)
       createBox(0.06, 0.68, 1.05, thGlassMat, -1.10, 2.22, 1.86);
       createBox(0.06, 0.68, 1.05, thGlassMat, 1.10, 2.22, 1.86);
 
-      // Gagang Pintu Horizontal Chrome
-      createBox(0.03, 0.04, 0.16, chromeMat, -1.11, 1.78, 1.72);
-      createBox(0.03, 0.04, 0.16, chromeMat, 1.11, 1.78, 1.72);
-
-      // H. Spion West-Coast Aerodinamis Heavy-Duty (Housing Biru Fleet)
-      // Spion Kiri (Driver)
+      // Spion West-Coast
       createBox(0.10, 0.58, 0.16, thCabBlueMat, -1.32, 2.22, 2.48);
-      createBox(0.02, 0.52, 0.12, chromeMat, -1.27, 2.22, 2.46); // Cermin utama
-      createBox(0.02, 0.14, 0.12, chromeMat, -1.27, 1.88, 2.46); // Cermin cembung spotter bawah
-      createCylinder(0.015, 0.015, 0.24, 8, chromeMat, -1.21, 2.44, 2.48, 0, Math.PI / 2);
-      createCylinder(0.015, 0.015, 0.24, 8, chromeMat, -1.21, 1.95, 2.48, 0, Math.PI / 2);
-
-      // Spion Kanan (Passenger)
+      createBox(0.02, 0.52, 0.12, chromeMat, -1.27, 2.22, 2.46);
       createBox(0.10, 0.58, 0.16, thCabBlueMat, 1.32, 2.22, 2.48);
       createBox(0.02, 0.52, 0.12, chromeMat, 1.27, 2.22, 2.46);
-      createBox(0.02, 0.14, 0.12, chromeMat, 1.27, 1.88, 2.46);
-      createCylinder(0.015, 0.015, 0.24, 8, chromeMat, 1.21, 2.44, 2.48, 0, Math.PI / 2);
-      createCylinder(0.015, 0.015, 0.24, 8, chromeMat, 1.21, 1.95, 2.48, 0, Math.PI / 2);
 
-      // I. Grille Radiator Bertingkat Chrome Mewah (Multi-Tier Front Grille)
-      // Panel Hitam Honeycomb Grille
+      // Grille Radiator Chrome Bertingkat
       createBox(1.72, 0.74, 0.08, thGrilleMat, 0, 1.48, 2.76);
-      // Bilah Chrome Horizontal Bertingkat
       createBox(1.52, 0.09, 0.05, chromeMat, 0, 1.72, 2.80);
       createBox(1.62, 0.09, 0.05, chromeMat, 0, 1.52, 2.81);
       createBox(1.68, 0.09, 0.05, chromeMat, 0, 1.32, 2.82);
-      // Emblem Truck Prime Mover Chrome di Tengah
       createBox(0.24, 0.20, 0.07, chromeMat, 0, 1.52, 2.84);
 
-      // J. Bumper Depan Heavy-Duty & Cluster Lampu LED (Bumper Biru Fleet)
-      // Bumper Utama Biru
+      // Bumper Depan & Headlights
       createBox(2.34, 0.44, 0.34, thCabBlueMat, 0, 0.72, 2.86);
-      // Skid Plate Bawah Perak Brushed
       createBox(1.62, 0.11, 0.26, chromeMat, 0, 0.46, 2.88);
-      // Lampu Depan LED Kiri (Projector Lens + DRL Strip)
-      createBox(0.36, 0.20, 0.08, chromeMat, -0.92, 0.74, 3.02);
-      createBox(0.30, 0.04, 0.02, new THREE.MeshBasicMaterial({ color: 0x38bdf8 }), -0.92, 0.81, 3.07); // DRL Brow
-      createBox(0.12, 0.12, 0.02, new THREE.MeshBasicMaterial({ color: 0xffffff }), -0.96, 0.72, 3.07); // Main Projector
-      createBox(0.08, 0.08, 0.02, new THREE.MeshBasicMaterial({ color: 0xf59e0b }), -0.82, 0.72, 3.07); // Turn Signal
-      createBox(0.12, 0.07, 0.04, new THREE.MeshBasicMaterial({ color: 0xffffff }), -0.92, 0.56, 3.02); // Fog lamp
 
-      // Lampu Depan LED Kanan
-      createBox(0.36, 0.20, 0.08, chromeMat, 0.92, 0.74, 3.02);
-      createBox(0.30, 0.04, 0.02, new THREE.MeshBasicMaterial({ color: 0x38bdf8 }), 0.92, 0.81, 3.07); // DRL Brow
-      createBox(0.12, 0.12, 0.02, new THREE.MeshBasicMaterial({ color: 0xffffff }), 0.96, 0.72, 3.07); // Main Projector
-      createBox(0.08, 0.08, 0.02, new THREE.MeshBasicMaterial({ color: 0xf59e0b }), 0.82, 0.72, 3.07); // Turn Signal
-      createBox(0.12, 0.07, 0.04, new THREE.MeshBasicMaterial({ color: 0xffffff }), 0.92, 0.56, 3.02); // Fog lamp
+      [-0.92, 0.92].forEach((lx) => {
+        createBox(0.36, 0.20, 0.08, chromeMat, lx, 0.74, 3.02);
+        createBox(0.30, 0.04, 0.02, new THREE.MeshBasicMaterial({ color: 0x38bdf8 }), lx, 0.81, 3.07);
+        createBox(0.12, 0.12, 0.02, new THREE.MeshBasicMaterial({ color: 0xffffff }), lx > 0 ? lx + 0.04 : lx - 0.04, 0.72, 3.07);
+        createBox(0.08, 0.08, 0.02, new THREE.MeshBasicMaterial({ color: 0xf59e0b }), lx > 0 ? lx - 0.1 : lx + 0.1, 0.72, 3.07);
+      });
 
-      // K. Tangga Pijakan Pintu Kabin (Aluminium Boarding Steps Kiri & Kanan)
-      createBox(0.24, 0.05, 0.36, chromeMat, -1.16, 0.70, 1.92);
-      createBox(0.24, 0.05, 0.36, chromeMat, -1.16, 0.50, 1.92);
-      createBox(0.24, 0.05, 0.36, chromeMat, 1.16, 0.70, 1.92);
-      createBox(0.24, 0.05, 0.36, chromeMat, 1.16, 0.50, 1.92);
-
-      // L. Twin Vertical Chrome Exhaust Stacks di Belakang Kabin
+      // Twin Chrome Vertical Exhaust Stacks
       createCylinder(0.065, 0.065, 2.5, 16, chromeMat, 0.84, 2.45, 0.58);
-      createCylinder(0.11, 0.11, 1.2, 16, chromeMat, 0.84, 1.85, 0.58); // Pelindung Panas Perforated Heat Shield
+      createCylinder(0.11, 0.11, 1.2, 16, chromeMat, 0.84, 1.85, 0.58);
       createCylinder(0.065, 0.065, 2.5, 16, chromeMat, -0.84, 2.45, 0.58);
       createCylinder(0.11, 0.11, 1.2, 16, chromeMat, -0.84, 1.85, 0.58);
 
-      // Snorkel Air Intake Belakang
-      createCylinder(0.075, 0.075, 2.0, 16, thTrimMat, -0.62, 2.22, 0.58);
-      createCylinder(0.12, 0.12, 0.14, 16, thTrimMat, -0.62, 3.25, 0.58);
+      // Driveshaft Berputar (Mechanical Driveshaft)
+      driveshaftMesh = createCylinder(0.045, 0.045, 2.3, 12, chromeMat, 0, 0.52, -0.55, Math.PI / 2);
 
-      // ── 3. AREA DEK & BELAKANG KABIN ──
-      // Catwalk Pelat Logam (Diamond Plate Platform di Atas Sasis)
-      createBox(1.72, 0.04, 1.25, thDeckMat, 0, 0.93, 0.25);
-
-      // Selang Suzi Coils Sambungan Trailer (Red Emergency, Yellow Service, Blue Aux)
-      createCylinder(0.035, 0.035, 0.55, 12, new THREE.MeshStandardMaterial({ color: 0xef4444 }), -0.25, 1.25, 0.62);
-      createCylinder(0.035, 0.035, 0.55, 12, new THREE.MeshStandardMaterial({ color: 0xf59e0b }), 0, 1.25, 0.62);
-      createCylinder(0.035, 0.035, 0.55, 12, new THREE.MeshStandardMaterial({ color: 0x38bdf8 }), 0.25, 1.25, 0.62);
-
-      // ── 4. FIFTH WHEEL (SADEL GANDENG JOST CAST-STEEL COUPLING) ──
-      // Dudukan Rangka Sadel (Pedestal Mounting Brackets)
+      // Fifth Wheel
       createBox(1.20, 0.16, 0.62, thTrimMat, 0, 0.93, -1.6);
-      // Pelat Sadel Tapal Kuda (Fifth Wheel Plate)
       const fifthWheelPlate = createCylinder(0.58, 0.58, 0.10, 28, thFifthWheelMat, 0, 1.05, -1.6);
       fifthWheelPlate.rotation.x = 0.08;
-      // Celah Masuk Kingpin V-Opening Belakang
-      createBox(0.18, 0.12, 0.35, new THREE.MeshStandardMaterial({ color: 0x030712 }), 0, 1.06, -1.82);
-      // Tuas Rilis Kunci Sadel Chrome
-      createBox(0.42, 0.03, 0.03, chromeMat, -0.68, 1.05, -1.6);
 
-      // ── 5. TANGKI BAHAN BAKAR & ALAT KELENGKAPAN SASIS ──
-      // Tangki Solar Aluminium Chrome Kiri
+      // Tangki Solar Aluminium Kiri & Kanan
       createCylinder(0.36, 0.36, 1.75, 24, chromeMat, -0.98, 0.68, 0.25, Math.PI / 2);
-      createCylinder(0.38, 0.38, 0.06, 24, thTrimMat, -0.98, 0.68, -0.35, Math.PI / 2); // Rubber strap 1
-      createCylinder(0.38, 0.38, 0.06, 24, thTrimMat, -0.98, 0.68, 0.85, Math.PI / 2);  // Rubber strap 2
-      createCylinder(0.08, 0.08, 0.06, 16, chromeMat, -0.98, 1.06, 0.75); // Fuel cap
-
-      // Tangki Solar Aluminium Chrome Kanan
       createCylinder(0.36, 0.36, 1.75, 24, chromeMat, 0.98, 0.68, 0.25, Math.PI / 2);
-      createCylinder(0.38, 0.38, 0.06, 24, thTrimMat, 0.98, 0.68, -0.35, Math.PI / 2);  // Rubber strap 1
-      createCylinder(0.38, 0.38, 0.06, 24, thTrimMat, 0.98, 0.68, 0.85, Math.PI / 2);   // Rubber strap 2
-      createCylinder(0.08, 0.08, 0.06, 16, chromeMat, 0.98, 1.06, 0.75); // Fuel cap
 
-      // Kotak Baterai & Tabung Angin Rem
-      createBox(0.46, 0.32, 0.46, thTrimMat, -0.98, 0.68, -0.85);
-
-      // ── 6. SPAKBOR BELAKANG (CURVED REAR MUDGUARDS - BIRU FLEET) ──
-      // Spakbor Kiri
+      // Spakbor & Mudflaps Belakang
       createBox(0.74, 0.06, 1.35, thCabBlueMat, -1.36, 1.14, -1.7);
-      const leftMudflap = createBox(0.70, 0.36, 0.04, new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.9 }), -1.36, 0.78, -2.35);
-      leftMudflap.rotation.x = -0.15;
+      mudflapLeft = createBox(0.70, 0.36, 0.04, new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.9 }), -1.36, 0.78, -2.35);
+      mudflapLeft.rotation.x = -0.15;
 
-      // Spakbor Kanan
       createBox(0.74, 0.06, 1.35, thCabBlueMat, 1.36, 1.14, -1.7);
-      const rightMudflap = createBox(0.70, 0.36, 0.04, new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.9 }), 1.36, 0.78, -2.35);
-      rightMudflap.rotation.x = -0.15;
+      mudflapRight = createBox(0.70, 0.36, 0.04, new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.9 }), 1.36, 0.78, -2.35);
+      mudflapRight.rotation.x = -0.15;
     } else if (wheelCount === 8) {
-      // ── CHASSIS TRAILER 20 FEET (8 RODA: Gandar 1 & 2) ──
-      // Sasis Utama Trailer (Baja Industrial Slate 600 - Sangat Jelas)
+      // 8 Roda
       createBox(0.18, 0.36, 7.8, frameMat, -0.65, 0.82, 0);
       createBox(0.18, 0.36, 7.8, frameMat, 0.65, 0.82, 0);
-      // Crossmembers trailer
       for (let z = -3.2; z <= 3.2; z += 1.4) {
         createBox(1.4, 0.16, 0.16, crossmemberMat, 0, 0.82, z);
       }
-      // Twistlocks Kuning Safety di 4 Sudut
       createBox(0.26, 0.22, 0.26, twistlockMat, -1.15, 0.98, 3.7);
       createBox(0.26, 0.22, 0.26, twistlockMat, 1.15, 0.98, 3.7);
       createBox(0.26, 0.22, 0.26, twistlockMat, -1.15, 0.98, -3.7);
       createBox(0.26, 0.22, 0.26, twistlockMat, 1.15, 0.98, -3.7);
-      // Kingpin depan
-      createCylinder(0.08, 0.08, 0.3, 16, chromeMat, 0, 0.5, 3.2);
-      // Kaki Penyangga (Landing Gear)
-      createBox(0.14, 0.8, 0.14, frameMat, -0.65, 0.42, 1.2);
-      createBox(0.14, 0.8, 0.14, frameMat, 0.65, 0.42, 1.2);
-      // Bumper Belakang + Hazard Red Bar
       createBox(2.2, 0.22, 0.12, hazardMat, 0, 0.65, -3.85);
     } else if (wheelCount === 12) {
-      // ── CHASSIS TRAILER 40 FEET (12 RODA: Tri-Axle Gandar 1, 2, 3) ──
-      // Sasis Utama Panjang Trailer 40ft (Baja Titanium Slate 600 - Jelas & Kokoh)
+      // 12 Roda
       createBox(0.18, 0.36, 11.2, frameMat, -0.65, 0.82, 0);
       createBox(0.18, 0.36, 11.2, frameMat, 0.65, 0.82, 0);
-      // Balok Crossmembers Penghubung
       for (let z = -4.8; z <= 4.8; z += 1.5) {
         createBox(1.4, 0.16, 0.16, crossmemberMat, 0, 0.82, z);
       }
-      // Twistlocks Kuning Safety di 4 Sudut Kontainer
       createBox(0.26, 0.22, 0.26, twistlockMat, -1.15, 0.98, 5.4);
       createBox(0.26, 0.22, 0.26, twistlockMat, 1.15, 0.98, 5.4);
       createBox(0.26, 0.22, 0.26, twistlockMat, -1.15, 0.98, -5.4);
       createBox(0.26, 0.22, 0.26, twistlockMat, 1.15, 0.98, -5.4);
-      // Kingpin depan
-      createCylinder(0.08, 0.08, 0.3, 16, chromeMat, 0, 0.5, 4.8);
-      // Kaki Penyangga Depan (Landing Gear)
-      createBox(0.14, 0.8, 0.14, frameMat, -0.65, 0.42, 2.2);
-      createBox(0.14, 0.8, 0.14, frameMat, 0.65, 0.42, 2.2);
-      // Bumper Belakang + Hazard Red Bar
       createBox(2.2, 0.22, 0.12, hazardMat, 0, 0.65, -5.55);
     }
 
-    // ── BANGUN GEOMETRI BAN 3D & POSISI RODA ──
-    wheelsMeshMap.current.clear();
+    // ── SIMULASI ASAP KNALPOT DIESEL REALISTIS (EXHAUST SMOKE SYSTEM) ──
+    const smokeParticles: Array<{
+      mesh: THREE.Mesh;
+      vx: number;
+      vy: number;
+      vz: number;
+      baseX: number;
+      baseY: number;
+      baseZ: number;
+      life: number;
+      maxLife: number;
+    }> = [];
 
-    // Koordinat Posisi 3D untuk Roda (X: kiri/kanan, Y: ketinggian, Z: gandar depan/belakang)
-    type WheelCoord = { id: string; x: number; y: number; z: number; isDual?: boolean; side: 'L' | 'R' };
-    let wheelCoords: WheelCoord[] = [];
+    if (wheelCount === 6) {
+      const smokeGeo = new THREE.SphereGeometry(0.08, 8, 8);
+      const smokeBaseMat = new THREE.MeshBasicMaterial({
+        color: 0x94a3b8,
+        transparent: true,
+        opacity: 0.2,
+        depthWrite: false
+      });
 
-    if (wheelCount === 4) {
-      wheelCoords = [
-        { id: 'w1', x: -0.9, y: 0.45, z: 1.1, side: 'L' },
-        { id: 'w2', x: 0.9, y: 0.45, z: 1.1, side: 'R' },
-        { id: 'w3', x: -0.85, y: 0.4, z: -1.0, side: 'L' },
-        { id: 'w4', x: 0.85, y: 0.4, z: -1.0, side: 'R' }
-      ];
-    } else if (wheelCount === 6) {
-      // 6 Roda (1 Kemudi Depan + 2 Pasang Dual Drive Belakang)
-      wheelCoords = [
-        { id: 'w1', x: -1.15, y: 0.52, z: 2.1, side: 'L' }, // Kemudi Kiri
-        { id: 'w2', x: 1.15, y: 0.52, z: 2.1, side: 'R' },  // Kemudi Kanan
-        { id: 'w3', x: -1.36, y: 0.52, z: -1.7, side: 'L', isDual: true }, // Kiri Luar
-        { id: 'w4', x: -1.04, y: 0.52, z: -1.7, side: 'L', isDual: true }, // Kiri Dalam
-        { id: 'w5', x: 1.04, y: 0.52, z: -1.7, side: 'R', isDual: true },  // Kanan Dalam
-        { id: 'w6', x: 1.36, y: 0.52, z: -1.7, side: 'R', isDual: true }   // Kanan Luar
-      ];
-    } else if (wheelCount === 8) {
-      // 8 Roda (Chassis 20ft: Gandar 1 & Gandar 2)
-      wheelCoords = [
-        { id: 'w1', x: -1.36, y: 0.52, z: -1.4, side: 'L', isDual: true },
-        { id: 'w2', x: -1.04, y: 0.52, z: -1.4, side: 'L', isDual: true },
-        { id: 'w3', x: 1.04, y: 0.52, z: -1.4, side: 'R', isDual: true },
-        { id: 'w4', x: 1.36, y: 0.52, z: -1.4, side: 'R', isDual: true },
-
-        { id: 'w5', x: -1.36, y: 0.52, z: -2.8, side: 'L', isDual: true },
-        { id: 'w6', x: -1.04, y: 0.52, z: -2.8, side: 'L', isDual: true },
-        { id: 'w7', x: 1.04, y: 0.52, z: -2.8, side: 'R', isDual: true },
-        { id: 'w8', x: 1.36, y: 0.52, z: -2.8, side: 'R', isDual: true }
-      ];
-    } else if (wheelCount === 12) {
-      // 12 Roda (Chassis 40ft: Gandar 1, 2, 3)
-      wheelCoords = [
-        { id: 'w1', x: -1.36, y: 0.52, z: -1.9, side: 'L', isDual: true },
-        { id: 'w2', x: -1.04, y: 0.52, z: -1.9, side: 'L', isDual: true },
-        { id: 'w3', x: 1.04, y: 0.52, z: -1.9, side: 'R', isDual: true },
-        { id: 'w4', x: 1.36, y: 0.52, z: -1.9, side: 'R', isDual: true },
-
-        { id: 'w5', x: -1.36, y: 0.52, z: -3.3, side: 'L', isDual: true },
-        { id: 'w6', x: -1.04, y: 0.52, z: -3.3, side: 'L', isDual: true },
-        { id: 'w7', x: 1.04, y: 0.52, z: -3.3, side: 'R', isDual: true },
-        { id: 'w8', x: 1.36, y: 0.52, z: -3.3, side: 'R', isDual: true },
-
-        { id: 'w9', x: -1.36, y: 0.52, z: -4.7, side: 'L', isDual: true },
-        { id: 'w10', x: -1.04, y: 0.52, z: -4.7, side: 'L', isDual: true },
-        { id: 'w11', x: 1.04, y: 0.52, z: -4.7, side: 'R', isDual: true },
-        { id: 'w12', x: 1.36, y: 0.52, z: -4.7, side: 'R', isDual: true }
-      ];
+      [-0.84, 0.84].forEach((exX) => {
+        for (let i = 0; i < 12; i++) {
+          const sMesh = new THREE.Mesh(smokeGeo, smokeBaseMat.clone());
+          sMesh.position.set(exX, 3.2, 0.58);
+          scene.add(sMesh);
+          smokeParticles.push({
+            mesh: sMesh,
+            vx: (Math.random() - 0.5) * 0.08,
+            vy: 0.35 + Math.random() * 0.25,
+            vz: -0.2 - Math.random() * 0.15,
+            baseX: exX,
+            baseY: 3.2,
+            baseZ: 0.58,
+            life: Math.random() * 1.5,
+            maxLife: 1.4 + Math.random() * 0.8
+          });
+        }
+      });
     }
 
-    // Material Karet Ban Hitam Pekat dengan Guratan Realistis
+    // ── BANGUN GEOMETRI BAN 3D & POSISI RODA REALISTIS ──
+    wheelsMeshMap.current.clear();
+
+    const tireRadius = 0.52;
+    const tireWidth = 0.26;
+
+    const treadTexture = createTireTreadTexture();
     const tireRubberMat = new THREE.MeshStandardMaterial({
       color: 0x18181b,
+      map: treadTexture || undefined,
       roughness: 0.88,
       metalness: 0.12
     });
 
-    // Material Velg Roda (Alloy Velg Perak Aluminium Terang Berkilau)
     const rimAlloyMat = new THREE.MeshStandardMaterial({
       color: 0xe2e8f0,
       metalness: 0.92,
       roughness: 0.18
     });
 
-    const tireRadius = 0.52;
-    const tireWidth = 0.26;
-
-    // Pasang Poros Gandar (Axle Tubes)
+    // Poros Gandar (Axles)
     const distinctAxleZ = Array.from(new Set(wheelCoords.map((c) => c.z)));
     distinctAxleZ.forEach((zVal) => {
       createCylinder(0.08, 0.08, 2.6, 16, frameMat, 0, 0.52, zVal, 0, Math.PI / 2);
-      // Differential Pumpkin (Gardan Tengah)
       if (wheelCount === 6 && zVal < 0) {
         createCylinder(0.24, 0.24, 0.35, 16, new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8 }), 0, 0.52, zVal, Math.PI / 2);
       }
@@ -1133,10 +870,9 @@ export default function VehicleAnimation3D({
     wheelCoords.forEach((coord) => {
       const wheelGroup = new THREE.Group();
       wheelGroup.position.set(coord.x, coord.y, coord.z);
-      wheelGroup.userData = { wheelId: coord.id };
+      wheelGroup.userData = { wheelId: coord.id, baseCoord: coord };
 
-      // ── 1. KOMPONEN BAN TERPASANG (Hanya muncul jika ban terpasang) ──
-      // Karet Luar Ban
+      // 1. Karet Ban
       const tireGeo = new THREE.CylinderGeometry(tireRadius, tireRadius, tireWidth, 32);
       tireGeo.rotateZ(Math.PI / 2);
       const tireMesh = new THREE.Mesh(tireGeo, tireRubberMat.clone());
@@ -1145,19 +881,14 @@ export default function VehicleAnimation3D({
       tireMesh.userData = { wheelId: coord.id, isTire: true };
       wheelGroup.add(tireMesh);
 
-      // Alur Tread Tapak Ban (Wireframe Ring Alur Tapak)
+      // Alur Ring Tapak Ban
       const treadRingGeo = new THREE.CylinderGeometry(tireRadius + 0.006, tireRadius + 0.006, tireWidth * 0.78, 32, 2, true);
       treadRingGeo.rotateZ(Math.PI / 2);
-      const treadRingMat = new THREE.MeshStandardMaterial({
-        color: 0x09090b,
-        roughness: 0.95,
-        wireframe: true
-      });
-      const treadMesh = new THREE.Mesh(treadRingGeo, treadRingMat);
+      const treadMesh = new THREE.Mesh(treadRingGeo, new THREE.MeshStandardMaterial({ color: 0x09090b, roughness: 0.95, wireframe: true }));
       treadMesh.name = 'treadMesh';
       wheelGroup.add(treadMesh);
 
-      // Velg Alloy Perak Mengkilap
+      // Velg Alloy Perak
       const rimGeo = new THREE.CylinderGeometry(tireRadius * 0.62, tireRadius * 0.62, tireWidth + 0.012, 24);
       rimGeo.rotateZ(Math.PI / 2);
       const rimMesh = new THREE.Mesh(rimGeo, rimAlloyMat.clone());
@@ -1165,109 +896,124 @@ export default function VehicleAnimation3D({
       rimMesh.userData = { wheelId: coord.id, isRim: true };
       wheelGroup.add(rimMesh);
 
-      // Center Hubcap & Mur Roda
-      const hubGeo = new THREE.CylinderGeometry(0.14, 0.14, tireWidth + 0.03, 16);
+      // Mur Roda Chrome 10-Lug
+      const lugGroup = new THREE.Group();
+      lugGroup.name = 'lugGroup';
+      for (let b = 0; b < 10; b++) {
+        const ang = (b / 10) * Math.PI * 2;
+        const by = Math.sin(ang) * (tireRadius * 0.35);
+        const bz = Math.cos(ang) * (tireRadius * 0.35);
+        const lug = new THREE.Mesh(
+          new THREE.CylinderGeometry(0.018, 0.018, tireWidth + 0.035, 8),
+          new THREE.MeshStandardMaterial({ color: 0xf8fafc, metalness: 0.95, roughness: 0.1 })
+        );
+        lug.rotateZ(Math.PI / 2);
+        lug.position.set(0, by, bz);
+        lugGroup.add(lug);
+      }
+      wheelGroup.add(lugGroup);
+
+      // Center Planetary Hubcap
+      const hubGeo = new THREE.CylinderGeometry(0.14, 0.14, tireWidth + 0.038, 18);
       hubGeo.rotateZ(Math.PI / 2);
       const hubMesh = new THREE.Mesh(hubGeo, new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.9, roughness: 0.2 }));
       hubMesh.name = 'hubMesh';
       wheelGroup.add(hubMesh);
 
-      // ── 2. KOMPONEN KETIKA BAN BELUM DIPASANG (DUDUKAN HUBSPOROS & ROTOR REM) ──
-      // A. Ghost Silhouette: Panduan Hologram Halus & Elegan (Transparan Halus, Bukan Tabung Tebal)
+      // 2. KOMPONEN KETIKA BAN BELUM TERPASANG (DUDUKAN HUB / ROTOR REM)
+      // Ghost Blueprint Hologram
       const ghostTireGeo = new THREE.CylinderGeometry(tireRadius, tireRadius, tireWidth, 32);
       ghostTireGeo.rotateZ(Math.PI / 2);
-      const ghostTireMat = new THREE.MeshStandardMaterial({
-        color: 0x38bdf8,
-        transparent: true,
-        opacity: 0.08,
-        roughness: 0.4,
-        metalness: 0.1,
-        side: THREE.DoubleSide,
-        depthWrite: false
-      });
-      const ghostTireMesh = new THREE.Mesh(ghostTireGeo, ghostTireMat);
+      const ghostTireMesh = new THREE.Mesh(
+        ghostTireGeo,
+        new THREE.MeshStandardMaterial({
+          color: coord.isInner ? 0xa855f7 : 0x38bdf8,
+          transparent: true,
+          opacity: 0.08,
+          roughness: 0.4,
+          metalness: 0.1,
+          side: THREE.DoubleSide,
+          depthWrite: false
+        })
+      );
       ghostTireMesh.name = 'ghostTireMesh';
       ghostTireMesh.userData = { wheelId: coord.id };
       wheelGroup.add(ghostTireMesh);
 
-      // B. Ghost Line Edges: Garis Outline CAD Halus
       const ghostEdges = new THREE.EdgesGeometry(ghostTireGeo, 25);
-      const ghostLineMat = new THREE.LineBasicMaterial({
-        color: 0x38bdf8,
-        transparent: true,
-        opacity: 0.35,
-        linewidth: 1.0
-      });
-      const ghostLine = new THREE.LineSegments(ghostEdges, ghostLineMat);
+      const ghostLine = new THREE.LineSegments(
+        ghostEdges,
+        new THREE.LineBasicMaterial({
+          color: coord.isInner ? 0xc084fc : 0x38bdf8,
+          transparent: true,
+          opacity: 0.35
+        })
+      );
       ghostLine.name = 'ghostLine';
       ghostLine.userData = { wheelId: coord.id };
       wheelGroup.add(ghostLine);
 
-      // C. Piringan Rem Cakram Berventilasi (Ventilated Disc Brake Rotor Logam)
+      // Ventilated Brake Rotor & Caliper
       const drumGeo = new THREE.CylinderGeometry(tireRadius * 0.52, tireRadius * 0.52, tireWidth * 0.65, 28);
       drumGeo.rotateZ(Math.PI / 2);
-      const drumMat = new THREE.MeshStandardMaterial({
-        color: 0x64748b, // Titanium Grey Metal
-        metalness: 0.88,
-        roughness: 0.28
-      });
-      const brakeDrum = new THREE.Mesh(drumGeo, drumMat);
+      const brakeDrum = new THREE.Mesh(drumGeo, new THREE.MeshStandardMaterial({ color: 0x64748b, metalness: 0.88, roughness: 0.28 }));
       brakeDrum.name = 'brakeDrum';
       brakeDrum.castShadow = true;
       brakeDrum.userData = { wheelId: coord.id, isDrum: true };
       wheelGroup.add(brakeDrum);
 
-      // D. Kaliper Rem Industri Satin Charcoal
       const caliperGeo = new THREE.BoxGeometry(tireWidth * 0.68, 0.18, 0.24);
-      const caliperMat = new THREE.MeshStandardMaterial({
-        color: 0x1e293b,
-        roughness: 0.38,
-        metalness: 0.65
-      });
-      const caliperMesh = new THREE.Mesh(caliperGeo, caliperMat);
+      const caliperMesh = new THREE.Mesh(caliperGeo, new THREE.MeshStandardMaterial({ color: 0x1e293b, roughness: 0.38, metalness: 0.65 }));
       caliperMesh.name = 'brakeCaliper';
       caliperMesh.position.set(0, tireRadius * 0.34, 0);
       wheelGroup.add(caliperMesh);
 
-      // E. Poros Hub Spindle & Baut Roda Studs Perak
       const studsGeo = new THREE.CylinderGeometry(0.13, 0.13, tireWidth * 0.82, 16);
       studsGeo.rotateZ(Math.PI / 2);
-      const studsMat = new THREE.MeshStandardMaterial({
-        color: 0xe2e8f0,
-        metalness: 0.95,
-        roughness: 0.15
-      });
-      const studsMesh = new THREE.Mesh(studsGeo, studsMat);
+      const studsMesh = new THREE.Mesh(studsGeo, new THREE.MeshStandardMaterial({ color: 0xe2e8f0, metalness: 0.95, roughness: 0.15 }));
       studsMesh.name = 'studsMesh';
       wheelGroup.add(studsMesh);
 
-      // ── 3. INDIKATOR SELEKSI & TARGET DROP (HALO RING) ──
-      const haloGeo = new THREE.RingGeometry(tireRadius * 1.06, tireRadius * 1.18, 32);
+      // 3. SELECTION / DROP HALO
+      const haloGeo = new THREE.RingGeometry(tireRadius * 1.06, tireRadius * 1.2, 32);
       haloGeo.rotateY(Math.PI / 2);
-      const haloMat = new THREE.MeshBasicMaterial({
-        color: 0x38bdf8,
-        side: THREE.DoubleSide,
-        transparent: true,
-        opacity: 0.85
-      });
-      const haloMesh = new THREE.Mesh(haloGeo, haloMat);
+      const haloMesh = new THREE.Mesh(
+        haloGeo,
+        new THREE.MeshBasicMaterial({
+          color: coord.isInner ? 0xa855f7 : 0x38bdf8,
+          side: THREE.DoubleSide,
+          transparent: true,
+          opacity: 0.85
+        })
+      );
       haloMesh.name = 'selectionHalo';
       haloMesh.userData = { wheelId: coord.id };
       haloMesh.visible = false;
       wheelGroup.add(haloMesh);
 
-      // ── 4. HIT TARGET (RAYCASTER DETEKSI KLIK & DND) ──
-      const hitGeo = new THREE.CylinderGeometry(tireRadius * 1.35, tireRadius * 1.35, tireWidth * 1.6, 16);
+      // 4. HIT TARGET RAYCASTER PRESISI TINGGI
+      // Roda luar dan roda dalam memiliki hit target terukur agar tidak bertubrukan
+      const hitRadius = tireRadius * 1.15;
+      const hitWidth = tireWidth * 1.05;
+      const hitGeo = new THREE.CylinderGeometry(hitRadius, hitRadius, hitWidth, 16);
       hitGeo.rotateZ(Math.PI / 2);
-      const hitMat = new THREE.MeshBasicMaterial({
-        transparent: true,
-        opacity: 0,
-        depthWrite: false
-      });
+      const hitMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0, depthWrite: false });
       const hitMesh = new THREE.Mesh(hitGeo, hitMat);
       hitMesh.name = 'hitMesh';
-      hitMesh.userData = { wheelId: coord.id, isHitTarget: true };
+      hitMesh.userData = { wheelId: coord.id, isHitTarget: true, isInner: Boolean(coord.isInner), isOuter: Boolean(coord.isOuter) };
       wheelGroup.add(hitMesh);
+
+      // Untuk Roda DALAM (Inner Wheel), pasang flange penangkap ekstra ke arah sasis & atas
+      // sehingga pengguna sangat mudah mengklik atau drag ban ke posisi dalam tanpa terhalang roda luar
+      if (coord.isInner) {
+        const innerFlangeGeo = new THREE.CylinderGeometry(hitRadius * 1.15, hitRadius * 1.15, hitWidth * 1.35, 16);
+        innerFlangeGeo.rotateZ(Math.PI / 2);
+        const innerFlangeMesh = new THREE.Mesh(innerFlangeGeo, hitMat.clone());
+        innerFlangeMesh.name = 'innerFlangeMesh';
+        innerFlangeMesh.userData = { wheelId: coord.id, isHitTarget: true, isInnerCapture: true };
+        innerFlangeMesh.position.x = coord.side === 'L' ? 0.08 : -0.08;
+        wheelGroup.add(innerFlangeMesh);
+      }
 
       vehicleGroup.add(wheelGroup);
       wheelsMeshMap.current.set(coord.id, wheelGroup);
@@ -1277,12 +1023,10 @@ export default function VehicleAnimation3D({
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
-    // ── TAP DETECTION (Mencegah sentuhan saat memutar/geser kamera 3D memicu detail ban) ──
     let pointerDownPos: { x: number; y: number } | null = null;
     let pointerDownTime = 0;
 
     const handlePointerDown = (event: PointerEvent) => {
-      // Hanya tangkap tombol utama (left click / single touch)
       if (event.button !== 0 && event.pointerType === 'mouse') return;
       pointerDownPos = { x: event.clientX, y: event.clientY };
       pointerDownTime = Date.now();
@@ -1296,41 +1040,15 @@ export default function VehicleAnimation3D({
       const elapsed = Date.now() - pointerDownTime;
       pointerDownPos = null;
 
-      // SYARAT MUTLAK HARUS DI-TAP (Bukan sekadar sentuh / geser / rotasi kamera 3D):
-      // 1. Pergeseran jari/kursor maksimal 8 pixel (toleransi sentuhan jari di layar HP)
-      // 2. Durasi sentuhan singkat maksimal 300 ms
-      // Jika digeser untuk memutar kamera 3D (OrbitControls), fungsi ini langsung return dan TIDAK membuka detail!
-      if (dist > 8 || elapsed > 300) {
-        return;
-      }
-
-      // Jangan buka modal jika sedang aktif drag ban dari tray inventori
+      if (dist > 8 || elapsed > 300) return;
       if (touchCoordsRef.current || dndHoverWheelIdRef.current) return;
 
-      const rect = renderer.domElement.getBoundingClientRect();
-      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-      raycaster.setFromCamera(mouse, camera);
-      const wheelMeshes: THREE.Object3D[] = [];
-      wheelsMeshMap.current.forEach((grp) => {
-        grp.traverse((child) => {
-          if (child instanceof THREE.Mesh && child.userData.wheelId) {
-            wheelMeshes.push(child);
-          }
-        });
-      });
-
-      const intersects = raycaster.intersectObjects(wheelMeshes, false);
-      if (intersects.length > 0) {
-        const hitWheelId = intersects[0].object.userData.wheelId;
-        if (hitWheelId) {
-          const tire = getTireForWheelRef.current(hitWheelId);
-          onWheelClickRef.current?.(hitWheelId, tire);
-          if (tire) {
-            // Hanya munculkan modal detail saat benar-benar di-tap cepat
-            setDetailModalTire({ tire, wheelId: hitWheelId });
-          }
+      const hitWheelId = getWheelAtCoordsInternal(event.clientX, event.clientY);
+      if (hitWheelId) {
+        const tire = getTireForWheelRef.current(hitWheelId);
+        onWheelClickRef.current?.(hitWheelId, tire);
+        if (tire) {
+          setDetailModalTire({ tire, wheelId: hitWheelId });
         }
       }
     };
@@ -1340,32 +1058,104 @@ export default function VehicleAnimation3D({
     };
 
     const handlePointerMove = (event: PointerEvent) => {
-      // Di layar sentuh HP (touch), gerakan jari memutar kamera tidak memicu hover state
       if (event.pointerType === 'touch') return;
-
-      const rect = renderer.domElement.getBoundingClientRect();
-      mouse.x = ((event.clientX - rect.left) / rect.width) * 2 - 1;
-      mouse.y = -((event.clientY - rect.top) / rect.height) * 2 + 1;
-
-      raycaster.setFromCamera(mouse, camera);
-      const wheelMeshes: THREE.Object3D[] = [];
-      wheelsMeshMap.current.forEach((grp) => {
-        grp.traverse((child) => {
-          if (child instanceof THREE.Mesh && child.userData.wheelId) {
-            wheelMeshes.push(child);
-          }
-        });
-      });
-
-      const intersects = raycaster.intersectObjects(wheelMeshes, false);
-      if (intersects.length > 0) {
-        const hitWheelId = intersects[0].object.userData.wheelId;
+      const hitWheelId = getWheelAtCoordsInternal(event.clientX, event.clientY);
+      if (hitWheelId) {
         renderer.domElement.style.cursor = 'pointer';
-        setHoveredWheelId(hitWheelId || null);
+        setHoveredWheelId(hitWheelId);
       } else {
         renderer.domElement.style.cursor = 'default';
         setHoveredWheelId(null);
       }
+    };
+
+    // Smart Wheel Resolution Function
+    const getWheelAtCoordsInternal = (clientX: number, clientY: number): string | null => {
+      const rect = renderer.domElement.getBoundingClientRect();
+      mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
+      mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
+
+      raycaster.setFromCamera(mouse, camera);
+      const targetMeshes: THREE.Object3D[] = [];
+      wheelsMeshMap.current.forEach((grp) => {
+        grp.traverse((child) => {
+          if (child instanceof THREE.Mesh && child.userData.wheelId) {
+            targetMeshes.push(child);
+          }
+        });
+      });
+
+      const intersects = raycaster.intersectObjects(targetMeshes, false);
+      if (intersects.length > 0) {
+        const hitWheelIds: string[] = [];
+        for (const hit of intersects) {
+          const wid = hit.object.userData.wheelId as string;
+          if (wid && !hitWheelIds.includes(wid)) {
+            hitWheelIds.push(wid);
+          }
+        }
+
+        // Jika mengenai pasangan ganda (Roda Luar DAN Roda Dalam kena raycast sekaligus):
+        for (const wid of hitWheelIds) {
+          const info = wheelCoordsMapRef.current.get(wid);
+          if (info?.isDual && info.partnerId && hitWheelIds.includes(info.partnerId)) {
+            const outerId = info.isOuter ? wid : info.partnerId;
+            const innerId = info.isInner ? wid : info.partnerId;
+            const outerTire = getTireForWheelRef.current(outerId);
+            const innerTire = getTireForWheelRef.current(innerId);
+
+            // Jika sedang drag ban:
+            if (isDraggingRef.current) {
+              // Jika roda luar sudah terpasang & roda dalam kosong -> UTAMAKAN RODA DALAM!
+              if (outerTire && !innerTire) return innerId;
+              if (!outerTire && innerTire) return outerId;
+            }
+
+            // Bandingkan proyeksi posisi 2D kursor ke pusat roda di layar
+            const sOuter = getWheelScreenPos(outerId);
+            const sInner = getWheelScreenPos(innerId);
+            const dOuter = Math.hypot(clientX - sOuter.x, clientY - sOuter.y);
+            const dInner = Math.hypot(clientX - sInner.x, clientY - sInner.y);
+
+            // Beri bobot +20px ke roda dalam agar sangat responsif dipilih
+            return dInner <= dOuter + 20 ? innerId : outerId;
+          }
+        }
+
+        return hitWheelIds[0];
+      }
+
+      // Fallback Proximity
+      let closestWheelId: string | null = null;
+      let minDistance = 140;
+      for (const wId of wheelsMeshMap.current.keys()) {
+        const sPos = getWheelScreenPos(wId);
+        if (sPos.inFront) {
+          let dist = Math.hypot(clientX - sPos.x, clientY - sPos.y);
+          const info = wheelCoordsMapRef.current.get(wId);
+          if (info?.isInner) dist -= 15;
+          if (dist < minDistance) {
+            minDistance = dist;
+            closestWheelId = wId;
+          }
+        }
+      }
+
+      return closestWheelId;
+    };
+
+    const getWheelScreenPos = (wId: string) => {
+      const grp = wheelsMeshMap.current.get(wId);
+      if (!grp) return { x: -999, y: -999, inFront: false };
+      const worldPos = new THREE.Vector3();
+      grp.getWorldPosition(worldPos);
+      worldPos.project(camera);
+      const rect = renderer.domElement.getBoundingClientRect();
+      return {
+        x: ((worldPos.x + 1) * rect.width) / 2 + rect.left,
+        y: ((-worldPos.y + 1) * rect.height) / 2 + rect.top,
+        inFront: worldPos.z <= 1
+      };
     };
 
     renderer.domElement.addEventListener('pointerdown', handlePointerDown);
@@ -1373,37 +1163,75 @@ export default function VehicleAnimation3D({
     renderer.domElement.addEventListener('pointercancel', handlePointerCancel);
     renderer.domElement.addEventListener('pointermove', handlePointerMove);
 
-    // ── ANIMATION LOOP ──
+    // ── ANIMATION LOOP 60FPS ──
     let clock = new THREE.Clock();
+    let currentSpeed = 0;
 
     const animate = () => {
       animationFrameId.current = requestAnimationFrame(animate);
-      const delta = clock.getDelta();
+      const delta = Math.min(clock.getDelta(), 0.1);
       const time = clock.getElapsedTime();
 
-      // 1. Controls Update & Guardrail Pembatas Kamera
+      // 1. Controls Update
       controls.update();
 
-      // Guardrail pengaman batas posisi kamera (tidak keluar menembus atap ataupun lantai garasi)
       if (camera.position.y > 10.2) camera.position.y = 10.2;
       if (camera.position.y < 0.25) camera.position.y = 0.25;
 
-      // Sembunyikan elemen atap/lampu bengkel secara otomatis saat kamera melihat tegak lurus dari atas
       const isViewingFromTop = camera.position.y > 4.5 && Math.abs(camera.position.x) < 2.5;
       ceilingGroup.visible = !isViewingFromTop;
 
-      // 2. Animasi Putar Roda & Dyno Rollers (Testing / Rolling Simulation in Workshop Bay)
-      if (isRollingRef.current) {
-        const testSpeed = 4.0;
-        const rollSpeed = (testSpeed / tireRadius) * delta;
+      // 2. Smooth Cinematic Camera Transition Lerp
+      if (cameraTransitionRef.current && cameraTransitionRef.current.active) {
+        const t = cameraTransitionRef.current;
+        t.progress += delta * 2.2;
+        const p = Math.min(1, t.progress);
+        const ease = p < 0.5 ? 4 * p * p * p : 1 - Math.pow(-2 * p + 2, 3) / 2;
+        camera.position.lerpVectors(t.startPos, t.targetPos, ease);
+        controls.target.lerpVectors(t.startTarget, t.targetTarget, ease);
+        if (p >= 1) {
+          t.active = false;
+          cameraTransitionRef.current = null;
+        }
+      }
 
-        // A. Putar Roda-Roda Truk
+      // 3. Pemisahan Mekanikal Roda Ganda (Exploded Dual Separation)
+      // Terjadi jika user menekan tombol Buka Roda Ganda, sedang drag ban, ATAU roda dalam sedang dipilih
+      const isInnerSelected = selectedWheelIdRef.current
+        ? wheelCoordsMapRef.current.get(selectedWheelIdRef.current)?.isInner
+        : false;
+      const shouldSeparate = isDualSeparatedRef.current || isDraggingRef.current || isInnerSelected;
+
+      wheelsMeshMap.current.forEach((wheelGroup, wId) => {
+        const coord = wheelCoordsMapRef.current.get(wId);
+        if (coord && coord.isDual) {
+          let targetX = coord.x;
+          if (shouldSeparate) {
+            if (coord.isOuter) {
+              targetX += coord.side === 'L' ? -0.32 : 0.32;
+            } else {
+              targetX += coord.side === 'L' ? 0.08 : -0.08;
+            }
+          }
+          wheelGroup.position.x = THREE.MathUtils.lerp(wheelGroup.position.x, targetX, delta * 12);
+        }
+      });
+
+      // 4. Fisika Dinamis Mesin Diesel & Dyno Test Inertia
+      const targetSpeed = isRollingRef.current ? 4.2 : 0.0;
+      currentSpeed = THREE.MathUtils.damp(currentSpeed, targetSpeed, 3.5, delta);
+
+      if (currentSpeed > 0.01) {
+        const rollSpeed = (currentSpeed / tireRadius) * delta;
+
+        // Putar roda
         wheelsMeshMap.current.forEach((wheelGroup) => {
           wheelGroup.children.forEach((child) => {
             if (
               child.name === 'tireMesh' ||
               child.name === 'treadMesh' ||
               child.name === 'rimMesh' ||
+              child.name === 'lugGroup' ||
               child.name === 'hubMesh' ||
               child.name === 'brakeDrum' ||
               child.name === 'studsMesh'
@@ -1413,24 +1241,56 @@ export default function VehicleAnimation3D({
           });
         });
 
-        // B. Putar Dyno Inspection Rollers di Lantai Bengkel Secara Sinkron
+        // Putar dyno rollers
         dynoRollers.forEach((roller) => {
           roller.rotation.x += rollSpeed * 1.4;
         });
 
-        // C. Getaran Mesin & Suspensi Dinamis saat Uji Putar (Dyno Test Vibration)
-        vehicleGroup.position.y = Math.sin(time * 10.0) * 0.010 + Math.cos(time * 16.0) * 0.005;
+        // Putar driveshaft
+        if (driveshaftMesh) {
+          driveshaftMesh.rotation.z += rollSpeed * 2.2;
+        }
+
+        // Getaran dyno test & torsi mesin miring
+        vehicleGroup.position.y = Math.sin(time * 18.0) * 0.008 + Math.cos(time * 26.0) * 0.004 - (currentSpeed / 4.2) * 0.006;
+        vehicleGroup.rotation.z = (currentSpeed / 4.2) * 0.006 + Math.sin(time * 20.0) * 0.002;
       } else {
-        // Efek Idling Mesin Lembut saat Parkir / Diam di Bay Bengkel
-        vehicleGroup.position.y = Math.sin(time * 2.0) * 0.005;
+        // Idling Mesin Diesel Halus (Realistic Heavy Diesel Rumble Idle)
+        vehicleGroup.position.y = Math.sin(time * 12.0) * 0.0022 + Math.cos(time * 6.0) * 0.0012;
+        vehicleGroup.rotation.z = Math.sin(time * 14.0) * 0.0012;
       }
 
-      // 4. Update Visual Status Roda Terpasang / Seleksi Aktif / Drag Target
+      // Ayunan mudflap
+      if (mudflapLeft) mudflapLeft.rotation.x = -0.15 + Math.sin(time * 4.0) * 0.02;
+      if (mudflapRight) mudflapRight.rotation.x = -0.15 + Math.sin(time * 4.0 + 1.0) * 0.02;
+
+      // 5. Partikel Asap Knalpot Diesel (Rising Exhaust Smoke Puffs)
+      const smokeSpeedMult = currentSpeed > 0.1 ? 1.8 + currentSpeed * 0.3 : 1.0;
+      smokeParticles.forEach((p) => {
+        p.life += delta * smokeSpeedMult;
+        if (p.life >= p.maxLife) {
+          p.life = 0;
+          p.mesh.position.set(p.baseX, p.baseY, p.baseZ);
+          p.mesh.scale.set(0.6, 0.6, 0.6);
+        } else {
+          const t = p.life / p.maxLife;
+          p.mesh.position.x += p.vx * delta * smokeSpeedMult;
+          p.mesh.position.y += p.vy * delta * smokeSpeedMult;
+          p.mesh.position.z += p.vz * delta * smokeSpeedMult;
+          const s = 0.6 + t * 2.2;
+          p.mesh.scale.set(s, s, s);
+          const pMat = p.mesh.material as THREE.MeshBasicMaterial;
+          pMat.opacity = Math.sin(t * Math.PI) * (currentSpeed > 0.1 ? 0.35 : 0.16);
+        }
+      });
+
+      // 6. Update Status Visual Roda & Animasi Pemasangan
       wheelsMeshMap.current.forEach((wheelGroup, wId) => {
         const halo = wheelGroup.getObjectByName('selectionHalo') as THREE.Mesh;
         const tireMesh = wheelGroup.getObjectByName('tireMesh') as THREE.Mesh;
         const treadMesh = wheelGroup.getObjectByName('treadMesh') as THREE.Mesh;
         const rimMesh = wheelGroup.getObjectByName('rimMesh') as THREE.Mesh;
+        const lugGroup = wheelGroup.getObjectByName('lugGroup') as THREE.Group;
         const hubMesh = wheelGroup.getObjectByName('hubMesh') as THREE.Mesh;
         const brakeDrum = wheelGroup.getObjectByName('brakeDrum') as THREE.Mesh;
         const brakeCaliper = wheelGroup.getObjectByName('brakeCaliper') as THREE.Mesh;
@@ -1442,32 +1302,54 @@ export default function VehicleAnimation3D({
         const isDndHover = dndHoverWheelIdRef.current === wId;
         const assignedTire = getTireForWheelRef.current(wId);
         const hasTire = Boolean(assignedTire);
+        const coord = wheelCoordsMapRef.current.get(wId);
 
-        // ── ATURAN UTAMA: Tampilkan ban fisik 3D jika roda sudah terpasang ATAU sedang disasar saat drag ban (live 3D preview) ──
+        // Animasi Slide-In saat Ban Dipasang
+        const anim = mountingAnims.current.get(wId);
+        let slideOffset = 0;
+        if (anim) {
+          const el = performance.now() - anim.startTime;
+          if (el < anim.duration) {
+            const prog = el / anim.duration;
+            const ease = Math.sin((prog * Math.PI) / 2);
+            slideOffset = (1 - ease) * (coord?.side === 'L' ? -0.7 : 0.7);
+          } else {
+            mountingAnims.current.delete(wId);
+          }
+        }
+
         const showPhysicalTire = hasTire || isDndHover;
+
         if (tireMesh) {
           tireMesh.visible = showPhysicalTire;
+          tireMesh.position.x = slideOffset;
           const tMat = tireMesh.material as THREE.MeshStandardMaterial;
           if (isDndHover && !hasTire) {
-            tMat.emissive.setHex(0x064e3b);
-            tMat.emissiveIntensity = 0.35;
+            tMat.emissive.setHex(coord?.isInner ? 0x4a044e : 0x064e3b);
+            tMat.emissiveIntensity = 0.45;
           } else {
             tMat.emissive.setHex(0x000000);
             tMat.emissiveIntensity = 0;
           }
         }
-        if (treadMesh) treadMesh.visible = showPhysicalTire;
+
+        if (treadMesh) {
+          treadMesh.visible = showPhysicalTire;
+          treadMesh.position.x = slideOffset;
+        }
+
         if (rimMesh) {
           rimMesh.visible = showPhysicalTire;
+          rimMesh.position.x = slideOffset;
           const mat = rimMesh.material as THREE.MeshStandardMaterial;
           if (isDndHover) {
-            mat.color.setHex(0x10b981);
-            mat.emissive.setHex(0x047857);
+            mat.color.setHex(coord?.isInner ? 0xc084fc : 0x10b981);
+            mat.emissive.setHex(coord?.isInner ? 0x9333ea : 0x047857);
             mat.emissiveIntensity = 0.85;
           } else if (hasTire) {
             if (isSelected) {
-              mat.color.setHex(0x38bdf8);
-              mat.emissive.setHex(0x075985);
+              mat.color.setHex(coord?.isInner ? 0xa855f7 : 0x38bdf8);
+              mat.emissive.setHex(coord?.isInner ? 0x7e22ce : 0x075985);
               mat.emissiveIntensity = 0.6;
             } else {
               mat.color.setHex(0xe2e8f0);
@@ -1476,9 +1358,13 @@ export default function VehicleAnimation3D({
             }
           }
         }
-        if (hubMesh) hubMesh.visible = showPhysicalTire;
 
-        // Tromol, kaliper rem, dan baut hanya muncul jika ban belum terpasang DAN tidak sedang preview DnD
+        if (lugGroup) lugGroup.position.x = slideOffset;
+        if (hubMesh) {
+          hubMesh.visible = showPhysicalTire;
+          hubMesh.position.x = slideOffset;
+        }
+
         if (brakeDrum) brakeDrum.visible = !showPhysicalTire;
         if (brakeCaliper) brakeCaliper.visible = !showPhysicalTire;
         if (studsMesh) studsMesh.visible = !showPhysicalTire;
@@ -1487,37 +1373,31 @@ export default function VehicleAnimation3D({
           ghostTireMesh.visible = !hasTire && !isDndHover;
           const gtMat = ghostTireMesh.material as THREE.MeshStandardMaterial;
           if (isSelected) {
-            gtMat.color.setHex(0x38bdf8);
-            gtMat.opacity = 0.16;
+            gtMat.color.setHex(coord?.isInner ? 0xc084fc : 0x38bdf8);
+            gtMat.opacity = 0.2;
           } else {
-            gtMat.color.setHex(0x38bdf8);
-            gtMat.opacity = 0.06;
+            gtMat.color.setHex(coord?.isInner ? 0xa855f7 : 0x38bdf8);
+            gtMat.opacity = 0.08;
           }
         }
 
         if (ghostLine) {
           ghostLine.visible = !hasTire && !isDndHover;
           const glMat = ghostLine.material as THREE.LineBasicMaterial;
-          if (isSelected) {
-            glMat.color.setHex(0x7dd3fc);
-            glMat.opacity = 0.55;
-          } else {
-            glMat.color.setHex(0x38bdf8);
-            glMat.opacity = 0.25;
-          }
+          glMat.color.setHex(isSelected ? (coord?.isInner ? 0xe9d5ff : 0x7dd3fc) : (coord?.isInner ? 0xc084fc : 0x38bdf8));
+          glMat.opacity = isSelected ? 0.65 : 0.3;
         }
 
-        // Halo Target Denyut Interaktif
         if (halo) {
           halo.visible = isSelected || isDndHover;
           const hMat = halo.material as THREE.MeshBasicMaterial;
           if (isDndHover) {
-            hMat.color.setHex(0x10b981);
+            hMat.color.setHex(coord?.isInner ? 0xc084fc : 0x10b981);
             const pulseScale = 1.15 + Math.sin(time * 12) * 0.12;
             halo.scale.set(pulseScale, pulseScale, pulseScale);
             halo.rotation.x = time * 2;
           } else if (isSelected) {
-            hMat.color.setHex(0x38bdf8);
+            hMat.color.setHex(coord?.isInner ? 0xa855f7 : 0x38bdf8);
             const pulseScale = 1.0 + Math.sin(time * 6) * 0.08;
             halo.scale.set(pulseScale, pulseScale, pulseScale);
             halo.rotation.x = Math.sin(time * 3) * 0.1;
@@ -1530,7 +1410,6 @@ export default function VehicleAnimation3D({
 
     animate();
 
-    // ── RESIZE LISTENER ──
     const handleResize = () => {
       if (!container || !rendererRef.current || !cameraRef.current) return;
       const w = container.clientWidth || 360;
@@ -1552,49 +1431,46 @@ export default function VehicleAnimation3D({
       renderer.domElement.removeEventListener('pointermove', handlePointerMove);
       if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
       floorTexture.dispose();
-      floorMat.dispose();
-      shadowMat.dispose();
+      if (treadTexture) treadTexture.dispose();
       renderer.dispose();
       controls.dispose();
     };
-  }, [wheelCount, category]);
+  }, [wheelCount, category, wheelCoords]);
 
-  // Sync state auto-rotate ke OrbitControls
+  // Sync auto-rotate
   useEffect(() => {
     if (controlsRef.current) {
       controlsRef.current.autoRotate = isAutoRotate;
     }
   }, [isAutoRotate]);
 
-  // Preset Sudut Kamera
-  const handleSetCameraView = (view: 'perspective' | 'top' | 'side') => {
+  // Preset Sudut Kamera dengan Animasi Halus
+  const handleSetCameraView = (view: 'perspective' | 'top' | 'side' | 'dualFocus') => {
     setCameraView(view);
-    if (!cameraRef.current || !controlsRef.current) return;
-
-    setIsAutoRotate(false);
     const presets = getVehicleCameraPreset(wheelCount);
-    controlsRef.current.target.copy(presets.target);
-    controlsRef.current.enablePan = false;
-    controlsRef.current.minDistance = 3.0;
-    controlsRef.current.maxDistance = getMaxCameraDistance(wheelCount);
+    let targetPos = presets.perspective;
+    let targetLook = presets.target;
 
-    if (view === 'perspective') {
-      cameraRef.current.position.copy(presets.perspective);
-    } else if (view === 'top') {
-      cameraRef.current.position.copy(presets.top);
+    if (view === 'top') {
+      targetPos = presets.top;
     } else if (view === 'side') {
-      cameraRef.current.position.copy(presets.side);
+      targetPos = presets.side;
+    } else if (view === 'dualFocus') {
+      targetPos = presets.dualFocus;
+      targetLook = presets.dualTarget;
     }
-    controlsRef.current.update();
+
+    triggerCameraTransition(targetPos, targetLook);
   };
 
   const handleResetCamera = () => {
     handleSetCameraView('perspective');
-    setIsAutoRotate(false); // Pastikan TETAP TIDAK BERPUTAR saat reset
-    setIsRolling(false); // Pastikan BAN TETAP DIAM saat reset
+    setIsAutoRotate(false);
+    setIsRolling(false);
+    setIsDualSeparated(false);
   };
 
-  // Helper raycasting untuk menghitung posisi roda di bawah koordinat layar/kursor
+  // Helper raycast global
   const getWheelAtCoords = (clientX: number, clientY: number): string | null => {
     const renderer = rendererRef.current;
     const camera = cameraRef.current;
@@ -1616,16 +1492,32 @@ export default function VehicleAnimation3D({
 
     const intersects = ray.intersectObjects(wheelMeshes, false);
     if (intersects.length > 0) {
-      for (const hit of intersects) {
-        if (hit.object.userData.wheelId) {
-          return hit.object.userData.wheelId as string;
+      const hitIds: string[] = [];
+      intersects.forEach((h) => {
+        const id = h.object.userData.wheelId as string;
+        if (id && !hitIds.includes(id)) hitIds.push(id);
+      });
+
+      for (const wid of hitIds) {
+        const info = wheelCoordsMapRef.current.get(wid);
+        if (info?.isDual && info.partnerId && hitIds.includes(info.partnerId)) {
+          const outerId = info.isOuter ? wid : info.partnerId;
+          const innerId = info.isInner ? wid : info.partnerId;
+          const outerTire = getTireForWheelRef.current(outerId);
+          const innerTire = getTireForWheelRef.current(innerId);
+
+          if (isDraggingRef.current) {
+            if (outerTire && !innerTire) return innerId;
+            if (!outerTire && innerTire) return outerId;
+          }
+          return innerId;
         }
       }
+      return hitIds[0];
     }
 
-    // Proximity fallback: jika kursor berada dalam radius ~150px dari proyeksi layar roda
     let closestWheelId: string | null = null;
-    let minDistance = 150;
+    let minDistance = 140;
     wheelsMeshMap.current.forEach((grp, wId) => {
       const worldPos = new THREE.Vector3();
       grp.getWorldPosition(worldPos);
@@ -1633,7 +1525,9 @@ export default function VehicleAnimation3D({
       if (worldPos.z <= 1) {
         const screenX = ((worldPos.x + 1) * rect.width) / 2 + rect.left;
         const screenY = ((-worldPos.y + 1) * rect.height) / 2 + rect.top;
-        const dist = Math.hypot(clientX - screenX, clientY - screenY);
+        let dist = Math.hypot(clientX - screenX, clientY - screenY);
+        const info = wheelCoordsMapRef.current.get(wId);
+        if (info?.isInner) dist -= 15;
         if (dist < minDistance) {
           minDistance = dist;
           closestWheelId = wId;
@@ -1644,7 +1538,7 @@ export default function VehicleAnimation3D({
     return closestWheelId;
   };
 
-  // Handler deteksi sentuhan / touch drag dari layar HP secara realtime
+  // Handler touch drag realtime
   useEffect(() => {
     if (!touchCoords) {
       if (dndHoverWheelIdRef.current) {
@@ -1662,7 +1556,6 @@ export default function VehicleAnimation3D({
     }
   }, [touchCoords, onTargetWheelChange]);
 
-  // Drag over ke area kanvas 3D (Desktop Mouse)
   const handleCanvasDragOver = (e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault();
     e.dataTransfer.dropEffect = 'copy';
@@ -1688,14 +1581,27 @@ export default function VehicleAnimation3D({
     const banId = Number(banIdStr) || (draggedTireId ?? null) || globalActiveDraggedBanId;
 
     if (targetWheelId && banId) {
+      mountingAnims.current.set(targetWheelId, { startTime: performance.now(), duration: 520 });
       onDropTireToWheelRef.current?.(targetWheelId, Number(banId));
     }
     setDndTarget(null);
   };
 
+  // Langsung pilih roda dari tombol ribbon
+  const handleSelectWheelDirect = (wId: string) => {
+    const tire = getTireForWheel(wId);
+    onWheelClick?.(wId, tire);
+    const coord = wheelCoordsMapRef.current.get(wId);
+    if (coord?.isInner) {
+      setIsDualSeparated(true);
+    }
+  };
+
+  const activeTargetCoord = dndHoverWheelId ? wheelCoordsMapRef.current.get(dndHoverWheelId) : null;
+
   return (
     <div className="vs-3d-suite">
-      {/* ── 1. KONTROL & TOOLS DI LUAR KANVAS 3D (BAGIAN ATAS - MOBILE RESPONSIVE) ── */}
+      {/* ── 1. TOOLBAR ATAS DENGAN FITUR RODA GANDA & KAMERA ── */}
       <div className="vs-3d-toolbar">
         <div className="vs-3d-toolbar-top-row">
           <div className="vs-3d-badge-info">
@@ -1725,6 +1631,15 @@ export default function VehicleAnimation3D({
 
           <button
             type="button"
+            className={`vs-3d-tool-btn ${cameraView === 'dualFocus' ? 'active' : ''}`}
+            onClick={() => handleSetCameraView('dualFocus')}
+            title="Fokus Sudut Pandang Roda Ganda (Akses Roda Dalam & Luar Terbuka)"
+          >
+            👁️ Roda Ganda
+          </button>
+
+          <button
+            type="button"
             className={`vs-3d-tool-btn ${cameraView === 'top' ? 'active' : ''}`}
             onClick={() => handleSetCameraView('top')}
             title="Sudut Pandang Atas (Denah Gandar)"
@@ -1739,6 +1654,15 @@ export default function VehicleAnimation3D({
             title="Sudut Pandang Samping"
           >
             ↔️ Samping
+          </button>
+
+          <button
+            type="button"
+            className={`vs-3d-tool-btn ${isDualSeparated ? 'explode-active' : ''}`}
+            onClick={() => setIsDualSeparated(!isDualSeparated)}
+            title={isDualSeparated ? 'Rapatkan Kembali Roda Ganda' : 'Buka & Pisahkan Roda Ganda (Memudahkan Pasang Ban di Roda Dalam)'}
+          >
+            💥 {isDualSeparated ? 'Rapatkan Roda' : 'Buka Roda Ganda'}
           </button>
 
           <button
@@ -1759,9 +1683,51 @@ export default function VehicleAnimation3D({
             🔧 {isRolling ? 'Uji Putar Roda' : 'Roda Diam'}
           </button>
         </div>
+
+        {/* ── BAR TOMBOL SLOT RODA CEPAT (QUICK AXLE WHEEL RIBBON) ── */}
+        <div className="vs-3d-wheel-ribbon">
+          {axleGroups.map((group, gIdx) => (
+            <div key={gIdx} className="vs-3d-ribbon-group">
+              <span className="vs-3d-ribbon-label">{group.label}:</span>
+              {group.wheels.map((w) => {
+                const isSel = selectedWheelId === w.id;
+                const hasTire = Boolean(getTireForWheel(w.id));
+                const meta = wheelConfig?.wheels.find((m) => m.id === w.id);
+                const code = meta?.code || w.id.toUpperCase();
+                return (
+                  <button
+                    key={w.id}
+                    type="button"
+                    className={`vs-3d-ribbon-btn ${isSel ? 'active' : ''} ${w.isInner ? 'vs-3d-ribbon-btn--inner' : ''} ${hasTire ? 'vs-3d-ribbon-btn--has-tire' : ''}`}
+                    onClick={() => handleSelectWheelDirect(w.id)}
+                    onDragOver={(e) => {
+                      e.preventDefault();
+                      setDndTarget(w.id);
+                    }}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      const banIdStr = e.dataTransfer.getData('text/plain');
+                      const banId = Number(banIdStr) || (draggedTireId ?? null) || globalActiveDraggedBanId;
+                      if (banId) {
+                        mountingAnims.current.set(w.id, { startTime: performance.now(), duration: 520 });
+                        onDropTireToWheelRef.current?.(w.id, Number(banId));
+                      }
+                      setDndTarget(null);
+                    }}
+                    title={`${meta?.name || `Roda ${code}`} (${w.isInner ? 'Posisi DALAM' : w.isOuter ? 'Posisi LUAR' : 'Kemudi'})`}
+                  >
+                    <span>{code}</span>
+                    {w.isInner && <span style={{ fontSize: '0.62rem', color: '#c084fc' }}>●In</span>}
+                    {w.isOuter && <span style={{ fontSize: '0.62rem', color: '#94a3b8' }}>●Out</span>}
+                  </button>
+                );
+              })}
+            </div>
+          ))}
+        </div>
       </div>
 
-      {/* ── 2. KANVAS 3D BERSIH (HANYA MODEL 3D TANPA OVERLAY YANG MENUTUPI) ── */}
+      {/* ── 2. KANVAS 3D ── */}
       <div
         className={`vs-3d-canvas-wrapper ${isCanvasDragOver ? 'vs-3d-canvas-wrapper--dragover' : ''}`}
         onDragEnter={(e) => {
@@ -1772,20 +1738,19 @@ export default function VehicleAnimation3D({
         onDragLeave={handleCanvasDragLeave}
         onDrop={handleCanvasDrop}
       >
-        {/* Container WebGL Tiga Dimensi */}
         <div ref={containerRef} className="vs-3d-viewport" />
 
-        {/* Overlay Banner Interaktif Saat Drag Tire Masuk ke Kanvas 3D */}
         {isCanvasDragOver && (
           <div className="vs-3d-dnd-overlay">
             {dndHoverWheelId ? (
-              <div className="vs-3d-dnd-target-pill vs-3d-dnd-target-pill--active">
-                <span className="vs-3d-pulse-dot" style={{ background: '#10b981', boxShadow: '0 0 10px #10b981' }} />
+              <div className={`vs-3d-dnd-target-pill vs-3d-dnd-target-pill--active ${activeTargetCoord?.isInner ? 'vs-3d-dnd-target-pill--inner' : ''}`}>
+                <span className="vs-3d-pulse-dot" style={{ background: activeTargetCoord?.isInner ? '#c084fc' : '#10b981', boxShadow: `0 0 10px ${activeTargetCoord?.isInner ? '#c084fc' : '#10b981'}` }} />
                 <span>
                   🎯 Lepaskan untuk memasang ke{' '}
                   <strong>
                     [{wheelConfig?.wheels.find((w) => w.id === dndHoverWheelId)?.code || dndHoverWheelId.toUpperCase()}]{' '}
                     {wheelConfig?.wheels.find((w) => w.id === dndHoverWheelId)?.name || `Roda ${dndHoverWheelId}`}
+                    {activeTargetCoord?.isInner ? ' (POSISI DALAM)' : activeTargetCoord?.isOuter ? ' (POSISI LUAR)' : ''}
                   </strong>
                 </span>
               </div>
@@ -1799,7 +1764,7 @@ export default function VehicleAnimation3D({
         )}
       </div>
 
-      {/* ── 3. DETAIL RODA TERPILIH DI LUAR KANVAS 3D (BAGIAN BAWAH) ── */}
+      {/* ── 3. STATUS BAR RODA TERPILIH ── */}
       <div className="vs-3d-status-bar">
         {selectedWheelId ? (
           <div className="vs-3d-wheel-tag">
@@ -1810,6 +1775,22 @@ export default function VehicleAnimation3D({
               <span className="vs-3d-wheel-title">
                 {activeMeta?.name || `Roda ${selectedWheelId}`}
               </span>
+
+              {/* Tombol Cepat Beralih ke Roda Pasangan (Ganti Roda Dalam/Luar) */}
+              {activePartnerInfo && (
+                <button
+                  type="button"
+                  className="vs-3d-dual-swap-btn"
+                  onClick={() => {
+                    const partnerTire = getTireForWheel(activePartnerInfo.partnerId);
+                    onWheelClick?.(activePartnerInfo.partnerId, partnerTire);
+                    setIsDualSeparated(true);
+                  }}
+                  title={`Beralih langsung ke roda pasangan (${activePartnerInfo.isOuter ? 'DALAM' : 'LUAR'})`}
+                >
+                  🔁 Ganti ke {activePartnerInfo.isOuter ? 'Roda Dalam' : 'Roda Luar'} ({activePartnerInfo.partnerCode})
+                </button>
+              )}
             </div>
 
             <div className="vs-3d-tag-right">
@@ -1865,7 +1846,7 @@ export default function VehicleAnimation3D({
           </div>
         ) : (
           <div className="vs-3d-hint-text">
-            <span>👆 Geser untuk memutar • Klik ban terpasang untuk melihat data detail • Tarik kartu ban ke roda untuk memasang</span>
+            <span>👆 Geser untuk memutar • Tombol &apos;Buka Roda Ganda&apos; untuk memudahkan pasang ban posisi dalam • Klik ban untuk detail</span>
           </div>
         )}
       </div>
@@ -1891,4 +1872,3 @@ export default function VehicleAnimation3D({
     </div>
   );
 }
-

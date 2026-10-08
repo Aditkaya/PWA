@@ -1136,6 +1136,128 @@
   backdrop-filter: blur(6px);
 }
 
+/* ── Tombol Switch Roda Pasangan (Ganti ke Dalam / Luar) ── */
+.vs-3d-dual-swap-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  background: rgba(168, 85, 247, 0.2);
+  border: 1px solid rgba(192, 132, 252, 0.5);
+  color: #e9d5ff;
+  border-radius: 6px;
+  font-family: ui-monospace, monospace;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  margin-left: 6px;
+}
+
+.vs-3d-dual-swap-btn:hover {
+  background: rgba(168, 85, 247, 0.4);
+  border-color: #c084fc;
+  color: #fff;
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px rgba(168, 85, 247, 0.4);
+}
+
+/* ── Ribbon Slot Roda Cepat (Quick Axle Wheel Ribbon) ── */
+.vs-3d-wheel-ribbon {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  overflow-x: auto;
+  padding: 4px 2px;
+  width: 100%;
+  scrollbar-width: none;
+  -webkit-overflow-scrolling: touch;
+}
+
+.vs-3d-wheel-ribbon::-webkit-scrollbar {
+  display: none;
+}
+
+.vs-3d-ribbon-group {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: rgba(2, 6, 23, 0.75);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  border-radius: 8px;
+  padding: 3px 6px;
+  flex-shrink: 0;
+}
+
+.vs-3d-ribbon-label {
+  font-size: 0.64rem;
+  font-family: ui-monospace, monospace;
+  color: #94a3b8;
+  font-weight: 700;
+  margin-right: 2px;
+  white-space: nowrap;
+}
+
+.vs-3d-ribbon-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 6px;
+  font-family: ui-monospace, monospace;
+  font-size: 0.7rem;
+  font-weight: 700;
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  background: rgba(15, 23, 42, 0.9);
+  color: #cbd5e1;
+  cursor: pointer;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.vs-3d-ribbon-btn:hover {
+  border-color: #38bdf8;
+  color: #fff;
+  background: rgba(56, 189, 248, 0.2);
+}
+
+.vs-3d-ribbon-btn.active {
+  background: rgba(56, 189, 248, 0.3);
+  border-color: #38bdf8;
+  color: #38bdf8;
+  box-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+}
+
+.vs-3d-ribbon-btn--inner {
+  border-left: 2.5px solid #a855f7;
+}
+
+.vs-3d-ribbon-btn--has-tire {
+  color: #34d399;
+}
+
+.vs-3d-ribbon-btn--has-tire::after {
+  content: '✓';
+  font-size: 0.65rem;
+  color: #10b981;
+}
+
+/* ── Explode Dual Toggle Button Active State ── */
+.vs-3d-tool-btn.explode-active {
+  background: rgba(168, 85, 247, 0.25);
+  border-color: #c084fc;
+  color: #d8b4fe;
+  box-shadow: 0 0 10px rgba(168, 85, 247, 0.4);
+}
+
+/* ── Dual Target Live Pill inside Overlay ── */
+.vs-3d-dnd-target-pill--inner {
+  background: rgba(46, 16, 101, 0.94);
+  border: 1.5px solid #a855f7;
+  color: #d8b4fe;
+  box-shadow: 0 0 20px rgba(168, 85, 247, 0.6);
+}
+
 /* ─────────────────────────────────────────────────
    Drag and Drop Tire Allocation System
    ───────────────────────────────────────────────── */

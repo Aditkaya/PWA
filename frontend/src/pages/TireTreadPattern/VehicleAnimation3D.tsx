@@ -391,45 +391,45 @@ export default function VehicleAnimation3D({
     let list: WheelCoord[] = [];
     if (wheelCount === 4) {
       list = [
-        { id: 'w1', x: -0.9, y: 0.45, z: 1.1, side: 'L', axleGroup: 'Gandar Depan' },
-        { id: 'w2', x: 0.9, y: 0.45, z: 1.1, side: 'R', axleGroup: 'Gandar Depan' },
-        { id: 'w3', x: -0.85, y: 0.4, z: -1.0, side: 'L', axleGroup: 'Gandar Belakang' },
-        { id: 'w4', x: 0.85, y: 0.4, z: -1.0, side: 'R', axleGroup: 'Gandar Belakang' }
+        { id: 'w1', x: -0.9, y: 0.45, z: 1.1, side: 'L', axleGroup: 'Depan' },
+        { id: 'w2', x: 0.9, y: 0.45, z: 1.1, side: 'R', axleGroup: 'Depan' },
+        { id: 'w3', x: -0.85, y: 0.4, z: -1.0, side: 'L', axleGroup: 'Belakang' },
+        { id: 'w4', x: 0.85, y: 0.4, z: -1.0, side: 'R', axleGroup: 'Belakang' }
       ];
     } else if (wheelCount === 6) {
       list = [
-        { id: 'w1', x: -1.15, y: 0.52, z: 2.1, side: 'L', isDual: false, axleGroup: 'Gandar 1 (Kemudi)' },
-        { id: 'w2', x: 1.15, y: 0.52, z: 2.1, side: 'R', isDual: false, axleGroup: 'Gandar 1 (Kemudi)' },
-        { id: 'w3', x: -1.36, y: 0.52, z: -1.7, side: 'L', isDual: true, isOuter: true, partnerId: 'w4', axleGroup: 'Gandar 2 (Penggerak Ganda)' },
-        { id: 'w4', x: -1.04, y: 0.52, z: -1.7, side: 'L', isDual: true, isInner: true, partnerId: 'w3', axleGroup: 'Gandar 2 (Penggerak Ganda)' },
-        { id: 'w5', x: 1.04, y: 0.52, z: -1.7, side: 'R', isDual: true, isInner: true, partnerId: 'w6', axleGroup: 'Gandar 2 (Penggerak Ganda)' },
-        { id: 'w6', x: 1.36, y: 0.52, z: -1.7, side: 'R', isDual: true, isOuter: true, partnerId: 'w5', axleGroup: 'Gandar 2 (Penggerak Ganda)' }
+        { id: 'w1', x: -1.15, y: 0.52, z: 2.1, side: 'L', isDual: false, axleGroup: 'Depan' },
+        { id: 'w2', x: 1.15, y: 0.52, z: 2.1, side: 'R', isDual: false, axleGroup: 'Depan' },
+        { id: 'w3', x: -1.36, y: 0.52, z: -1.7, side: 'L', isDual: true, isOuter: true, partnerId: 'w4', axleGroup: 'Belakang' },
+        { id: 'w4', x: -1.04, y: 0.52, z: -1.7, side: 'L', isDual: true, isInner: true, partnerId: 'w3', axleGroup: 'Belakang' },
+        { id: 'w5', x: 1.04, y: 0.52, z: -1.7, side: 'R', isDual: true, isInner: true, partnerId: 'w6', axleGroup: 'Belakang' },
+        { id: 'w6', x: 1.36, y: 0.52, z: -1.7, side: 'R', isDual: true, isOuter: true, partnerId: 'w5', axleGroup: 'Belakang' }
       ];
     } else if (wheelCount === 8) {
       list = [
-        { id: 'w1', x: -1.36, y: 0.52, z: -1.4, side: 'L', isDual: true, isOuter: true, partnerId: 'w2', axleGroup: 'Gandar 1' },
-        { id: 'w2', x: -1.04, y: 0.52, z: -1.4, side: 'L', isDual: true, isInner: true, partnerId: 'w1', axleGroup: 'Gandar 1' },
-        { id: 'w3', x: 1.04, y: 0.52, z: -1.4, side: 'R', isDual: true, isInner: true, partnerId: 'w4', axleGroup: 'Gandar 1' },
-        { id: 'w4', x: 1.36, y: 0.52, z: -1.4, side: 'R', isDual: true, isOuter: true, partnerId: 'w3', axleGroup: 'Gandar 1' },
-        { id: 'w5', x: -1.36, y: 0.52, z: -2.8, side: 'L', isDual: true, isOuter: true, partnerId: 'w6', axleGroup: 'Gandar 2' },
-        { id: 'w6', x: -1.04, y: 0.52, z: -2.8, side: 'L', isDual: true, isInner: true, partnerId: 'w5', axleGroup: 'Gandar 2' },
-        { id: 'w7', x: 1.04, y: 0.52, z: -2.8, side: 'R', isDual: true, isInner: true, partnerId: 'w8', axleGroup: 'Gandar 2' },
-        { id: 'w8', x: 1.36, y: 0.52, z: -2.8, side: 'R', isDual: true, isOuter: true, partnerId: 'w7', axleGroup: 'Gandar 2' }
+        { id: 'w1', x: -1.36, y: 0.52, z: -1.4, side: 'L', isDual: true, isOuter: true, partnerId: 'w2', axleGroup: 'G1' },
+        { id: 'w2', x: -1.04, y: 0.52, z: -1.4, side: 'L', isDual: true, isInner: true, partnerId: 'w1', axleGroup: 'G1' },
+        { id: 'w3', x: 1.04, y: 0.52, z: -1.4, side: 'R', isDual: true, isInner: true, partnerId: 'w4', axleGroup: 'G1' },
+        { id: 'w4', x: 1.36, y: 0.52, z: -1.4, side: 'R', isDual: true, isOuter: true, partnerId: 'w3', axleGroup: 'G1' },
+        { id: 'w5', x: -1.36, y: 0.52, z: -2.8, side: 'L', isDual: true, isOuter: true, partnerId: 'w6', axleGroup: 'G2' },
+        { id: 'w6', x: -1.04, y: 0.52, z: -2.8, side: 'L', isDual: true, isInner: true, partnerId: 'w5', axleGroup: 'G2' },
+        { id: 'w7', x: 1.04, y: 0.52, z: -2.8, side: 'R', isDual: true, isInner: true, partnerId: 'w8', axleGroup: 'G2' },
+        { id: 'w8', x: 1.36, y: 0.52, z: -2.8, side: 'R', isDual: true, isOuter: true, partnerId: 'w7', axleGroup: 'G2' }
       ];
     } else {
       list = [
-        { id: 'w1', x: -1.36, y: 0.52, z: -1.9, side: 'L', isDual: true, isOuter: true, partnerId: 'w2', axleGroup: 'Gandar 1' },
-        { id: 'w2', x: -1.04, y: 0.52, z: -1.9, side: 'L', isDual: true, isInner: true, partnerId: 'w1', axleGroup: 'Gandar 1' },
-        { id: 'w3', x: 1.04, y: 0.52, z: -1.9, side: 'R', isDual: true, isInner: true, partnerId: 'w4', axleGroup: 'Gandar 1' },
-        { id: 'w4', x: 1.36, y: 0.52, z: -1.9, side: 'R', isDual: true, isOuter: true, partnerId: 'w3', axleGroup: 'Gandar 1' },
-        { id: 'w5', x: -1.36, y: 0.52, z: -3.3, side: 'L', isDual: true, isOuter: true, partnerId: 'w6', axleGroup: 'Gandar 2' },
-        { id: 'w6', x: -1.04, y: 0.52, z: -3.3, side: 'L', isDual: true, isInner: true, partnerId: 'w5', axleGroup: 'Gandar 2' },
-        { id: 'w7', x: 1.04, y: 0.52, z: -3.3, side: 'R', isDual: true, isInner: true, partnerId: 'w8', axleGroup: 'Gandar 2' },
-        { id: 'w8', x: 1.36, y: 0.52, z: -3.3, side: 'R', isDual: true, isOuter: true, partnerId: 'w7', axleGroup: 'Gandar 2' },
-        { id: 'w9', x: -1.36, y: 0.52, z: -4.7, side: 'L', isDual: true, isOuter: true, partnerId: 'w10', axleGroup: 'Gandar 3' },
-        { id: 'w10', x: -1.04, y: 0.52, z: -4.7, side: 'L', isDual: true, isInner: true, partnerId: 'w9', axleGroup: 'Gandar 3' },
-        { id: 'w11', x: 1.04, y: 0.52, z: -4.7, side: 'R', isDual: true, isInner: true, partnerId: 'w12', axleGroup: 'Gandar 3' },
-        { id: 'w12', x: 1.36, y: 0.52, z: -4.7, side: 'R', isDual: true, isOuter: true, partnerId: 'w11', axleGroup: 'Gandar 3' }
+        { id: 'w1', x: -1.36, y: 0.52, z: -1.9, side: 'L', isDual: true, isOuter: true, partnerId: 'w2', axleGroup: 'G1' },
+        { id: 'w2', x: -1.04, y: 0.52, z: -1.9, side: 'L', isDual: true, isInner: true, partnerId: 'w1', axleGroup: 'G1' },
+        { id: 'w3', x: 1.04, y: 0.52, z: -1.9, side: 'R', isDual: true, isInner: true, partnerId: 'w4', axleGroup: 'G1' },
+        { id: 'w4', x: 1.36, y: 0.52, z: -1.9, side: 'R', isDual: true, isOuter: true, partnerId: 'w3', axleGroup: 'G1' },
+        { id: 'w5', x: -1.36, y: 0.52, z: -3.3, side: 'L', isDual: true, isOuter: true, partnerId: 'w6', axleGroup: 'G2' },
+        { id: 'w6', x: -1.04, y: 0.52, z: -3.3, side: 'L', isDual: true, isInner: true, partnerId: 'w5', axleGroup: 'G2' },
+        { id: 'w7', x: 1.04, y: 0.52, z: -3.3, side: 'R', isDual: true, isInner: true, partnerId: 'w8', axleGroup: 'G2' },
+        { id: 'w8', x: 1.36, y: 0.52, z: -3.3, side: 'R', isDual: true, isOuter: true, partnerId: 'w7', axleGroup: 'G2' },
+        { id: 'w9', x: -1.36, y: 0.52, z: -4.7, side: 'L', isDual: true, isOuter: true, partnerId: 'w10', axleGroup: 'G3' },
+        { id: 'w10', x: -1.04, y: 0.52, z: -4.7, side: 'L', isDual: true, isInner: true, partnerId: 'w9', axleGroup: 'G3' },
+        { id: 'w11', x: 1.04, y: 0.52, z: -4.7, side: 'R', isDual: true, isInner: true, partnerId: 'w12', axleGroup: 'G3' },
+        { id: 'w12', x: 1.36, y: 0.52, z: -4.7, side: 'R', isDual: true, isOuter: true, partnerId: 'w11', axleGroup: 'G3' }
       ];
     }
     const map = new Map<string, WheelCoord>();
@@ -1601,90 +1601,90 @@ export default function VehicleAnimation3D({
 
   return (
     <div className="vs-3d-suite">
-      {/* ── 1. TOOLBAR ATAS DENGAN FITUR RODA GANDA & KAMERA ── */}
+      {/* ── 1. TOOLBAR ATAS (MINIMALIS & RINGKAS) ── */}
       <div className="vs-3d-toolbar">
         <div className="vs-3d-toolbar-top-row">
           <div className="vs-3d-badge-info">
             <span className="vs-3d-pulse-dot" />
-            <span>3D ({wheelCount} RODA)</span>
+            <span>{wheelCount} Roda</span>
           </div>
 
-          <button
-            type="button"
-            className="vs-3d-tool-btn vs-3d-reset-btn"
-            onClick={handleResetCamera}
-            title="Reset Sudut Pandang Awal"
-          >
-            ↺ Reset
-          </button>
+          <div className="vs-3d-btn-group">
+            <button
+              type="button"
+              className={`vs-3d-tool-btn ${cameraView === 'perspective' ? 'active' : ''}`}
+              onClick={() => handleSetCameraView('perspective')}
+              title="Sudut Pandang 3D Isometrik"
+            >
+              📐 3D
+            </button>
+
+            <button
+              type="button"
+              className={`vs-3d-tool-btn ${cameraView === 'dualFocus' ? 'active' : ''}`}
+              onClick={() => handleSetCameraView('dualFocus')}
+              title="Fokus Roda Ganda"
+            >
+              👁️ Ganda
+            </button>
+
+            <button
+              type="button"
+              className={`vs-3d-tool-btn ${cameraView === 'top' ? 'active' : ''}`}
+              onClick={() => handleSetCameraView('top')}
+              title="Sudut Pandang Atas"
+            >
+              🔝 Atas
+            </button>
+
+            <button
+              type="button"
+              className={`vs-3d-tool-btn ${cameraView === 'side' ? 'active' : ''}`}
+              onClick={() => handleSetCameraView('side')}
+              title="Sudut Pandang Samping"
+            >
+              ↔️ Samping
+            </button>
+
+            <button
+              type="button"
+              className={`vs-3d-tool-btn ${isDualSeparated ? 'explode-active' : ''}`}
+              onClick={() => setIsDualSeparated(!isDualSeparated)}
+              title={isDualSeparated ? 'Rapatkan Roda' : 'Buka Roda Ganda (Akses Roda Dalam)'}
+            >
+              💥 {isDualSeparated ? 'Rapat' : 'Pisah'}
+            </button>
+
+            <button
+              type="button"
+              className={`vs-3d-tool-btn ${isAutoRotate ? 'active' : ''}`}
+              onClick={() => setIsAutoRotate(!isAutoRotate)}
+              title="Putar Otomatis 360°"
+            >
+              🔄 360°
+            </button>
+
+            <button
+              type="button"
+              className={`vs-3d-tool-btn ${isRolling ? 'active' : ''}`}
+              onClick={() => setIsRolling(!isRolling)}
+              title="Uji Putaran Roda di Bay"
+            >
+              🔧 {isRolling ? 'Tes Putar' : 'Diam'}
+            </button>
+
+            <button
+              type="button"
+              className="vs-3d-tool-btn vs-3d-reset-btn"
+              onClick={handleResetCamera}
+              title="Reset Sudut Pandang"
+            >
+              ↺ Reset
+            </button>
+          </div>
         </div>
 
-        <div className="vs-3d-btn-group">
-          <button
-            type="button"
-            className={`vs-3d-tool-btn ${cameraView === 'perspective' ? 'active' : ''}`}
-            onClick={() => handleSetCameraView('perspective')}
-            title="Sudut Pandang 3D Isometrik"
-          >
-            📐 3D
-          </button>
-
-          <button
-            type="button"
-            className={`vs-3d-tool-btn ${cameraView === 'dualFocus' ? 'active' : ''}`}
-            onClick={() => handleSetCameraView('dualFocus')}
-            title="Fokus Sudut Pandang Roda Ganda (Akses Roda Dalam & Luar Terbuka)"
-          >
-            👁️ Roda Ganda
-          </button>
-
-          <button
-            type="button"
-            className={`vs-3d-tool-btn ${cameraView === 'top' ? 'active' : ''}`}
-            onClick={() => handleSetCameraView('top')}
-            title="Sudut Pandang Atas (Denah Gandar)"
-          >
-            🔝 Atas
-          </button>
-
-          <button
-            type="button"
-            className={`vs-3d-tool-btn ${cameraView === 'side' ? 'active' : ''}`}
-            onClick={() => handleSetCameraView('side')}
-            title="Sudut Pandang Samping"
-          >
-            ↔️ Samping
-          </button>
-
-          <button
-            type="button"
-            className={`vs-3d-tool-btn ${isDualSeparated ? 'explode-active' : ''}`}
-            onClick={() => setIsDualSeparated(!isDualSeparated)}
-            title={isDualSeparated ? 'Rapatkan Kembali Roda Ganda' : 'Buka & Pisahkan Roda Ganda (Memudahkan Pasang Ban di Roda Dalam)'}
-          >
-            💥 {isDualSeparated ? 'Rapatkan Roda' : 'Buka Roda Ganda'}
-          </button>
-
-          <button
-            type="button"
-            className={`vs-3d-tool-btn ${isAutoRotate ? 'active' : ''}`}
-            onClick={() => setIsAutoRotate(!isAutoRotate)}
-            title={isAutoRotate ? 'Hentikan Putaran 360°' : 'Mulai Putar Otomatis 360°'}
-          >
-            🔄 {isAutoRotate ? 'Berputar' : 'Putar 360°'}
-          </button>
-
-          <button
-            type="button"
-            className={`vs-3d-tool-btn ${isRolling ? 'active' : ''}`}
-            onClick={() => setIsRolling(!isRolling)}
-            title={isRolling ? 'Jeda Uji Putaran Roda di Bay Bengkel' : 'Mulai Uji Putaran Roda di Bay Bengkel'}
-          >
-            🔧 {isRolling ? 'Uji Putar Roda' : 'Roda Diam'}
-          </button>
-        </div>
-
-        {/* ── BAR TOMBOL SLOT RODA CEPAT (QUICK AXLE WHEEL RIBBON) ── */}
+        {/* ── BAR TOMBOL SLOT RODA CEPAT ── */}
         <div className="vs-3d-wheel-ribbon">
           {axleGroups.map((group, gIdx) => (
             <div key={gIdx} className="vs-3d-ribbon-group">
@@ -1714,11 +1714,10 @@ export default function VehicleAnimation3D({
                       }
                       setDndTarget(null);
                     }}
-                    title={`${meta?.name || `Roda ${code}`} (${w.isInner ? 'Posisi DALAM' : w.isOuter ? 'Posisi LUAR' : 'Kemudi'})`}
+                    title={`${meta?.name || `Roda ${code}`} (${w.isInner ? 'Posisi Dalam' : w.isOuter ? 'Posisi Luar' : 'Kemudi'})`}
                   >
                     <span>{code}</span>
-                    {w.isInner && <span style={{ fontSize: '0.62rem', color: '#c084fc' }}>●In</span>}
-                    {w.isOuter && <span style={{ fontSize: '0.62rem', color: '#94a3b8' }}>●Out</span>}
+                    {w.isInner && <span style={{ fontSize: '0.6rem', color: '#c084fc' }}>●</span>}
                   </button>
                 );
               })}
@@ -1746,37 +1745,31 @@ export default function VehicleAnimation3D({
               <div className={`vs-3d-dnd-target-pill vs-3d-dnd-target-pill--active ${activeTargetCoord?.isInner ? 'vs-3d-dnd-target-pill--inner' : ''}`}>
                 <span className="vs-3d-pulse-dot" style={{ background: activeTargetCoord?.isInner ? '#c084fc' : '#10b981', boxShadow: `0 0 10px ${activeTargetCoord?.isInner ? '#c084fc' : '#10b981'}` }} />
                 <span>
-                  🎯 Lepaskan untuk memasang ke{' '}
-                  <strong>
-                    [{wheelConfig?.wheels.find((w) => w.id === dndHoverWheelId)?.code || dndHoverWheelId.toUpperCase()}]{' '}
-                    {wheelConfig?.wheels.find((w) => w.id === dndHoverWheelId)?.name || `Roda ${dndHoverWheelId}`}
-                    {activeTargetCoord?.isInner ? ' (POSISI DALAM)' : activeTargetCoord?.isOuter ? ' (POSISI LUAR)' : ''}
-                  </strong>
+                  🎯 Pasang ke <strong>[{wheelConfig?.wheels.find((w) => w.id === dndHoverWheelId)?.code || dndHoverWheelId.toUpperCase()}]</strong>
                 </span>
               </div>
             ) : (
               <div className="vs-3d-dnd-target-pill vs-3d-dnd-target-pill--waiting">
                 <span className="vs-3d-dnd-target-icon">🛞</span>
-                <span>Arahkan kursor ke salah satu slot roda di atas untuk memasang</span>
+                <span>Arahkan ke slot roda</span>
               </div>
             )}
           </div>
         )}
       </div>
 
-      {/* ── 3. STATUS BAR RODA TERPILIH ── */}
+      {/* ── 3. STATUS BAR RODA TERPILIH (CLEAN & RINGKAS) ── */}
       <div className="vs-3d-status-bar">
         {selectedWheelId ? (
           <div className="vs-3d-wheel-tag">
             <div className="vs-3d-tag-left">
               <span className="vs-3d-code-pill">
-                [{activeMeta?.code || selectedWheelId.toUpperCase()}]
+                {activeMeta?.code || selectedWheelId.toUpperCase()}
               </span>
               <span className="vs-3d-wheel-title">
                 {activeMeta?.name || `Roda ${selectedWheelId}`}
               </span>
 
-              {/* Tombol Cepat Beralih ke Roda Pasangan (Ganti Roda Dalam/Luar) */}
               {activePartnerInfo && (
                 <button
                   type="button"
@@ -1786,9 +1779,9 @@ export default function VehicleAnimation3D({
                     onWheelClick?.(activePartnerInfo.partnerId, partnerTire);
                     setIsDualSeparated(true);
                   }}
-                  title={`Beralih langsung ke roda pasangan (${activePartnerInfo.isOuter ? 'DALAM' : 'LUAR'})`}
+                  title={`Beralih ke roda pasangan (${activePartnerInfo.partnerCode})`}
                 >
-                  🔁 Ganti ke {activePartnerInfo.isOuter ? 'Roda Dalam' : 'Roda Luar'} ({activePartnerInfo.partnerCode})
+                  ⇄ {activePartnerInfo.partnerCode}
                 </button>
               )}
             </div>
@@ -1803,22 +1796,10 @@ export default function VehicleAnimation3D({
                         setDetailModalTire({ tire: activeTire, wheelId: selectedWheelId });
                       }
                     }}
-                    title="Tekan untuk melihat detail data ban"
+                    title="Klik untuk detail data ban"
                   >
-                    ✓ #{activeTire.nomor_seri} • {activeTire.merk} 📋
+                    ✓ #{activeTire.nomor_seri} ({activeTire.merk})
                   </span>
-                  <button
-                    type="button"
-                    className="vs-3d-detail-btn"
-                    onClick={() => {
-                      if (activeTire && selectedWheelId) {
-                        setDetailModalTire({ tire: activeTire, wheelId: selectedWheelId });
-                      }
-                    }}
-                    title="Lihat rincian lengkap data ban ini"
-                  >
-                    ℹ️ Detail Ban
-                  </button>
                   <button
                     type="button"
                     className="vs-detach-btn vs-detach-btn--pill"
@@ -1828,27 +1809,23 @@ export default function VehicleAnimation3D({
                         onRemoveTireFromWheel?.(selectedWheelId);
                       }
                     }}
-                    title="Copot ban dari posisi roda ini dan kembalikan ke inventori"
+                    title="Copot ban"
                   >
-                    ✕ Copot Ban
+                    ✕ Copot
                   </button>
                 </div>
               ) : (
                 <span className="vs-3d-tire-pill vs-3d-tire-pill--empty">
-                  ⚪ Dudukan Kosong (Belum Terpasang)
+                  ⚪ Kosong
                 </span>
               )}
             </div>
           </div>
         ) : hoveredWheelId ? (
           <div className="vs-3d-wheel-tag vs-3d-wheel-tag--hover">
-            <span>👆 Klik Slot {hoveredWheelId.toUpperCase()} untuk memilih</span>
+            <span>Slot {hoveredWheelId.toUpperCase()}</span>
           </div>
-        ) : (
-          <div className="vs-3d-hint-text">
-            <span>👆 Geser untuk memutar • Tombol &apos;Buka Roda Ganda&apos; untuk memudahkan pasang ban posisi dalam • Klik ban untuk detail</span>
-          </div>
-        )}
+        ) : null}
       </div>
 
       {/* ── 4. MODAL POPUP DETAIL LENGKAP DATA BAN ── */}

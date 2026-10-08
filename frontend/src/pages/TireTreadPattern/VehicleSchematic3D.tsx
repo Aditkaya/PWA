@@ -1824,16 +1824,14 @@ export default function VehicleSchematic3D({
                 className={`vs-mode-btn ${viewMode === '3d-anim' ? 'vs-mode-btn--active' : ''}`}
                 onClick={() => setViewMode('3d-anim')}
               >
-                <span>✨</span>
-                <span>3D Studio</span>
+                <span>3D</span>
               </button>
               <button
                 type="button"
                 className={`vs-mode-btn ${viewMode === 'blueprint' ? 'vs-mode-btn--active' : ''}`}
                 onClick={() => setViewMode('blueprint')}
               >
-                <span>📐</span>
-                <span>Blueprint 2D</span>
+                <span>2D</span>
               </button>
             </div>
 
@@ -1843,27 +1841,27 @@ export default function VehicleSchematic3D({
                 {errorMsg ? (
                   <span className="vs-status-pill vs-status-pill--warn">⚠ {errorMsg}</span>
                 ) : isLoading ? (
-                  <span className="vs-status-pill vs-status-pill--loading">⟳ Memuat ban...</span>
+                  <span className="vs-status-pill vs-status-pill--loading">⟳ Memuat...</span>
                 ) : assignedCount >= wheelCount ? (
-                  <span className="vs-status-pill vs-status-pill--ok">✓ {assignedCount}/{wheelCount} Terpasang Penuh</span>
+                  <span className="vs-status-pill vs-status-pill--ok">✓ {assignedCount}/{wheelCount}</span>
                 ) : assignedCount > 0 ? (
-                  <span className="vs-status-pill vs-status-pill--warn">● {assignedCount}/{wheelCount} Terpasang</span>
+                  <span className="vs-status-pill vs-status-pill--warn">● {assignedCount}/{wheelCount}</span>
                 ) : (
-                  <span className="vs-status-pill vs-status-pill--neutral">⚪ 0/{wheelCount} Terpasang</span>
+                  <span className="vs-status-pill vs-status-pill--neutral">⚪ 0/{wheelCount}</span>
                 )}
 
                 {/* Status Persistensi Database MySQL */}
                 {dbSyncStatus === 'saving' ? (
                   <span className="vs-status-pill vs-status-pill--loading" title="Menyimpan perubahan posisi ban ke database MySQL">
-                    ☁️ ⟳ Menyimpan ke DB...
+                    ☁️ ⟳ Simpan...
                   </span>
                 ) : dbSyncStatus === 'synced' && assignedCount > 0 ? (
-                  <span className="vs-status-pill vs-status-pill--ok" title="Seluruh posisi ban tersimpan permanen di database MySQL">
-                    ☁️ DB Tersimpan ✓
+                  <span className="vs-status-pill vs-status-pill--ok" title="Tersimpan permanen di database MySQL">
+                    ☁️ DB ✓
                   </span>
                 ) : dbSyncStatus === 'error' ? (
                   <span className="vs-status-pill vs-status-pill--warn" title="Gagal tersambung ke database, data disimpan lokal">
-                    ☁️ ⚠ Offline (Lokal)
+                    ☁️ ⚠ Offline
                   </span>
                 ) : null}
               </div>
@@ -1919,7 +1917,7 @@ export default function VehicleSchematic3D({
                     <div className="vs-3d-wheel-tag">
                       <div className="vs-3d-tag-left">
                         <span className="vs-3d-code-pill">
-                          [{wheelConfig?.wheels.find((w) => w.id === activeWheelId)?.code || activeWheelId.toUpperCase()}]
+                          {wheelConfig?.wheels.find((w) => w.id === activeWheelId)?.code || activeWheelId.toUpperCase()}
                         </span>
                         <span className="vs-3d-wheel-title">
                           {wheelConfig?.wheels.find((w) => w.id === activeWheelId)?.name || `Roda ${activeWheelId}`}
@@ -1935,21 +1933,10 @@ export default function VehicleSchematic3D({
                                 const t = getTireForWheel(activeWheelId);
                                 if (t) setBlueprintDetailTire({ tire: t, wheelId: activeWheelId });
                               }}
-                              title="Tekan untuk melihat detail data ban"
+                              title="Klik untuk detail data ban"
                             >
-                              ✓ #{getTireForWheel(activeWheelId)?.nomor_seri} • {getTireForWheel(activeWheelId)?.merk} 📋
+                              ✓ #{getTireForWheel(activeWheelId)?.nomor_seri} ({getTireForWheel(activeWheelId)?.merk})
                             </span>
-                            <button
-                              type="button"
-                              className="vs-3d-detail-btn"
-                              onClick={() => {
-                                const t = getTireForWheel(activeWheelId);
-                                if (t) setBlueprintDetailTire({ tire: t, wheelId: activeWheelId });
-                              }}
-                              title="Lihat rincian lengkap data ban ini"
-                            >
-                              ℹ️ Detail Ban
-                            </button>
                             <button
                               type="button"
                               className="vs-detach-btn vs-detach-btn--pill"
@@ -1957,14 +1944,14 @@ export default function VehicleSchematic3D({
                                 e.stopPropagation();
                                 handleRemoveTire(activeWheelId);
                               }}
-                              title="Copot ban dari posisi roda ini dan kembalikan ke inventori"
+                              title="Copot ban"
                             >
-                              ✕ Copot Ban
+                              ✕ Copot
                             </button>
                           </div>
                         ) : (
                           <span className="vs-3d-tire-pill vs-3d-tire-pill--empty">
-                            ⚪ Dudukan Kosong (Belum Terpasang)
+                            ⚪ Kosong
                           </span>
                         )}
                       </div>

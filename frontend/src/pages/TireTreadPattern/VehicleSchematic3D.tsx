@@ -1784,19 +1784,38 @@ export default function VehicleSchematic3D({
       });
   };
 
-  // Filter tray kartu ban: 'ready' | 'placed' | 'all' (default 'ready' agar ban yang terpasang otomatis hilang dari daftar inventori)
-  const [trayFilter, setTrayFilter] = useState<'ready' | 'placed' | 'all'>('ready');
+  // Filter tray kartu ban: 'placed' | 'ready' | 'all' (default 'placed' agar langsung menampilkan tabel ban yang terpasang)
+  const [trayFilter, setTrayFilter] = useState<'ready' | 'placed' | 'all'>('placed');
 
   const assignedCount = Object.keys(assignments).length;
   const unassignedTiresCount = allTires.filter((t) => !Object.values(assignments).includes(t.id)).length;
 
-  // Filtered tires for tray display
-  const displayedTires = allTires.filter((ban) => {
-    const isPlaced = Object.values(assignments).includes(ban.id);
-    if (trayFilter === 'ready') return !isPlaced;
-    if (trayFilter === 'placed') return isPlaced;
-    return true;
-  });
+  // Filtered tires for tray display (diurutkan berdasarkan posisi roda gandar jika di tab Terpasang)
+  const displayedTires = useMemo(() => {
+    const list = allTires.filter((ban) => {
+      const isPlaced = Object.values(assignments).includes(ban.id);
+      if (trayFilter === 'ready') return !isPlaced;
+      if (trayFilter === 'placed') return isPlaced;
+      return true;
+    });
+
+    if (trayFilter === 'placed' && wheelConfig?.wheels) {
+      const wheelOrderMap = new Map<number, number>();
+      wheelConfig.wheels.forEach((w, idx) => {
+        const assignedTireId = assignments[w.id];
+        if (assignedTireId) {
+          wheelOrderMap.set(assignedTireId, idx);
+        }
+      });
+      list.sort((a, b) => {
+        const orderA = wheelOrderMap.get(a.id) ?? 999;
+        const orderB = wheelOrderMap.get(b.id) ?? 999;
+        return orderA - orderB;
+      });
+    }
+
+    return list;
+  }, [allTires, assignments, trayFilter, wheelConfig]);
 
   // Virtual Touch Drag & Drop (Mencegah kotak hitam & badge (+) OS Android di layar HP)
   const [touchDraggingTire, setTouchDraggingTire] = useState<StockBanItem | null>(null);
@@ -2056,11 +2075,11 @@ export default function VehicleSchematic3D({
                 <span className="vs-tray-icon">🛞</span>
                 <span className="vs-tray-title-text">Stok Ban</span>
                 <span className="vs-tray-counter-badge">
-                  {unassignedTiresCount} Siap • {assignedCount}/{wheelCount} Terpasang
+                  {assignedCount}/{wheelCount} Terpasang
                 </span>
                 {borrowedTires.length > 0 && (
                   <span className="vs-tray-borrowed-pill" title={`${borrowedTires.length} ban pinjaman dari unit sesama armada`}>
-                    🏷️ {borrowedTires.length} Pinjaman
+                    🏷️ {borrowedTires.length} Pinjam
                   </span>
                 )}
               </div>
@@ -2094,17 +2113,17 @@ export default function VehicleSchematic3D({
               <div className="vs-filter-tabs">
                 <button
                   type="button"
-                  className={`vs-filter-tab ${trayFilter === 'ready' ? 'active' : ''}`}
-                  onClick={() => setTrayFilter('ready')}
-                >
-                  Siap ({unassignedTiresCount})
-                </button>
-                <button
-                  type="button"
                   className={`vs-filter-tab ${trayFilter === 'placed' ? 'active' : ''}`}
                   onClick={() => setTrayFilter('placed')}
                 >
                   Terpasang ({assignedCount})
+                </button>
+                <button
+                  type="button"
+                  className={`vs-filter-tab ${trayFilter === 'ready' ? 'active' : ''}`}
+                  onClick={() => setTrayFilter('ready')}
+                >
+                  Siap ({unassignedTiresCount})
                 </button>
                 <button
                   type="button"
@@ -2127,6 +2146,13 @@ export default function VehicleSchematic3D({
                   {trayFilter === 'ready' && assignedCount > 0 ? (
                     <div className="vs-tray-empty-success">
                       <span>✓ Semua ban ({assignedCount}) sudah terpasang</span>
+                      <button
+                        type="button"
+                        className="vs-btn-switch-placed"
+                        onClick={() => setTrayFilter('placed')}
+                      >
+                        Lihat Daftar Ban Terpasang →
+                      </button>
                     </div>
                   ) : (
                     'Tidak ada ban dalam filter ini.'

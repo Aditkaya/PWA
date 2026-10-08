@@ -1937,7 +1937,8 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  flex-wrap: wrap;
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
 
 .vs-tray-icon {
@@ -2012,18 +2013,38 @@
 }
 
 .vs-tray-empty-success {
-  display: inline-flex;
+  display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 8px;
   color: #34d399;
   font-weight: 600;
   font-size: 0.75rem;
-  padding: 8px 12px;
+  padding: 12px 14px;
   background: rgba(16, 185, 129, 0.1);
   border: 1px solid rgba(16, 185, 129, 0.25);
   border-radius: 8px;
   width: 100%;
   box-sizing: border-box;
+}
+
+.vs-btn-switch-placed {
+  background: rgba(56, 189, 248, 0.18);
+  border: 1px solid rgba(56, 189, 248, 0.45);
+  color: #38bdf8;
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-size: 0.72rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.15s ease;
+}
+
+.vs-btn-switch-placed:hover {
+  background: rgba(56, 189, 248, 0.35);
+  color: #fff;
+  border-color: #7dd3fc;
 }
 
 /* ── High Contrast Card Typography ── */
@@ -2733,23 +2754,28 @@
     flex-direction: row;
     align-items: center;
     justify-content: space-between;
-    gap: 8px;
+    gap: 6px;
     margin-bottom: 8px;
+    flex-wrap: nowrap;
   }
 
   .vs-tray-title-group {
-    gap: 5px;
+    gap: 4px;
     flex: 1;
     min-width: 0;
+    flex-wrap: nowrap;
+    white-space: nowrap;
   }
 
   .vs-tray-title-text {
-    font-size: 0.78rem;
+    font-size: 0.76rem;
+    white-space: nowrap;
   }
 
   .vs-tray-counter-badge {
-    font-size: 0.62rem;
-    padding: 1px 6px;
+    font-size: 0.60rem;
+    padding: 1px 5px;
+    white-space: nowrap;
   }
 
   .vs-tray-borrowed-pill {

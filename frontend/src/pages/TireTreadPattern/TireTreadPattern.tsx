@@ -589,13 +589,15 @@ export default function TireTreadPattern() {
                 <div className="hero-id-card hero-id-card--plat">
                   <div className="hero-id-card-top">
                     <CreditCard size={13} className="hero-id-icon" />
-                    <span className="hero-id-label">NOMOR PLAT / POLISI</span>
+                    <span className="hero-id-label">NO. PLAT POLISI</span>
                   </div>
                   <div className="hero-id-card-body">
                     {selectedUnit.nomor_polisi && selectedUnit.nomor_polisi !== '0' && selectedUnit.nomor_polisi.trim() !== '' ? (
                       <span className="hero-id-value hero-id-value--plat">{selectedUnit.nomor_polisi}</span>
                     ) : (
-                      <span className="hero-id-value hero-id-value--empty">Belum Terdata</span>
+                      <span className="hero-id-value hero-id-value--subtle">
+                        {selectedCategory.id === 'chassis-container' ? '— (Non-Plat)' : '— Belum Terdata'}
+                      </span>
                     )}
                   </div>
                 </div>
@@ -604,18 +606,31 @@ export default function TireTreadPattern() {
                 <div className="hero-id-card hero-id-card--kir">
                   <div className="hero-id-card-top">
                     <ShieldCheck size={13} className="hero-id-icon" />
-                    <span className="hero-id-label">NOMOR UJI KIR</span>
+                    <span className="hero-id-label">NO. UJI KIR</span>
                   </div>
                   <div className="hero-id-card-body">
                     {selectedUnit.no_kir || selectedUnit.nomor_kir ? (
                       <span className="hero-id-value hero-id-value--kir">{selectedUnit.no_kir || selectedUnit.nomor_kir}</span>
                     ) : (
-                      <span className="hero-id-value hero-id-value--empty">Belum Terdata</span>
+                      <span className="hero-id-value hero-id-value--subtle">—</span>
                     )}
                   </div>
                 </div>
 
-                {/* 3. MASA BERLAKU / PAJAK KIR */}
+                {/* 3. KODE UNIT / SASIS */}
+                <div className="hero-id-card hero-id-card--kode">
+                  <div className="hero-id-card-top">
+                    <Tag size={13} className="hero-id-icon" />
+                    <span className="hero-id-label">KODE SASIS</span>
+                  </div>
+                  <div className="hero-id-card-body">
+                    <span className="hero-id-value hero-id-value--code font-mono">
+                      {selectedUnit.kode_no || '-'}
+                    </span>
+                  </div>
+                </div>
+
+                {/* 4. MASA BERLAKU / PAJAK KIR */}
                 <div className="hero-id-card hero-id-card--expiry">
                   <div className="hero-id-card-top">
                     <Calendar size={13} className="hero-id-icon" />
@@ -632,21 +647,8 @@ export default function TireTreadPattern() {
                         </span>
                       </div>
                     ) : (
-                      <span className="hero-id-value hero-id-value--empty">Tidak Tercatat</span>
+                      <span className="hero-id-value hero-id-value--subtle">Tidak Tercatat</span>
                     )}
-                  </div>
-                </div>
-
-                {/* 4. KODE UNIT / SASIS */}
-                <div className="hero-id-card hero-id-card--kode">
-                  <div className="hero-id-card-top">
-                    <Tag size={13} className="hero-id-icon" />
-                    <span className="hero-id-label">KODE UNIT / SASIS</span>
-                  </div>
-                  <div className="hero-id-card-body">
-                    <span className="hero-id-value hero-id-value--code font-mono">
-                      {selectedUnit.kode_no || '-'}
-                    </span>
                   </div>
                 </div>
               </div>

@@ -896,17 +896,19 @@ export default function VehicleAnimation3D({
       wheelGroup.add(hubMesh);
 
       // 2. KOMPONEN KETIKA BAN BELUM TERPASANG (DUDUKAN HUB / ROTOR REM)
-      // Ghost Blueprint Hologram
+      // Ghost Blueprint Hologram dengan warna Biru & Ungu yang Sangat Tegas & Menyala
       const ghostTireGeo = new THREE.CylinderGeometry(tireRadius, tireRadius, tireWidth, 32);
       ghostTireGeo.rotateZ(Math.PI / 2);
       const ghostTireMesh = new THREE.Mesh(
         ghostTireGeo,
         new THREE.MeshStandardMaterial({
-          color: coord.isInner ? 0xa855f7 : 0x38bdf8,
+          color: coord.isInner ? 0x9333ea : 0x0284c7,
+          emissive: coord.isInner ? 0xa855f7 : 0x0ea5e9,
+          emissiveIntensity: 0.8,
           transparent: true,
-          opacity: 0.08,
-          roughness: 0.4,
-          metalness: 0.1,
+          opacity: 0.28,
+          roughness: 0.2,
+          metalness: 0.2,
           side: THREE.DoubleSide,
           depthWrite: false
         })
@@ -919,14 +921,41 @@ export default function VehicleAnimation3D({
       const ghostLine = new THREE.LineSegments(
         ghostEdges,
         new THREE.LineBasicMaterial({
-          color: coord.isInner ? 0xc084fc : 0x38bdf8,
+          color: coord.isInner ? 0xd946ef : 0x00f0ff,
           transparent: true,
-          opacity: 0.35
+          opacity: 0.85
         })
       );
       ghostLine.name = 'ghostLine';
       ghostLine.userData = { wheelId: coord.id };
       wheelGroup.add(ghostLine);
+
+      // Neon Torus Rings Tebal di Sisi Luar & Dalam Ban Kosong agar Siluet Biru/Ungu Sangat Tajam & Terbaca Jelas
+      const ringGeo = new THREE.TorusGeometry(tireRadius, 0.016, 12, 36);
+      ringGeo.rotateY(Math.PI / 2);
+
+      const ringMat = new THREE.MeshStandardMaterial({
+        color: coord.isInner ? 0xd946ef : 0x00f0ff,
+        emissive: coord.isInner ? 0xa855f7 : 0x0284c7,
+        emissiveIntensity: 1.2,
+        transparent: true,
+        opacity: 0.85,
+        roughness: 0.15,
+        metalness: 0.2,
+        depthWrite: false
+      });
+
+      const ringOuter = new THREE.Mesh(ringGeo, ringMat);
+      ringOuter.name = 'ghostRingOuter';
+      ringOuter.position.x = tireWidth / 2;
+      ringOuter.userData = { wheelId: coord.id };
+      wheelGroup.add(ringOuter);
+
+      const ringInner = new THREE.Mesh(ringGeo, ringMat.clone());
+      ringInner.name = 'ghostRingInner';
+      ringInner.position.x = -tireWidth / 2;
+      ringInner.userData = { wheelId: coord.id };
+      wheelGroup.add(ringInner);
 
       // Ventilated Brake Rotor & Caliper
       const drumGeo = new THREE.CylinderGeometry(tireRadius * 0.52, tireRadius * 0.52, tireWidth * 0.65, 28);
@@ -1342,24 +1371,48 @@ export default function VehicleAnimation3D({
         if (brakeCaliper) brakeCaliper.visible = !showPhysicalTire;
         if (studsMesh) studsMesh.visible = !showPhysicalTire;
 
+        const ringOuter = wheelGroup.getObjectByName('ghostRingOuter') as THREE.Mesh;
+        const ringInner = wheelGroup.getObjectByName('ghostRingInner') as THREE.Mesh;
+        const showGhost = !hasTire && !isDndHover;
+
         if (ghostTireMesh) {
-          ghostTireMesh.visible = !hasTire && !isDndHover;
+          ghostTireMesh.visible = showGhost;
           const gtMat = ghostTireMesh.material as THREE.MeshStandardMaterial;
           if (isSelected) {
-            gtMat.color.setHex(coord?.isInner ? 0xc084fc : 0x38bdf8);
-            gtMat.opacity = 0.2;
+            gtMat.color.setHex(coord?.isInner ? 0xc084fc : 0x00f0ff);
+            gtMat.emissive.setHex(coord?.isInner ? 0xa855f7 : 0x0284c7);
+            gtMat.emissiveIntensity = 1.0;
+            gtMat.opacity = 0.52;
           } else {
-            gtMat.color.setHex(coord?.isInner ? 0xa855f7 : 0x38bdf8);
-            gtMat.opacity = 0.08;
+            gtMat.color.setHex(coord?.isInner ? 0x9333ea : 0x0284c7);
+            gtMat.emissive.setHex(coord?.isInner ? 0x7e22ce : 0x0369a1);
+            gtMat.emissiveIntensity = 0.75;
+            gtMat.opacity = 0.28;
           }
         }
 
         if (ghostLine) {
-          ghostLine.visible = !hasTire && !isDndHover;
+          ghostLine.visible = showGhost;
           const glMat = ghostLine.material as THREE.LineBasicMaterial;
-          glMat.color.setHex(isSelected ? (coord?.isInner ? 0xe9d5ff : 0x7dd3fc) : (coord?.isInner ? 0xc084fc : 0x38bdf8));
-          glMat.opacity = isSelected ? 0.65 : 0.3;
+          glMat.color.setHex(isSelected ? (coord?.isInner ? 0xf0abfc : 0x7dd3fc) : (coord?.isInner ? 0xd946ef : 0x00e5ff));
+          glMat.opacity = isSelected ? 0.95 : 0.85;
         }
+
+        [ringOuter, ringInner].forEach((ring) => {
+          if (ring) {
+            ring.visible = showGhost;
+            if (showGhost) {
+              const rMat = ring.material as THREE.MeshStandardMaterial;
+              if (isSelected) {
+                rMat.emissiveIntensity = 1.5 + Math.sin(time * 6) * 0.3;
+                rMat.opacity = 0.95;
+              } else {
+                rMat.emissiveIntensity = 1.1 + Math.sin(time * 3 + (coord?.isInner ? 1.5 : 0)) * 0.2;
+                rMat.opacity = 0.85;
+              }
+            }
+          }
+        });
 
         if (halo) {
           halo.visible = isSelected || isDndHover;

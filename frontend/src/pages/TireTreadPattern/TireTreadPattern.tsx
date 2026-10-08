@@ -18,10 +18,44 @@ import {
   Eye,
   EyeOff,
   ChevronDown,
-  ChevronUp
+  ChevronUp,
+  CreditCard,
+  ShieldCheck,
+  Tag
 } from 'lucide-react';
 import './TireTreadPattern.css';
 import VehicleSchematic3D from './VehicleSchematic3D';
+
+export function formatDateIndo(dateStr?: string | null): string {
+  if (!dateStr) return '-';
+  try {
+    const parts = dateStr.trim().split('-');
+    if (parts.length === 3) {
+      const year = parts[0];
+      const month = parseInt(parts[1], 10);
+      const day = parseInt(parts[2], 10);
+      const months = ['Jan', 'Feb', 'Mar', 'Apr', 'Mei', 'Jun', 'Jul', 'Agu', 'Sep', 'Okt', 'Nov', 'Des'];
+      if (!isNaN(month) && month >= 1 && month <= 12 && !isNaN(day)) {
+        return `${day} ${months[month - 1]} ${year}`;
+      }
+    }
+  } catch {
+    // ignore
+  }
+  return dateStr;
+}
+
+export function isKirActive(dateStr?: string | null): boolean {
+  if (!dateStr) return false;
+  try {
+    const kirDate = new Date(dateStr);
+    const now = new Date();
+    now.setHours(0, 0, 0, 0);
+    return kirDate >= now;
+  } catch {
+    return false;
+  }
+}
 
 interface VehicleCategory {
   id: 'tractor-head' | 'chassis-container' | 'forklift';
@@ -475,16 +509,148 @@ export default function TireTreadPattern() {
                 </span>
                 <h2 className="unit-hero-title">
                   {selectedCategory.id === 'forklift'
-                    ? selectedUnit.nama || selectedUnit.kode_alat
-                    : selectedUnit.nomor_polisi || selectedUnit.kode_no}
+                    ? selectedUnit.nama || selectedUnit.kode_alat || `Forklift #${selectedUnit.id}`
+                    : selectedCategory.id === 'tractor-head'
+                      ? (selectedUnit.nomor_polisi && selectedUnit.nomor_polisi !== '0' && selectedUnit.nomor_polisi.trim() !== ''
+                          ? selectedUnit.nomor_polisi
+                          : selectedUnit.kode_no || `Unit #${selectedUnit.id}`)
+                      : (selectedUnit.no_kir || selectedUnit.nomor_kir || selectedUnit.nomor_polisi || selectedUnit.kode_no || `Sasis #${selectedUnit.id}`)}
                 </h2>
               </div>
               <div className="unit-hero-badges">
+                {selectedUnit.lokasi && (
+                  <span className="unit-hero-loc-badge">
+                    <MapPin size={12} />
+                    <span>{selectedUnit.lokasi}</span>
+                  </span>
+                )}
                 <span className={`badge-roda-tag badge-roda-${selectedWheelConfig.wheelCount} badge-roda-lg`}>
                   {selectedWheelConfig.wheelCount} RODA
                 </span>
               </div>
             </div>
+
+            {/* Panel Identitas Armada: Nomor Plat, No. KIR, Masa Berlaku, dan Kode Sasis */}
+            {selectedCategory.id === 'forklift' ? (
+              <div className="unit-hero-id-grid">
+                <div className="hero-id-card hero-id-card--kode">
+                  <div className="hero-id-card-top">
+                    <Tag size={13} className="hero-id-icon" />
+                    <span className="hero-id-label">KODE ALAT</span>
+                  </div>
+                  <div className="hero-id-card-body">
+                    <span className="hero-id-value hero-id-value--code font-mono">
+                      {selectedUnit.kode_alat || selectedUnit.kode_no || '-'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="hero-id-card hero-id-card--plat">
+                  <div className="hero-id-card-top">
+                    <CreditCard size={13} className="hero-id-icon" />
+                    <span className="hero-id-label">NAMA / MODEL</span>
+                  </div>
+                  <div className="hero-id-card-body">
+                    <span className="hero-id-value hero-id-value--plat">
+                      {selectedUnit.nama || selectedUnit.merek || selectedUnit.merk || '-'}
+                    </span>
+                  </div>
+                </div>
+
+                <div className="hero-id-card hero-id-card--kir">
+                  <div className="hero-id-card-top">
+                    <ShieldCheck size={13} className="hero-id-icon" />
+                    <span className="hero-id-label">KAPASITAS</span>
+                  </div>
+                  <div className="hero-id-card-body">
+                    <span className="hero-id-value hero-id-value--kir">
+                      {selectedUnit.kapasitas || '-'}
+                    </span>
+                  </div>
+                </div>
+
+                {selectedUnit.tipe && (
+                  <div className="hero-id-card hero-id-card--expiry">
+                    <div className="hero-id-card-top">
+                      <Tag size={13} className="hero-id-icon" />
+                      <span className="hero-id-label">TIPE UNIT</span>
+                    </div>
+                    <div className="hero-id-card-body">
+                      <span className="hero-id-value hero-id-value--date">
+                        {selectedUnit.tipe}
+                      </span>
+                    </div>
+                  </div>
+                )}
+              </div>
+            ) : (
+              <div className="unit-hero-id-grid">
+                {/* 1. NOMOR PLAT / POLISI */}
+                <div className="hero-id-card hero-id-card--plat">
+                  <div className="hero-id-card-top">
+                    <CreditCard size={13} className="hero-id-icon" />
+                    <span className="hero-id-label">NOMOR PLAT / POLISI</span>
+                  </div>
+                  <div className="hero-id-card-body">
+                    {selectedUnit.nomor_polisi && selectedUnit.nomor_polisi !== '0' && selectedUnit.nomor_polisi.trim() !== '' ? (
+                      <span className="hero-id-value hero-id-value--plat">{selectedUnit.nomor_polisi}</span>
+                    ) : (
+                      <span className="hero-id-value hero-id-value--empty">Belum Terdata</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* 2. NOMOR UJI KIR */}
+                <div className="hero-id-card hero-id-card--kir">
+                  <div className="hero-id-card-top">
+                    <ShieldCheck size={13} className="hero-id-icon" />
+                    <span className="hero-id-label">NOMOR UJI KIR</span>
+                  </div>
+                  <div className="hero-id-card-body">
+                    {selectedUnit.no_kir || selectedUnit.nomor_kir ? (
+                      <span className="hero-id-value hero-id-value--kir">{selectedUnit.no_kir || selectedUnit.nomor_kir}</span>
+                    ) : (
+                      <span className="hero-id-value hero-id-value--empty">Belum Terdata</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* 3. MASA BERLAKU / PAJAK KIR */}
+                <div className="hero-id-card hero-id-card--expiry">
+                  <div className="hero-id-card-top">
+                    <Calendar size={13} className="hero-id-icon" />
+                    <span className="hero-id-label">MASA BERLAKU KIR</span>
+                  </div>
+                  <div className="hero-id-card-body">
+                    {selectedUnit.pajak_kir ? (
+                      <div className="hero-id-expiry-wrap">
+                        <span className="hero-id-value hero-id-value--date">
+                          {formatDateIndo(selectedUnit.pajak_kir)}
+                        </span>
+                        <span className={`hero-expiry-badge ${isKirActive(selectedUnit.pajak_kir) ? 'is-valid' : 'is-expired'}`}>
+                          {isKirActive(selectedUnit.pajak_kir) ? 'Aktif' : 'Habis'}
+                        </span>
+                      </div>
+                    ) : (
+                      <span className="hero-id-value hero-id-value--empty">Tidak Tercatat</span>
+                    )}
+                  </div>
+                </div>
+
+                {/* 4. KODE UNIT / SASIS */}
+                <div className="hero-id-card hero-id-card--kode">
+                  <div className="hero-id-card-top">
+                    <Tag size={13} className="hero-id-icon" />
+                    <span className="hero-id-label">KODE UNIT / SASIS</span>
+                  </div>
+                  <div className="hero-id-card-body">
+                    <span className="hero-id-value hero-id-value--code font-mono">
+                      {selectedUnit.kode_no || '-'}
+                    </span>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
 
           {/* Visualizer Workbench: 3D Studio, Denah Blueprint 2D, & Inventori Ban Unit */}
@@ -558,6 +724,12 @@ export default function TireTreadPattern() {
                       <span className="unit-detail-label">Nomor Uji KIR</span>
                       <span className="unit-detail-val" style={{ color: '#34d399' }}>
                         {selectedUnit.no_kir || selectedUnit.nomor_kir || '-'}
+                      </span>
+                    </div>
+                    <div className="unit-detail-item">
+                      <span className="unit-detail-label">Masa Berlaku KIR</span>
+                      <span className="unit-detail-val" style={{ color: '#a78bfa' }}>
+                        {selectedUnit.pajak_kir ? formatDateIndo(selectedUnit.pajak_kir) : '-'}
                       </span>
                     </div>
                   </>
@@ -786,6 +958,12 @@ export default function TireTreadPattern() {
                             <span className="badge-tag-label">KIR</span>
                             <span className="kir-val">{kirNumber || '-'}</span>
                           </div>
+                          {u.pajak_kir && (
+                            <div className="kir-exp-pill">
+                              <Calendar size={11} />
+                              <span>Exp: {formatDateIndo(u.pajak_kir)}</span>
+                            </div>
+                          )}
                         </div>
                       )}
 

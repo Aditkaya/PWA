@@ -1044,10 +1044,12 @@ export default function VehicleAnimation3D({
       const elapsed = Date.now() - pointerDownTime;
       pointerDownPos = null;
 
-      if (dist > 8 || elapsed > 300) return;
+      // Jika pointer digeser untuk orbit/pan kamera, abaikan klik
+      if (dist > 6 || elapsed > 300) return;
       if (touchCoordsRef.current || dndHoverWheelIdRef.current) return;
 
-      const hitWheelId = getWheelAtCoordsInternal(event.clientX, event.clientY);
+      // PRESISI TINGGI: HANYA memicu jika raycast benar-benar mengenai permukaan mesh 3D ban/velg
+      const hitWheelId = getExactTireHitAtCoords(event.clientX, event.clientY);
       if (hitWheelId) {
         const tire = getTireForWheelRef.current(hitWheelId);
         onWheelClickRef.current?.(hitWheelId, tire);
@@ -1063,7 +1065,7 @@ export default function VehicleAnimation3D({
 
     const handlePointerMove = (event: PointerEvent) => {
       if (event.pointerType === 'touch') return;
-      const hitWheelId = getWheelAtCoordsInternal(event.clientX, event.clientY);
+      const hitWheelId = getExactTireHitAtCoords(event.clientX, event.clientY);
       if (hitWheelId) {
         renderer.domElement.style.cursor = 'pointer';
       } else {
@@ -1071,94 +1073,47 @@ export default function VehicleAnimation3D({
       }
     };
 
-    // Smart Wheel Resolution Function
-    const getWheelAtCoordsInternal = (clientX: number, clientY: number): string | null => {
+    // Deteksi Klik Presisi Tinggi: HANYA mengenai permukaan 3D fisik ban/velg
+    const getExactTireHitAtCoords = (clientX: number, clientY: number): string | null => {
       const rect = renderer.domElement.getBoundingClientRect();
       mouse.x = ((clientX - rect.left) / rect.width) * 2 - 1;
       mouse.y = -((clientY - rect.top) / rect.height) * 2 + 1;
 
       raycaster.setFromCamera(mouse, camera);
-      const targetMeshes: THREE.Object3D[] = [];
-      wheelsMeshMap.current.forEach((grp) => {
+
+      // Kumpulkan HANYA mesh fisik ban 3D yang sedang terlihat
+      const tireMeshes: THREE.Object3D[] = [];
+      wheelsMeshMap.current.forEach((grp, wId) => {
         grp.traverse((child) => {
-          if (child instanceof THREE.Mesh && child.userData.wheelId) {
-            targetMeshes.push(child);
+          if (child instanceof THREE.Mesh && child.visible) {
+            // Hanya geometri fisik ban, velg, hub, atau brake drum
+            if (
+              child.name === 'tireMesh' ||
+              child.name === 'rimMesh' ||
+              child.name === 'treadMesh' ||
+              child.name === 'hubMesh' ||
+              child.name === 'ghostTireMesh' ||
+              child.name === 'brakeDrum'
+            ) {
+              child.userData.wheelId = wId;
+              tireMeshes.push(child);
+            }
           }
         });
       });
 
-      const intersects = raycaster.intersectObjects(targetMeshes, false);
+      const intersects = raycaster.intersectObjects(tireMeshes, false);
       if (intersects.length > 0) {
-        const hitWheelIds: string[] = [];
-        for (const hit of intersects) {
-          const wid = hit.object.userData.wheelId as string;
-          if (wid && !hitWheelIds.includes(wid)) {
-            hitWheelIds.push(wid);
-          }
-        }
-
-        // Jika mengenai pasangan ganda (Roda Luar DAN Roda Dalam kena raycast sekaligus):
-        for (const wid of hitWheelIds) {
-          const info = wheelCoordsMapRef.current.get(wid);
-          if (info?.isDual && info.partnerId && hitWheelIds.includes(info.partnerId)) {
-            const outerId = info.isOuter ? wid : info.partnerId;
-            const innerId = info.isInner ? wid : info.partnerId;
-            const outerTire = getTireForWheelRef.current(outerId);
-            const innerTire = getTireForWheelRef.current(innerId);
-
-            // Jika sedang drag ban:
-            if (isDraggingRef.current) {
-              // Jika roda luar sudah terpasang & roda dalam kosong -> UTAMAKAN RODA DALAM!
-              if (outerTire && !innerTire) return innerId;
-              if (!outerTire && innerTire) return outerId;
-            }
-
-            // Bandingkan proyeksi posisi 2D kursor ke pusat roda di layar
-            const sOuter = getWheelScreenPos(outerId);
-            const sInner = getWheelScreenPos(innerId);
-            const dOuter = Math.hypot(clientX - sOuter.x, clientY - sOuter.y);
-            const dInner = Math.hypot(clientX - sInner.x, clientY - sInner.y);
-
-            // Beri bobot +20px ke roda dalam agar sangat responsif dipilih
-            return dInner <= dOuter + 20 ? innerId : outerId;
-          }
-        }
-
-        return hitWheelIds[0];
+        const hitObj = intersects[0].object;
+        const wid = (hitObj.userData?.wheelId as string) || (hitObj.parent?.userData?.wheelId as string);
+        if (wid) return wid;
       }
 
-      // Fallback Proximity
-      let closestWheelId: string | null = null;
-      let minDistance = 140;
-      for (const wId of wheelsMeshMap.current.keys()) {
-        const sPos = getWheelScreenPos(wId);
-        if (sPos.inFront) {
-          let dist = Math.hypot(clientX - sPos.x, clientY - sPos.y);
-          const info = wheelCoordsMapRef.current.get(wId);
-          if (info?.isInner) dist -= 15;
-          if (dist < minDistance) {
-            minDistance = dist;
-            closestWheelId = wId;
-          }
-        }
-      }
-
-      return closestWheelId;
+      // PASTI: jika klik berada di luar ban (lantai, sasis, ruang kosong), kembalikan null (tidak ada modal!)
+      return null;
     };
 
-    const getWheelScreenPos = (wId: string) => {
-      const grp = wheelsMeshMap.current.get(wId);
-      if (!grp) return { x: -999, y: -999, inFront: false };
-      const worldPos = new THREE.Vector3();
-      grp.getWorldPosition(worldPos);
-      worldPos.project(camera);
-      const rect = renderer.domElement.getBoundingClientRect();
-      return {
-        x: ((worldPos.x + 1) * rect.width) / 2 + rect.left,
-        y: ((-worldPos.y + 1) * rect.height) / 2 + rect.top,
-        inFront: worldPos.z <= 1
-      };
-    };
+
 
     renderer.domElement.addEventListener('pointerdown', handlePointerDown);
     renderer.domElement.addEventListener('pointerup', handlePointerUp);

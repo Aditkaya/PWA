@@ -314,7 +314,6 @@ export default function VehicleAnimation3D({
   }, [isDualSeparated]);
 
   const [cameraView, setCameraView] = useState<'perspective' | 'top' | 'side' | 'dualFocus'>('perspective');
-  const [hoveredWheelId, setHoveredWheelId] = useState<string | null>(null);
 
   // State Modal Detail Data Ban yang Terpasang
   const [detailModalTire, setDetailModalTire] = useState<{ tire: StockBanItem; wheelId: string } | null>(null);
@@ -360,31 +359,7 @@ export default function VehicleAnimation3D({
   // Animasi Pasang Ban (Mounting Slide-in & Flash Shockwave)
   const mountingAnims = useRef<Map<string, { startTime: number; duration: number }>>(new Map());
 
-  // Status roda aktif
-  const activeMeta = useMemo(() => {
-    if (!selectedWheelId || !wheelConfig?.wheels) return null;
-    return wheelConfig.wheels.find((w) => w.id === selectedWheelId) || null;
-  }, [selectedWheelId, wheelConfig]);
 
-  const activeTire = useMemo(() => {
-    if (!selectedWheelId) return null;
-    return getTireForWheel(selectedWheelId);
-  }, [selectedWheelId, getTireForWheel]);
-
-  // Info pasangan roda ganda (jika ada roda dalam/luar)
-  const activePartnerInfo = useMemo(() => {
-    if (!selectedWheelId) return null;
-    const coord = wheelCoordsMapRef.current.get(selectedWheelId);
-    if (!coord?.isDual || !coord.partnerId) return null;
-    const partnerMeta = wheelConfig?.wheels.find((w) => w.id === coord.partnerId);
-    return {
-      partnerId: coord.partnerId,
-      partnerCode: partnerMeta?.code || coord.partnerId.toUpperCase(),
-      partnerName: partnerMeta?.name || `Roda ${coord.partnerId}`,
-      isOuter: Boolean(coord.isOuter),
-      isInner: Boolean(coord.isInner)
-    };
-  }, [selectedWheelId, wheelConfig]);
 
   // ── BANGUN KOORDINAT RODA SESUAI JUMLAH RODA ──
   const wheelCoords = useMemo(() => {
@@ -1062,10 +1037,8 @@ export default function VehicleAnimation3D({
       const hitWheelId = getWheelAtCoordsInternal(event.clientX, event.clientY);
       if (hitWheelId) {
         renderer.domElement.style.cursor = 'pointer';
-        setHoveredWheelId(hitWheelId);
       } else {
         renderer.domElement.style.cursor = 'default';
-        setHoveredWheelId(null);
       }
     };
 
@@ -1758,75 +1731,7 @@ export default function VehicleAnimation3D({
         )}
       </div>
 
-      {/* ── 3. STATUS BAR RODA TERPILIH (CLEAN & RINGKAS) ── */}
-      <div className="vs-3d-status-bar">
-        {selectedWheelId ? (
-          <div className="vs-3d-wheel-tag">
-            <div className="vs-3d-tag-left">
-              <span className="vs-3d-code-pill">
-                {activeMeta?.code || selectedWheelId.toUpperCase()}
-              </span>
-              <span className="vs-3d-wheel-title">
-                {activeMeta?.name || `Roda ${selectedWheelId}`}
-              </span>
 
-              {activePartnerInfo && (
-                <button
-                  type="button"
-                  className="vs-3d-dual-swap-btn"
-                  onClick={() => {
-                    const partnerTire = getTireForWheel(activePartnerInfo.partnerId);
-                    onWheelClick?.(activePartnerInfo.partnerId, partnerTire);
-                    setIsDualSeparated(true);
-                  }}
-                  title={`Beralih ke roda pasangan (${activePartnerInfo.partnerCode})`}
-                >
-                  ⇄ {activePartnerInfo.partnerCode}
-                </button>
-              )}
-            </div>
-
-            <div className="vs-3d-tag-right">
-              {activeTire ? (
-                <div className="vs-3d-assigned-actions">
-                  <span
-                    className="vs-3d-tire-pill vs-3d-tire-pill--ok vs-3d-tire-pill--clickable"
-                    onClick={() => {
-                      if (activeTire && selectedWheelId) {
-                        setDetailModalTire({ tire: activeTire, wheelId: selectedWheelId });
-                      }
-                    }}
-                    title="Klik untuk detail data ban"
-                  >
-                    ✓ #{activeTire.nomor_seri} ({activeTire.merk})
-                  </span>
-                  <button
-                    type="button"
-                    className="vs-detach-btn vs-detach-btn--pill"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      if (selectedWheelId) {
-                        onRemoveTireFromWheel?.(selectedWheelId);
-                      }
-                    }}
-                    title="Copot ban"
-                  >
-                    ✕ Copot
-                  </button>
-                </div>
-              ) : (
-                <span className="vs-3d-tire-pill vs-3d-tire-pill--empty">
-                  ⚪ Kosong
-                </span>
-              )}
-            </div>
-          </div>
-        ) : hoveredWheelId ? (
-          <div className="vs-3d-wheel-tag vs-3d-wheel-tag--hover">
-            <span>Slot {hoveredWheelId.toUpperCase()}</span>
-          </div>
-        ) : null}
-      </div>
 
       {/* ── 4. MODAL POPUP DETAIL LENGKAP DATA BAN ── */}
       {detailModalTire && (

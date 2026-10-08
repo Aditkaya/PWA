@@ -1784,38 +1784,37 @@ export default function VehicleSchematic3D({
       });
   };
 
-  // Filter tray kartu ban: 'placed' | 'ready' | 'all' (default 'placed' agar langsung menampilkan tabel ban yang terpasang)
-  const [trayFilter, setTrayFilter] = useState<'ready' | 'placed' | 'all'>('placed');
+  // Search query untuk menyaring ban di tabel stok ban
+  const [searchQuery, setSearchQuery] = useState<string>('');
 
   const assignedCount = Object.keys(assignments).length;
   const unassignedTiresCount = allTires.filter((t) => !Object.values(assignments).includes(t.id)).length;
 
-  // Filtered tires for tray display (diurutkan berdasarkan posisi roda gandar jika di tab Terpasang)
+  // Filtered tires: HANYA ban yang BELUM terpasang (ban yang sudah terpasang dihilangkan dari tabel stok)
   const displayedTires = useMemo(() => {
-    const list = allTires.filter((ban) => {
+    // 1. Hilangkan ban yang sudah terpasang di roda
+    let list = allTires.filter((ban) => {
       const isPlaced = Object.values(assignments).includes(ban.id);
-      if (trayFilter === 'ready') return !isPlaced;
-      if (trayFilter === 'placed') return isPlaced;
-      return true;
+      return !isPlaced;
     });
 
-    if (trayFilter === 'placed' && wheelConfig?.wheels) {
-      const wheelOrderMap = new Map<number, number>();
-      wheelConfig.wheels.forEach((w, idx) => {
-        const assignedTireId = assignments[w.id];
-        if (assignedTireId) {
-          wheelOrderMap.set(assignedTireId, idx);
-        }
-      });
-      list.sort((a, b) => {
-        const orderA = wheelOrderMap.get(a.id) ?? 999;
-        const orderB = wheelOrderMap.get(b.id) ?? 999;
-        return orderA - orderB;
+    // 2. Filter berdasarkan kata kunci pencarian
+    if (searchQuery.trim()) {
+      const q = searchQuery.toLowerCase().trim();
+      list = list.filter((ban) => {
+        const matchSeri = ban.nomor_seri?.toLowerCase().includes(q);
+        const matchMerk = ban.merk?.toLowerCase().includes(q);
+        const matchUkuran = ban.ukuran?.toLowerCase().includes(q);
+        const matchKondisi = ban.kondisi?.toLowerCase().includes(q);
+        const matchFaktur = ban.nomor_faktur?.toLowerCase().includes(q);
+        const matchBukti = ban.nomor_bukti?.toLowerCase().includes(q);
+        const matchLokasi = ban.lokasi?.toLowerCase().includes(q);
+        return matchSeri || matchMerk || matchUkuran || matchKondisi || matchFaktur || matchBukti || matchLokasi;
       });
     }
 
     return list;
-  }, [allTires, assignments, trayFilter, wheelConfig]);
+  }, [allTires, assignments, searchQuery]);
 
   // Virtual Touch Drag & Drop (Mencegah kotak hitam & badge (+) OS Android di layar HP)
   const [touchDraggingTire, setTouchDraggingTire] = useState<StockBanItem | null>(null);
@@ -2108,55 +2107,56 @@ export default function VehicleSchematic3D({
               </div>
             </div>
 
-            {/* Filter Tabs */}
+            {/* Fitur Search Data Stok Ban */}
             <div className="vs-tray-controls">
-              <div className="vs-filter-tabs">
-                <button
-                  type="button"
-                  className={`vs-filter-tab ${trayFilter === 'placed' ? 'active' : ''}`}
-                  onClick={() => setTrayFilter('placed')}
-                >
-                  Terpasang ({assignedCount})
-                </button>
-                <button
-                  type="button"
-                  className={`vs-filter-tab ${trayFilter === 'ready' ? 'active' : ''}`}
-                  onClick={() => setTrayFilter('ready')}
-                >
-                  Siap ({unassignedTiresCount})
-                </button>
-                <button
-                  type="button"
-                  className={`vs-filter-tab ${trayFilter === 'all' ? 'active' : ''}`}
-                  onClick={() => setTrayFilter('all')}
-                >
-                  Semua ({allTires.length})
-                </button>
+              <div className="vs-tray-search-bar">
+                <span className="vs-tray-search-icon">🔍</span>
+                <input
+                  type="text"
+                  className="vs-tray-search-input"
+                  placeholder="Cari data stok ban (merk, nomor seri, ukuran)..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                />
+                {searchQuery && (
+                  <button
+                    type="button"
+                    className="vs-tray-search-clear"
+                    onClick={() => setSearchQuery('')}
+                    title="Hapus pencarian"
+                  >
+                    ✕
+                  </button>
+                )}
               </div>
             </div>
 
-            {/* List Kartu Ban */}
+            {/* List Kartu Ban (Hanya Ban yang Belum Terpasang) */}
             <div className="vs-tray-list">
               {allTires.length === 0 ? (
                 <div className="vs-tray-empty">
                   {isLoading ? '⟳ Memuat data...' : 'Tidak ada data ban.'}
                 </div>
+              ) : unassignedTiresCount === 0 ? (
+                <div className="vs-tray-empty">
+                  <div className="vs-tray-empty-success">
+                    <span>✓ Semua ban ({assignedCount}) sudah terpasang ke roda unit</span>
+                    <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
+                      Copot ban dari posisi roda jika ingin mengembalikannya ke daftar stok ini.
+                    </span>
+                  </div>
+                </div>
               ) : displayedTires.length === 0 ? (
                 <div className="vs-tray-empty">
-                  {trayFilter === 'ready' && assignedCount > 0 ? (
-                    <div className="vs-tray-empty-success">
-                      <span>✓ Semua ban ({assignedCount}) sudah terpasang</span>
-                      <button
-                        type="button"
-                        className="vs-btn-switch-placed"
-                        onClick={() => setTrayFilter('placed')}
-                      >
-                        Lihat Daftar Ban Terpasang →
-                      </button>
-                    </div>
-                  ) : (
-                    'Tidak ada ban dalam filter ini.'
-                  )}
+                  <span>Tidak ada stok ban yang cocok dengan pencarian "{searchQuery}".</span>
+                  <button
+                    type="button"
+                    className="vs-btn-switch-placed"
+                    onClick={() => setSearchQuery('')}
+                    style={{ marginTop: '8px' }}
+                  >
+                    Reset Pencarian
+                  </button>
                 </div>
               ) : (
                 displayedTires.map((ban) => {

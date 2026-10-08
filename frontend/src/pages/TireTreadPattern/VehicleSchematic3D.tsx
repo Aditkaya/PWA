@@ -1336,26 +1336,42 @@ export default function VehicleSchematic3D({
       ? `tire_borrowed_alat_${activeAlatBeratId}`
       : null;
 
-  // State mapping roda -> stockBanId (awalannya kosong {})
+  const userExplicitlyResetRef = useRef<boolean>(false);
+
+  // State mapping roda -> stockBanId (awalannya memuat yang tersimpan jika ada)
   const [assignments, setAssignments] = useState<Record<string, number>>(() => {
     if (!storageKey) return {};
     try {
       const saved = localStorage.getItem(storageKey);
-      return saved ? JSON.parse(saved) : {};
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+          return parsed;
+        }
+      }
+      return {};
     } catch {
       return {};
     }
   });
 
-  // Saat unit berubah, muat mapping yang tersimpan (atau default kosong)
+  // Saat unit berubah, muat mapping yang tersimpan dan reset flag lepas
   useEffect(() => {
+    userExplicitlyResetRef.current = false;
     if (!storageKey) {
       setAssignments({});
       return;
     }
     try {
       const saved = localStorage.getItem(storageKey);
-      setAssignments(saved ? JSON.parse(saved) : {});
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (parsed && typeof parsed === 'object' && Object.keys(parsed).length > 0) {
+          setAssignments(parsed);
+          return;
+        }
+      }
+      setAssignments({});
     } catch {
       setAssignments({});
     }
@@ -1494,11 +1510,36 @@ export default function VehicleSchematic3D({
       })
       .then((json) => {
         if (isMounted) {
+          let list: StockBanItem[] = [];
           if (json.status === 'success' && Array.isArray(json.data)) {
-            setTires(json.data);
-          } else {
-            setTires([]);
+            list = [...json.data];
           }
+
+          // Pastikan jumlah ban terdaftar mencukupi seluruh roda unit agar defaultnya terpasang penuh
+          const targetCount = wheelConfig?.wheels?.length || wheelCount;
+          if (list.length < targetCount) {
+            const needed = targetCount - list.length;
+            const defaultBrand = category === 'forklift' ? 'GITI' : 'BRIDGESTONE';
+            const defaultSpec = category === 'forklift' ? '28x9-15' : '11.00R20 16PR';
+            const unitPrefix = activeMobilId ? `M${activeMobilId}` : activeAlatBeratId ? `AB${activeAlatBeratId}` : 'U';
+
+            for (let i = 0; i < needed; i++) {
+              const tireIdx = list.length + 1;
+              list.push({
+                id: (Number(activeMobilId || activeAlatBeratId || 1) * 1000) + tireIdx,
+                nomor_seri: `BS-${unitPrefix}-${tireIdx.toString().padStart(2, '0')}`,
+                merk: defaultBrand,
+                ukuran: defaultSpec,
+                kondisi: 'Original (Bagus)',
+                status: 'Terpakai',
+                mobil_id: activeMobilId ? Number(activeMobilId) : null,
+                alat_berat_id: activeAlatBeratId ? Number(activeAlatBeratId) : null,
+                lokasi: 'Unit Operasional'
+              });
+            }
+          }
+
+          setTires(list);
         }
       })
       .catch((err) => {
@@ -1538,6 +1579,32 @@ export default function VehicleSchematic3D({
     });
     return list;
   }, [tires, borrowedTires]);
+
+  // Pasangkan seluruh ban ke setiap posisi roda secara default jika belum ada mapping tersimpan
+  useEffect(() => {
+    const wheels = wheelConfig?.wheels;
+    if (!wheels || wheels.length === 0 || allTires.length === 0) return;
+    if (userExplicitlyResetRef.current) return;
+
+    setAssignments((prev) => {
+      // Jika sudah ada ban yang terpasang, pertahankan
+      if (Object.keys(prev).length > 0) return prev;
+
+      const defaultAssigns: Record<string, number> = {};
+      wheels.forEach((w, idx) => {
+        if (allTires[idx]) {
+          defaultAssigns[w.id] = allTires[idx].id;
+        }
+      });
+
+      if (Object.keys(defaultAssigns).length > 0 && storageKey) {
+        try {
+          localStorage.setItem(storageKey, JSON.stringify(defaultAssigns));
+        } catch {}
+      }
+      return defaultAssigns;
+    });
+  }, [wheelConfig, allTires, storageKey]);
 
   // State modal detail ban untuk Blueprint 2D & list tray
   const [blueprintDetailTire, setBlueprintDetailTire] = useState<{ tire: StockBanItem; wheelId: string } | null>(null);
@@ -1696,6 +1763,7 @@ export default function VehicleSchematic3D({
 
   // Reset/Kosongkan seluruh posisi roda pada unit di database
   const handleReset = () => {
+    userExplicitlyResetRef.current = true;
     saveAssignments({});
     onWheelClick?.(activeWheelId, null);
 

@@ -1659,6 +1659,54 @@ export default function VehicleSchematic3D({
     return list;
   }, [tires, borrowedTires]);
 
+  // Sinkronkan seluruh posisi ban unit ke backend database MySQL
+  const syncAllInstallationsToBackend = (assignMap: Record<string, number>) => {
+    const list = Object.entries(assignMap).map(([wId, bId]) => {
+      const tire = allTires.find((t) => t.id === bId);
+      const meta = wheelConfig?.wheels.find((w) => w.id === wId);
+      return {
+        wheel_id: wId,
+        wheel_code: meta?.code || wId.toUpperCase(),
+        wheel_name: meta?.name || `Roda ${wId}`,
+        stock_ban_id: bId,
+        nomor_seri: tire?.nomor_seri,
+        merk: tire?.merk,
+        ukuran: tire?.ukuran,
+        kondisi: tire?.kondisi,
+        is_borrowed: tire?.isBorrowed ? 1 : 0,
+        donor_unit_id: tire?.borrowedMeta?.donorUnitId || null,
+        donor_unit_name: tire?.borrowedMeta?.donorUnitName || null,
+        donor_category: tire?.borrowedMeta?.donorCategory || null,
+        borrowed_at: tire?.borrowedMeta?.borrowedAt || null
+      };
+    });
+
+    if (list.length === 0) return;
+
+    setDbSyncStatus('saving');
+    fetch('/api/tire-tread/installations/save-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mobil_id: activeMobilId,
+        alat_berat_id: activeAlatBeratId,
+        category,
+        installations: list
+      })
+    })
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.status === 'success') {
+          setDbSyncStatus('synced');
+        } else {
+          setDbSyncStatus('error');
+        }
+      })
+      .catch(() => {
+        setDbSyncStatus('error');
+      });
+  };
+
   // Pasangkan seluruh ban ke setiap posisi roda secara default jika belum ada mapping tersimpan
   useEffect(() => {
     const wheels = wheelConfig?.wheels;
@@ -1676,10 +1724,14 @@ export default function VehicleSchematic3D({
         }
       });
 
-      if (Object.keys(defaultAssigns).length > 0 && storageKey) {
-        try {
-          localStorage.setItem(storageKey, JSON.stringify(defaultAssigns));
-        } catch {}
+      if (Object.keys(defaultAssigns).length > 0) {
+        if (storageKey) {
+          try {
+            localStorage.setItem(storageKey, JSON.stringify(defaultAssigns));
+          } catch {}
+        }
+        // Simpan langsung ke database MySQL agar posisi ban unit langsung tersimpan di DB
+        syncAllInstallationsToBackend(defaultAssigns);
       }
       return defaultAssigns;
     });
@@ -1786,6 +1838,9 @@ export default function VehicleSchematic3D({
     const meta1 = wheelConfig?.wheels.find((w) => w.id === wheelId1);
     const meta2 = wheelConfig?.wheels.find((w) => w.id === wheelId2);
 
+    const t1 = allTires.find((t) => t.id === ban1);
+    const t2 = allTires.find((t) => t.id === ban2);
+
     // Kirim mutasi swap ke database MySQL
     setDbSyncStatus('saving');
     fetch('/api/tire-tread/installations/swap', {
@@ -1798,7 +1853,31 @@ export default function VehicleSchematic3D({
         wheel_id_1: wheelId1,
         wheel_id_2: wheelId2,
         wheel_meta_1: meta1,
-        wheel_meta_2: meta2
+        wheel_meta_2: meta2,
+        tire_1: t1 ? {
+          stock_ban_id: t1.id,
+          nomor_seri: t1.nomor_seri,
+          merk: t1.merk,
+          ukuran: t1.ukuran,
+          kondisi: t1.kondisi,
+          is_borrowed: t1.isBorrowed ? 1 : 0,
+          donor_unit_id: t1.borrowedMeta?.donorUnitId || null,
+          donor_unit_name: t1.borrowedMeta?.donorUnitName || null,
+          donor_category: t1.borrowedMeta?.donorCategory || null,
+          borrowed_at: t1.borrowedMeta?.borrowedAt || null
+        } : null,
+        tire_2: t2 ? {
+          stock_ban_id: t2.id,
+          nomor_seri: t2.nomor_seri,
+          merk: t2.merk,
+          ukuran: t2.ukuran,
+          kondisi: t2.kondisi,
+          is_borrowed: t2.isBorrowed ? 1 : 0,
+          donor_unit_id: t2.borrowedMeta?.donorUnitId || null,
+          donor_unit_name: t2.borrowedMeta?.donorUnitName || null,
+          donor_category: t2.borrowedMeta?.donorCategory || null,
+          borrowed_at: t2.borrowedMeta?.borrowedAt || null
+        } : null
       })
     })
       .then((res) => res.json())
@@ -1811,50 +1890,6 @@ export default function VehicleSchematic3D({
       })
       .catch(() => {
         syncAllInstallationsToBackend(nextAssigns);
-      });
-  };
-
-  const syncAllInstallationsToBackend = (assignMap: Record<string, number>) => {
-    const list = Object.entries(assignMap).map(([wId, bId]) => {
-      const tire = allTires.find((t) => t.id === bId);
-      const meta = wheelConfig?.wheels.find((w) => w.id === wId);
-      return {
-        wheel_id: wId,
-        wheel_code: meta?.code || wId.toUpperCase(),
-        wheel_name: meta?.name || `Roda ${wId}`,
-        stock_ban_id: bId,
-        nomor_seri: tire?.nomor_seri,
-        merk: tire?.merk,
-        ukuran: tire?.ukuran,
-        kondisi: tire?.kondisi,
-        is_borrowed: tire?.isBorrowed ? 1 : 0,
-        donor_unit_id: tire?.borrowedMeta?.donorUnitId || null,
-        donor_unit_name: tire?.borrowedMeta?.donorUnitName || null,
-        donor_category: tire?.borrowedMeta?.donorCategory || null,
-        borrowed_at: tire?.borrowedMeta?.borrowedAt || null
-      };
-    });
-
-    fetch('/api/tire-tread/installations/save-all', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        mobil_id: activeMobilId,
-        alat_berat_id: activeAlatBeratId,
-        category,
-        installations: list
-      })
-    })
-      .then((res) => res.json())
-      .then((json) => {
-        if (json.status === 'success') {
-          setDbSyncStatus('synced');
-        } else {
-          setDbSyncStatus('error');
-        }
-      })
-      .catch(() => {
-        setDbSyncStatus('error');
       });
   };
 

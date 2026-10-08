@@ -641,6 +641,7 @@ class TireTreadPatternController {
         $alatBeratId = !empty($data['alat_berat_id']) ? (int)$data['alat_berat_id'] : null;
         $wheel1 = trim($data['wheel_id_1'] ?? $data['wheel_a'] ?? '');
         $wheel2 = trim($data['wheel_id_2'] ?? $data['wheel_b'] ?? '');
+        $category = $data['category'] ?? null;
 
         if ((!$mobilId && !$alatBeratId) || !$wheel1 || !$wheel2) {
             http_response_code(400);
@@ -658,7 +659,7 @@ class TireTreadPatternController {
             $unitCond = $mobilId ? "mobil_id = ?" : "alat_berat_id = ?";
             $unitVal = $mobilId ?: $alatBeratId;
 
-            // 1. Ambil data ban terpasang di wheel 1 dan wheel 2
+            // 1. Ambil data ban terpasang di wheel 1 dan wheel 2 dari DB
             $stmt1 = $pdo->prepare("SELECT * FROM tire_wheel_installations WHERE {$unitCond} AND wheel_id = ?");
             $stmt1->execute([$unitVal, $wheel1]);
             $row1 = $stmt1->fetch(\PDO::FETCH_ASSOC);
@@ -666,6 +667,47 @@ class TireTreadPatternController {
             $stmt2 = $pdo->prepare("SELECT * FROM tire_wheel_installations WHERE {$unitCond} AND wheel_id = ?");
             $stmt2->execute([$unitVal, $wheel2]);
             $row2 = $stmt2->fetch(\PDO::FETCH_ASSOC);
+
+            // Fallback: Jika di DB belum tersimpan tapi frontend mengirim objek ban
+            if (!$row1 && !empty($data['tire_1'])) {
+                $t1 = $data['tire_1'];
+                $row1 = [
+                    'mobil_id' => $mobilId,
+                    'alat_berat_id' => $alatBeratId,
+                    'category' => $category,
+                    'wheel_id' => $wheel1,
+                    'stock_ban_id' => (int)($t1['stock_ban_id'] ?? $t1['id'] ?? 0),
+                    'nomor_seri' => $t1['nomor_seri'] ?? null,
+                    'merk' => $t1['merk'] ?? null,
+                    'ukuran' => $t1['ukuran'] ?? null,
+                    'kondisi' => $t1['kondisi'] ?? null,
+                    'is_borrowed' => !empty($t1['is_borrowed']) ? 1 : 0,
+                    'donor_unit_id' => !empty($t1['donor_unit_id']) ? (int)$t1['donor_unit_id'] : null,
+                    'donor_unit_name' => $t1['donor_unit_name'] ?? null,
+                    'donor_category' => $t1['donor_category'] ?? null,
+                    'borrowed_at' => !empty($t1['borrowed_at']) ? date('Y-m-d H:i:s', strtotime($t1['borrowed_at'])) : null
+                ];
+            }
+
+            if (!$row2 && !empty($data['tire_2'])) {
+                $t2 = $data['tire_2'];
+                $row2 = [
+                    'mobil_id' => $mobilId,
+                    'alat_berat_id' => $alatBeratId,
+                    'category' => $category,
+                    'wheel_id' => $wheel2,
+                    'stock_ban_id' => (int)($t2['stock_ban_id'] ?? $t2['id'] ?? 0),
+                    'nomor_seri' => $t2['nomor_seri'] ?? null,
+                    'merk' => $t2['merk'] ?? null,
+                    'ukuran' => $t2['ukuran'] ?? null,
+                    'kondisi' => $t2['kondisi'] ?? null,
+                    'is_borrowed' => !empty($t2['is_borrowed']) ? 1 : 0,
+                    'donor_unit_id' => !empty($t2['donor_unit_id']) ? (int)$t2['donor_unit_id'] : null,
+                    'donor_unit_name' => $t2['donor_unit_name'] ?? null,
+                    'donor_category' => $t2['donor_category'] ?? null,
+                    'borrowed_at' => !empty($t2['borrowed_at']) ? date('Y-m-d H:i:s', strtotime($t2['borrowed_at'])) : null
+                ];
+            }
 
             if (!$row1 && !$row2) {
                 $pdo->rollBack();
@@ -682,6 +724,10 @@ class TireTreadPatternController {
 
             $wheelMeta1 = $data['wheel_meta_1'] ?? [];
             $wheelMeta2 = $data['wheel_meta_2'] ?? [];
+            $code1 = !empty($wheelMeta1['code']) ? $wheelMeta1['code'] : strtoupper($wheel1);
+            $name1 = !empty($wheelMeta1['name']) ? $wheelMeta1['name'] : "Roda $wheel1";
+            $code2 = !empty($wheelMeta2['code']) ? $wheelMeta2['code'] : strtoupper($wheel2);
+            $name2 = !empty($wheelMeta2['name']) ? $wheelMeta2['name'] : "Roda $wheel2";
 
             $insSql = "
                 INSERT INTO tire_wheel_installations 
@@ -694,28 +740,52 @@ class TireTreadPatternController {
             $insStmt = $pdo->prepare($insSql);
 
             // Jika row1 ada, pasang ke wheel2
-            if ($row1) {
-                $code2 = !empty($wheelMeta2['code']) ? $wheelMeta2['code'] : strtoupper($wheel2);
-                $name2 = !empty($wheelMeta2['name']) ? $wheelMeta2['name'] : "Roda $wheel2";
+            if ($row1 && !empty($row1['stock_ban_id'])) {
                 $insStmt->execute([
-                    $row1['mobil_id'], $row1['alat_berat_id'], $row1['category'],
+                    $mobilId, $alatBeratId, $category ?: ($row1['category'] ?? null),
                     $wheel2, $code2, $name2,
                     $row1['stock_ban_id'], $row1['nomor_seri'], $row1['merk'], $row1['ukuran'],
                     $row1['kondisi'], $row1['is_borrowed'], $row1['donor_unit_id'],
                     $row1['donor_unit_name'], $row1['donor_category'], $row1['borrowed_at']
                 ]);
+
+                // Catat log perpindahan ke tire_installation_logs
+                $stmtLog1 = $pdo->prepare("
+                    INSERT INTO tire_installation_logs 
+                        (mobil_id, alat_berat_id, category, wheel_id, wheel_code, stock_ban_id, nomor_seri, action, is_borrowed, donor_unit_id, donor_unit_name, notes)
+                    VALUES 
+                        (?, ?, ?, ?, ?, ?, ?, 'tukar', ?, ?, ?, ?)
+                ");
+                $stmtLog1->execute([
+                    $mobilId, $alatBeratId, $category ?: ($row1['category'] ?? null),
+                    $wheel2, $code2, $row1['stock_ban_id'], $row1['nomor_seri'],
+                    $row1['is_borrowed'], $row1['donor_unit_id'], $row1['donor_unit_name'],
+                    "Pindah posisi ban #{$row1['nomor_seri']} dari [$code1] ke [$code2]"
+                ]);
             }
 
             // Jika row2 ada, pasang ke wheel1
-            if ($row2) {
-                $code1 = !empty($wheelMeta1['code']) ? $wheelMeta1['code'] : strtoupper($wheel1);
-                $name1 = !empty($wheelMeta1['name']) ? $wheelMeta1['name'] : "Roda $wheel1";
+            if ($row2 && !empty($row2['stock_ban_id'])) {
                 $insStmt->execute([
-                    $row2['mobil_id'], $row2['alat_berat_id'], $row2['category'],
+                    $mobilId, $alatBeratId, $category ?: ($row2['category'] ?? null),
                     $wheel1, $code1, $name1,
                     $row2['stock_ban_id'], $row2['nomor_seri'], $row2['merk'], $row2['ukuran'],
                     $row2['kondisi'], $row2['is_borrowed'], $row2['donor_unit_id'],
                     $row2['donor_unit_name'], $row2['donor_category'], $row2['borrowed_at']
+                ]);
+
+                // Catat log perpindahan ke tire_installation_logs
+                $stmtLog2 = $pdo->prepare("
+                    INSERT INTO tire_installation_logs 
+                        (mobil_id, alat_berat_id, category, wheel_id, wheel_code, stock_ban_id, nomor_seri, action, is_borrowed, donor_unit_id, donor_unit_name, notes)
+                    VALUES 
+                        (?, ?, ?, ?, ?, ?, ?, 'tukar', ?, ?, ?, ?)
+                ");
+                $stmtLog2->execute([
+                    $mobilId, $alatBeratId, $category ?: ($row2['category'] ?? null),
+                    $wheel1, $code1, $row2['stock_ban_id'], $row2['nomor_seri'],
+                    $row2['is_borrowed'], $row2['donor_unit_id'], $row2['donor_unit_name'],
+                    "Pindah posisi ban #{$row2['nomor_seri']} dari [$code2] ke [$code1]"
                 ]);
             }
 
@@ -723,7 +793,13 @@ class TireTreadPatternController {
             http_response_code(200);
             echo json_encode([
                 'status' => 'success',
-                'message' => "Posisi ban antara roda [$wheel1] dan [$wheel2] berhasil ditukar"
+                'message' => "Posisi ban antara roda [$code1] dan [$code2] berhasil ditukar dan dicatat ke database",
+                'data' => [
+                    'wheel_1' => $wheel1,
+                    'wheel_2' => $wheel2,
+                    'code_1' => $code1,
+                    'code_2' => $code2
+                ]
             ]);
 
         } catch (\Exception $e) {

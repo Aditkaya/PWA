@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
-import { globalActiveDraggedBanId, TireDetailModal, type StockBanItem, type WheelMeta } from './VehicleSchematic3D';
+import { globalActiveDraggedBanId, setGlobalActiveDraggedBanId, TireDetailModal, type StockBanItem, type WheelMeta } from './VehicleSchematic3D';
 
 export interface VehicleWheelConfig {
   wheelCount?: number;
@@ -326,13 +326,100 @@ export default function VehicleAnimation3D({
   const [isCanvasDragOver, setIsCanvasDragOver] = useState<boolean>(false);
   const isDraggingRef = useRef<boolean>(false);
 
+  // 3D Canvas Native Pointer Drag & Drop untuk Tukar Posisi Ban
+  const [liveDragState, setLiveDragState] = useState<{
+    sourceWheelId: string;
+    targetWheelId: string | null;
+    clientX: number;
+    clientY: number;
+  } | null>(null);
+  const liveDragStateRef = useRef<{
+    sourceWheelId: string;
+    targetWheelId: string | null;
+    clientX: number;
+    clientY: number;
+  } | null>(null);
+
+  const onSwapTiresRef = useRef(onSwapTires);
   useEffect(() => {
-    isDraggingRef.current = Boolean(isCanvasDragOver || draggedTireId || touchCoords);
-  }, [isCanvasDragOver, draggedTireId, touchCoords]);
+    onSwapTiresRef.current = onSwapTires;
+  }, [onSwapTires]);
+
+  useEffect(() => {
+    isDraggingRef.current = Boolean(isCanvasDragOver || draggedTireId || touchCoords || liveDragState);
+  }, [isCanvasDragOver, draggedTireId, touchCoords, liveDragState]);
 
   const setDndTarget = (id: string | null) => {
     dndHoverWheelIdRef.current = id;
     setDndHoverWheelId(id);
+  };
+
+  // Helper raycast resolver roda di koordinat layar (X, Y)
+  const getWheelAtCoords = (clientX: number, clientY: number): string | null => {
+    const renderer = rendererRef.current;
+    const camera = cameraRef.current;
+    if (!renderer || !camera) return null;
+    const rect = renderer.domElement.getBoundingClientRect();
+    const mx = ((clientX - rect.left) / rect.width) * 2 - 1;
+    const my = -((clientY - rect.top) / rect.height) * 2 + 1;
+    const ray = new THREE.Raycaster();
+    ray.setFromCamera(new THREE.Vector2(mx, my), camera);
+
+    const wheelMeshes: THREE.Object3D[] = [];
+    wheelsMeshMap.current.forEach((grp) => {
+      grp.traverse((child) => {
+        if (child instanceof THREE.Mesh && child.userData.wheelId) {
+          wheelMeshes.push(child);
+        }
+      });
+    });
+
+    const intersects = ray.intersectObjects(wheelMeshes, false);
+    if (intersects.length > 0) {
+      const hitIds: string[] = [];
+      intersects.forEach((h) => {
+        const id = h.object.userData.wheelId as string;
+        if (id && !hitIds.includes(id)) hitIds.push(id);
+      });
+
+      for (const wid of hitIds) {
+        const info = wheelCoordsMapRef.current.get(wid);
+        if (info?.isDual && info.partnerId && hitIds.includes(info.partnerId)) {
+          const outerId = info.isOuter ? wid : info.partnerId;
+          const innerId = info.isInner ? wid : info.partnerId;
+          const outerTire = getTireForWheelRef.current(outerId);
+          const innerTire = getTireForWheelRef.current(innerId);
+
+          if (isDraggingRef.current) {
+            if (outerTire && !innerTire) return innerId;
+            if (!outerTire && innerTire) return outerId;
+          }
+          return innerId;
+        }
+      }
+      return hitIds[0];
+    }
+
+    let closestWheelId: string | null = null;
+    let minDistance = 140;
+    wheelsMeshMap.current.forEach((grp, wId) => {
+      const worldPos = new THREE.Vector3();
+      grp.getWorldPosition(worldPos);
+      worldPos.project(camera);
+      if (worldPos.z <= 1) {
+        const screenX = ((worldPos.x + 1) * rect.width) / 2 + rect.left;
+        const screenY = ((-worldPos.y + 1) * rect.height) / 2 + rect.top;
+        let dist = Math.hypot(clientX - screenX, clientY - screenY);
+        const info = wheelCoordsMapRef.current.get(wId);
+        if (info?.isInner) dist -= 15;
+        if (dist < minDistance) {
+          minDistance = dist;
+          closestWheelId = wId;
+        }
+      }
+    });
+
+    return closestWheelId;
   };
 
   // Transisi Animasi Kamera Halus (Cinematic Lerp)
@@ -1025,17 +1112,68 @@ export default function VehicleAnimation3D({
       wheelsMeshMap.current.set(coord.id, wheelGroup);
     });
 
-    // ── RAYCASTER UNTUK INTERAKSI KLIK & HOVER PADA BAN ──
+    // ── RAYCASTER UNTUK INTERAKSI KLIK & DRAG BAN ──
     const raycaster = new THREE.Raycaster();
     const mouse = new THREE.Vector2();
 
     let pointerDownPos: { x: number; y: number } | null = null;
     let pointerDownTime = 0;
+    let dragCandidateWheelId: string | null = null;
+    let isDraggingTire = false;
 
     const handlePointerDown = (event: PointerEvent) => {
       if (event.button !== 0 && event.pointerType === 'mouse') return;
       pointerDownPos = { x: event.clientX, y: event.clientY };
       pointerDownTime = Date.now();
+
+      // Cek apakah klik awal tepat pada ban yang sudah terpasang
+      const hitWheelId = getExactTireHitAtCoords(event.clientX, event.clientY);
+      if (hitWheelId && getTireForWheelRef.current(hitWheelId)) {
+        dragCandidateWheelId = hitWheelId;
+      } else {
+        dragCandidateWheelId = null;
+      }
+      isDraggingTire = false;
+    };
+
+    const handlePointerMove = (event: PointerEvent) => {
+      // Jika menekan ban terpasang dan kursor digeser:
+      if (dragCandidateWheelId && pointerDownPos) {
+        const moveDist = Math.hypot(event.clientX - pointerDownPos.x, event.clientY - pointerDownPos.y);
+
+        // Ambang batas 7 pixel untuk memulai mode Drag Ban
+        if (!isDraggingTire && moveDist > 7) {
+          isDraggingTire = true;
+          controls.enabled = false; // KUNCI KAMERA agar tidak berputar saat geser ban!
+          renderer.domElement.style.cursor = 'grabbing';
+        }
+
+        if (isDraggingTire) {
+          // Cari slot roda yang dituju kursor (menggunakan getWheelAtCoords)
+          const targetId = getWheelAtCoords(event.clientX, event.clientY);
+          const validTargetId = targetId && targetId !== dragCandidateWheelId ? targetId : null;
+
+          const nextState = {
+            sourceWheelId: dragCandidateWheelId,
+            targetWheelId: validTargetId,
+            clientX: event.clientX,
+            clientY: event.clientY
+          };
+          liveDragStateRef.current = nextState;
+          setLiveDragState(nextState);
+          return;
+        }
+      }
+
+      if (event.pointerType !== 'touch') {
+        const hitWheelId = getExactTireHitAtCoords(event.clientX, event.clientY);
+        if (hitWheelId) {
+          const hasTire = Boolean(getTireForWheelRef.current(hitWheelId));
+          renderer.domElement.style.cursor = hasTire ? 'grab' : 'pointer';
+        } else {
+          renderer.domElement.style.cursor = 'default';
+        }
+      }
     };
 
     const handlePointerUp = (event: PointerEvent) => {
@@ -1044,13 +1182,43 @@ export default function VehicleAnimation3D({
 
       const dist = Math.hypot(event.clientX - pointerDownPos.x, event.clientY - pointerDownPos.y);
       const elapsed = Date.now() - pointerDownTime;
-      pointerDownPos = null;
 
-      // Jika pointer digeser untuk orbit/pan kamera, abaikan klik
+      // ── SELESAI DRAGGING BAN (TUKAR POSISI BAN) ──
+      if (isDraggingTire && dragCandidateWheelId) {
+        controls.enabled = true; // Aktifkan kembali kontrol kamera
+        renderer.domElement.style.cursor = 'default';
+
+        const targetId = getWheelAtCoords(event.clientX, event.clientY);
+        if (targetId && targetId !== dragCandidateWheelId) {
+          // Trigger animasi pasang pada kedua roda yang ditukar
+          mountingAnims.current.set(targetId, { startTime: performance.now(), duration: 520 });
+          mountingAnims.current.set(dragCandidateWheelId, { startTime: performance.now(), duration: 520 });
+
+          // Jalankan pertukaran posisi ban!
+          onSwapTiresRef.current?.(dragCandidateWheelId, targetId);
+        }
+
+        dragCandidateWheelId = null;
+        isDraggingTire = false;
+        pointerDownPos = null;
+        liveDragStateRef.current = null;
+        setLiveDragState(null);
+        return;
+      }
+
+      // Reset
+      controls.enabled = true;
+      dragCandidateWheelId = null;
+      isDraggingTire = false;
+      pointerDownPos = null;
+      liveDragStateRef.current = null;
+      setLiveDragState(null);
+
+      // Jika kursor digeser untuk orbit/pan kamera, abaikan klik
       if (dist > 6 || elapsed > 300) return;
       if (touchCoordsRef.current || dndHoverWheelIdRef.current) return;
 
-      // PRESISI TINGGI: HANYA memicu jika raycast benar-benar mengenai permukaan mesh 3D ban/velg
+      // ── KLIK BIASA PADA BAN (Buka Modal Detail Ban) ──
       const hitWheelId = getExactTireHitAtCoords(event.clientX, event.clientY);
       if (hitWheelId) {
         const tire = getTireForWheelRef.current(hitWheelId);
@@ -1062,17 +1230,13 @@ export default function VehicleAnimation3D({
     };
 
     const handlePointerCancel = () => {
+      controls.enabled = true;
+      dragCandidateWheelId = null;
+      isDraggingTire = false;
       pointerDownPos = null;
-    };
-
-    const handlePointerMove = (event: PointerEvent) => {
-      if (event.pointerType === 'touch') return;
-      const hitWheelId = getExactTireHitAtCoords(event.clientX, event.clientY);
-      if (hitWheelId) {
-        renderer.domElement.style.cursor = 'pointer';
-      } else {
-        renderer.domElement.style.cursor = 'default';
-      }
+      liveDragStateRef.current = null;
+      setLiveDragState(null);
+      renderer.domElement.style.cursor = 'default';
     };
 
     // Deteksi Klik Presisi Tinggi: HANYA mengenai permukaan 3D fisik ban/velg
@@ -1258,7 +1422,8 @@ export default function VehicleAnimation3D({
         const ghostLine = wheelGroup.getObjectByName('ghostLine') as THREE.LineSegments;
 
         const isSelected = selectedWheelIdRef.current === wId;
-        const isDndHover = dndHoverWheelIdRef.current === wId;
+        const isDndHover = dndHoverWheelIdRef.current === wId || liveDragStateRef.current?.targetWheelId === wId;
+        const isLiveDragSource = liveDragStateRef.current?.sourceWheelId === wId;
         const assignedTire = getTireForWheelRef.current(wId);
         const hasTire = Boolean(assignedTire);
         const coord = wheelCoordsMapRef.current.get(wId);
@@ -1286,6 +1451,9 @@ export default function VehicleAnimation3D({
           if (isDndHover && !hasTire) {
             tMat.emissive.setHex(coord?.isInner ? 0x4a044e : 0x064e3b);
             tMat.emissiveIntensity = 0.45;
+          } else if (isLiveDragSource) {
+            tMat.emissive.setHex(0x0c4a6e);
+            tMat.emissiveIntensity = 0.5;
           } else {
             tMat.emissive.setHex(0x000000);
             tMat.emissiveIntensity = 0;
@@ -1304,6 +1472,10 @@ export default function VehicleAnimation3D({
           if (isDndHover) {
             mat.color.setHex(coord?.isInner ? 0xc084fc : 0x10b981);
             mat.emissive.setHex(coord?.isInner ? 0x9333ea : 0x047857);
+            mat.emissiveIntensity = 0.85;
+          } else if (isLiveDragSource) {
+            mat.color.setHex(0x38bdf8);
+            mat.emissive.setHex(0x0284c7);
             mat.emissiveIntensity = 0.85;
           } else if (hasTire) {
             if (isSelected) {
@@ -1372,13 +1544,18 @@ export default function VehicleAnimation3D({
         });
 
         if (halo) {
-          halo.visible = isSelected || isDndHover;
+          halo.visible = isSelected || isDndHover || isLiveDragSource;
           const hMat = halo.material as THREE.MeshBasicMaterial;
           if (isDndHover) {
             hMat.color.setHex(coord?.isInner ? 0xc084fc : 0x10b981);
             const pulseScale = 1.15 + Math.sin(time * 12) * 0.12;
             halo.scale.set(pulseScale, pulseScale, pulseScale);
             halo.rotation.x = time * 2;
+          } else if (isLiveDragSource) {
+            hMat.color.setHex(0x38bdf8);
+            const pulseScale = 1.12 + Math.sin(time * 10) * 0.1;
+            halo.scale.set(pulseScale, pulseScale, pulseScale);
+            halo.rotation.x = time * 1.5;
           } else if (isSelected) {
             hMat.color.setHex(coord?.isInner ? 0xa855f7 : 0x38bdf8);
             const pulseScale = 1.0 + Math.sin(time * 6) * 0.08;
@@ -1453,73 +1630,7 @@ export default function VehicleAnimation3D({
     setIsDualSeparated(false);
   };
 
-  // Helper raycast global
-  const getWheelAtCoords = (clientX: number, clientY: number): string | null => {
-    const renderer = rendererRef.current;
-    const camera = cameraRef.current;
-    if (!renderer || !camera) return null;
-    const rect = renderer.domElement.getBoundingClientRect();
-    const mx = ((clientX - rect.left) / rect.width) * 2 - 1;
-    const my = -((clientY - rect.top) / rect.height) * 2 + 1;
-    const ray = new THREE.Raycaster();
-    ray.setFromCamera(new THREE.Vector2(mx, my), camera);
 
-    const wheelMeshes: THREE.Object3D[] = [];
-    wheelsMeshMap.current.forEach((grp) => {
-      grp.traverse((child) => {
-        if (child instanceof THREE.Mesh && child.userData.wheelId) {
-          wheelMeshes.push(child);
-        }
-      });
-    });
-
-    const intersects = ray.intersectObjects(wheelMeshes, false);
-    if (intersects.length > 0) {
-      const hitIds: string[] = [];
-      intersects.forEach((h) => {
-        const id = h.object.userData.wheelId as string;
-        if (id && !hitIds.includes(id)) hitIds.push(id);
-      });
-
-      for (const wid of hitIds) {
-        const info = wheelCoordsMapRef.current.get(wid);
-        if (info?.isDual && info.partnerId && hitIds.includes(info.partnerId)) {
-          const outerId = info.isOuter ? wid : info.partnerId;
-          const innerId = info.isInner ? wid : info.partnerId;
-          const outerTire = getTireForWheelRef.current(outerId);
-          const innerTire = getTireForWheelRef.current(innerId);
-
-          if (isDraggingRef.current) {
-            if (outerTire && !innerTire) return innerId;
-            if (!outerTire && innerTire) return outerId;
-          }
-          return innerId;
-        }
-      }
-      return hitIds[0];
-    }
-
-    let closestWheelId: string | null = null;
-    let minDistance = 140;
-    wheelsMeshMap.current.forEach((grp, wId) => {
-      const worldPos = new THREE.Vector3();
-      grp.getWorldPosition(worldPos);
-      worldPos.project(camera);
-      if (worldPos.z <= 1) {
-        const screenX = ((worldPos.x + 1) * rect.width) / 2 + rect.left;
-        const screenY = ((-worldPos.y + 1) * rect.height) / 2 + rect.top;
-        let dist = Math.hypot(clientX - screenX, clientY - screenY);
-        const info = wheelCoordsMapRef.current.get(wId);
-        if (info?.isInner) dist -= 15;
-        if (dist < minDistance) {
-          minDistance = dist;
-          closestWheelId = wId;
-        }
-      }
-    });
-
-    return closestWheelId;
-  };
 
   // Handler touch drag realtime
   useEffect(() => {
@@ -1560,12 +1671,19 @@ export default function VehicleAnimation3D({
     e.preventDefault();
     setIsCanvasDragOver(false);
     const targetWheelId = dndHoverWheelIdRef.current || getWheelAtCoords(e.clientX, e.clientY);
+    const sourceWheel = e.dataTransfer.getData('application/wheel-source');
     const banIdStr = e.dataTransfer.getData('text/plain');
     const banId = Number(banIdStr) || (draggedTireId ?? null) || globalActiveDraggedBanId;
 
-    if (targetWheelId && banId) {
-      mountingAnims.current.set(targetWheelId, { startTime: performance.now(), duration: 520 });
-      onDropTireToWheelRef.current?.(targetWheelId, Number(banId));
+    if (targetWheelId) {
+      if (sourceWheel && sourceWheel !== targetWheelId) {
+        mountingAnims.current.set(targetWheelId, { startTime: performance.now(), duration: 520 });
+        mountingAnims.current.set(sourceWheel, { startTime: performance.now(), duration: 520 });
+        onSwapTiresRef.current?.(sourceWheel, targetWheelId);
+      } else if (banId) {
+        mountingAnims.current.set(targetWheelId, { startTime: performance.now(), duration: 520 });
+        onDropTireToWheelRef.current?.(targetWheelId, Number(banId));
+      }
     }
     setDndTarget(null);
   };
@@ -1681,6 +1799,15 @@ export default function VehicleAnimation3D({
                   <button
                     key={w.id}
                     type="button"
+                    draggable={hasTire}
+                    onDragStart={(e) => {
+                      const t = getTireForWheel(w.id);
+                      if (t) {
+                        e.dataTransfer.setData('text/plain', String(t.id));
+                        e.dataTransfer.setData('application/wheel-source', w.id);
+                        setGlobalActiveDraggedBanId(t.id);
+                      }
+                    }}
                     className={`vs-3d-ribbon-btn ${isSel ? 'active' : ''} ${w.isInner ? 'vs-3d-ribbon-btn--inner' : ''} ${hasTire ? 'vs-3d-ribbon-btn--has-tire' : ''}`}
                     onClick={() => handleSelectWheelDirect(w.id)}
                     onDragOver={(e) => {
@@ -1689,15 +1816,20 @@ export default function VehicleAnimation3D({
                     }}
                     onDrop={(e) => {
                       e.preventDefault();
+                      const sourceWheel = e.dataTransfer.getData('application/wheel-source');
                       const banIdStr = e.dataTransfer.getData('text/plain');
                       const banId = Number(banIdStr) || (draggedTireId ?? null) || globalActiveDraggedBanId;
-                      if (banId) {
+                      if (sourceWheel && sourceWheel !== w.id) {
+                        mountingAnims.current.set(w.id, { startTime: performance.now(), duration: 520 });
+                        mountingAnims.current.set(sourceWheel, { startTime: performance.now(), duration: 520 });
+                        onSwapTiresRef.current?.(sourceWheel, w.id);
+                      } else if (banId) {
                         mountingAnims.current.set(w.id, { startTime: performance.now(), duration: 520 });
                         onDropTireToWheelRef.current?.(w.id, Number(banId));
                       }
                       setDndTarget(null);
                     }}
-                    title={`${meta?.name || `Roda ${code}`} (${w.isInner ? 'Posisi Dalam' : w.isOuter ? 'Posisi Luar' : 'Kemudi'})`}
+                    title={`${meta?.name || `Roda ${code}`} (${w.isInner ? 'Posisi Dalam' : w.isOuter ? 'Posisi Luar' : 'Kemudi'}) - Tarik untuk tukar`}
                   >
                     <span>{code}</span>
                     {w.isInner && <span style={{ fontSize: '0.6rem', color: '#c084fc' }}>●</span>}
@@ -1721,6 +1853,29 @@ export default function VehicleAnimation3D({
         onDrop={handleCanvasDrop}
       >
         <div ref={containerRef} className="vs-3d-viewport" />
+
+        {/* Live Drag Floater saat Drag Langsung di Kanvas 3D */}
+        {liveDragState && (
+          <div className="vs-3d-dnd-overlay" style={{ pointerEvents: 'none' }}>
+            <div
+              className="vs-3d-live-swap-badge"
+              style={{
+                left: `${liveDragState.clientX}px`,
+                top: `${liveDragState.clientY - 42}px`
+              }}
+            >
+              <span className="vs-3d-pulse-dot" style={{ background: '#38bdf8' }} />
+              <span>
+                🛞 <strong>[{wheelConfig?.wheels.find((w) => w.id === liveDragState.sourceWheelId)?.code || liveDragState.sourceWheelId.toUpperCase()}]</strong>
+                {liveDragState.targetWheelId ? (
+                  <> ⇄ Tukar dengan <strong>[{wheelConfig?.wheels.find((w) => w.id === liveDragState.targetWheelId)?.code || liveDragState.targetWheelId.toUpperCase()}]</strong></>
+                ) : (
+                  <> (Arahkan ke roda lain untuk tukar)</>
+                )}
+              </span>
+            </div>
+          </div>
+        )}
 
         {isCanvasDragOver && (
           <div className="vs-3d-dnd-overlay">

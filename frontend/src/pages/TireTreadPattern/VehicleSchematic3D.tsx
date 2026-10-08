@@ -100,6 +100,9 @@ function SvgDefs({ id }: { id: string }) {
 
 // Global fallback agar ID ban yang ditarik (dragged) tidak hilang saat transisi event DOM
 export let globalActiveDraggedBanId: number | null = null;
+export const setGlobalActiveDraggedBanId = (id: number | null) => {
+  globalActiveDraggedBanId = id;
+};
 
 /* ─────────────────────────────────────────────────────────────
    TIRE COMPONENT (High Contrast, Staggered Pill Offset, Drag & Drop Support)
@@ -149,6 +152,14 @@ function Tire({
       className={`vs-tire${isActive ? ' vs-tire--active' : ''}${!isAssigned ? ' vs-tire--unassigned' : ''}`}
       onClick={() => onClick?.(id)}
       data-wheel-id={id}
+      {...({ draggable: isAssigned } as any)}
+      onDragStart={(e) => {
+        if (tireData) {
+          e.dataTransfer.setData('text/plain', String(tireData.id));
+          e.dataTransfer.setData('application/wheel-source', id);
+          setGlobalActiveDraggedBanId(tireData.id);
+        }
+      }}
       onDragOver={(e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'copy';
@@ -164,7 +175,7 @@ function Tire({
           onDropTire?.(id, Number(banId));
         }
       }}
-      style={{ cursor: 'pointer' }}
+      style={{ cursor: isAssigned ? 'grab' : 'pointer' }}
     >
       {/* Active Glowing Ring atau Drag-Over Highlight */}
       {(isActive || isDndOver || isTouchOver) && (

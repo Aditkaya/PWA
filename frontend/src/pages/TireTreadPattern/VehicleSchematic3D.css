@@ -1936,16 +1936,16 @@
 .vs-tray-title-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   flex-wrap: wrap;
 }
 
 .vs-tray-icon {
-  font-size: 1.1rem;
+  font-size: 1rem;
 }
 
 .vs-tray-title-text {
-  font-size: 0.84rem;
+  font-size: 0.82rem;
   font-weight: 800;
   color: #f8fafc;
   letter-spacing: 0.4px;
@@ -1959,18 +1959,18 @@
   color: #38bdf8;
   background: rgba(56, 189, 248, 0.12);
   border: 1px solid rgba(56, 189, 248, 0.3);
-  padding: 2px 8px;
+  padding: 2px 7px;
   border-radius: 999px;
+  white-space: nowrap;
 }
 
 /* ── Tray Controls & Filter Tabs ── */
 .vs-tray-controls {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 8px;
-  margin-bottom: 10px;
-  flex-wrap: wrap;
+  margin-bottom: 8px;
+  width: 100%;
 }
 
 .vs-filter-tabs {
@@ -1978,11 +1978,11 @@
   align-items: center;
   gap: 3px;
   background: rgba(15, 23, 42, 0.7);
-  padding: 2px;
+  padding: 3px;
   border-radius: 8px;
   border: 1px solid rgba(255, 255, 255, 0.08);
-  flex: 1;
-  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 .vs-filter-tab {
@@ -1991,7 +1991,7 @@
   background: transparent;
   border: none;
   color: #94a3b8;
-  font-size: 0.68rem;
+  font-size: 0.72rem;
   font-weight: 700;
   font-family: ui-monospace, monospace;
   padding: 5px 6px;
@@ -2011,10 +2011,19 @@
   border: 1px solid rgba(56, 189, 248, 0.4);
 }
 
-.vs-tray-hint-mini {
-  font-size: 0.68rem;
-  color: #64748b;
-  font-family: ui-monospace, monospace;
+.vs-tray-empty-success {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #34d399;
+  font-weight: 600;
+  font-size: 0.75rem;
+  padding: 8px 12px;
+  background: rgba(16, 185, 129, 0.1);
+  border: 1px solid rgba(16, 185, 129, 0.25);
+  border-radius: 8px;
+  width: 100%;
+  box-sizing: border-box;
 }
 
 /* ── High Contrast Card Typography ── */
@@ -2705,6 +2714,156 @@
   color: #94a3b8;
   font-size: 0.65rem;
   font-weight: 500;
+}
+
+/* ==========================================================================
+   RESPONSIVE DESIGN (DEVICE HP / MOBILE FIRST)
+   ========================================================================== */
+@media (max-width: 640px) {
+  .vs-workbench {
+    gap: 10px;
+  }
+
+  .vs-tray-card {
+    padding: 10px 10px 12px;
+    border-radius: 12px;
+  }
+
+  .vs-tray-header {
+    flex-direction: row;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    margin-bottom: 8px;
+  }
+
+  .vs-tray-title-group {
+    gap: 5px;
+    flex: 1;
+    min-width: 0;
+  }
+
+  .vs-tray-title-text {
+    font-size: 0.78rem;
+  }
+
+  .vs-tray-counter-badge {
+    font-size: 0.62rem;
+    padding: 1px 6px;
+  }
+
+  .vs-tray-borrowed-pill {
+    font-size: 0.62rem;
+    padding: 1px 6px;
+  }
+
+  .vs-tray-actions-group {
+    gap: 6px;
+    flex-shrink: 0;
+  }
+
+  .vs-borrow-trigger-btn {
+    padding: 4px 8px;
+    font-size: 0.68rem;
+    gap: 4px;
+    border-radius: 6px;
+  }
+
+  .vs-detach-all-btn {
+    padding: 4px 8px;
+    font-size: 0.68rem;
+    border-radius: 6px;
+  }
+
+  .vs-tray-controls {
+    margin-bottom: 8px;
+  }
+
+  .vs-filter-tabs {
+    gap: 2px;
+    padding: 2px;
+  }
+
+  .vs-filter-tab {
+    font-size: 0.66rem;
+    padding: 5px 2px;
+    border-radius: 5px;
+  }
+
+  .vs-tray-list {
+    max-height: 320px;
+    gap: 6px;
+  }
+
+  .vs-tire-card {
+    padding: 6px 8px;
+    min-height: 54px;
+    gap: 8px;
+    border-radius: 10px;
+  }
+
+  .vs-card-left {
+    gap: 6px;
+    min-width: 0;
+  }
+
+  .vs-drag-handle {
+    font-size: 1rem;
+    padding: 4px 2px;
+  }
+
+  .vs-card-brand {
+    font-size: 0.78rem;
+  }
+
+  .vs-card-serial-pill {
+    font-size: 0.66rem;
+    padding: 1px 4px;
+  }
+
+  .vs-card-spec {
+    font-size: 0.65rem;
+  }
+
+  .vs-card-cond-pill {
+    font-size: 0.58rem;
+    padding: 1px 4px;
+  }
+
+  .vs-card-right {
+    gap: 4px;
+    flex-shrink: 0;
+  }
+
+  .vs-status-badge {
+    font-size: 0.64rem;
+    padding: 3px 6px;
+  }
+
+  .vs-detach-btn--pill {
+    font-size: 0.64rem;
+    padding: 3px 6px;
+  }
+
+  .vs-borrowed-tag {
+    font-size: 0.58rem;
+    padding: 1px 4px;
+  }
+
+  .vs-return-btn {
+    font-size: 0.62rem;
+    padding: 2px 6px;
+  }
+
+  .vs-tray-empty {
+    padding: 18px 10px;
+    font-size: 0.74rem;
+  }
+
+  .vs-tray-empty-success {
+    font-size: 0.72rem;
+    padding: 6px 10px;
+  }
 }
 
 

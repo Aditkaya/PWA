@@ -1986,9 +1986,9 @@ export default function VehicleSchematic3D({
             <div className="vs-tray-header">
               <div className="vs-tray-title-group">
                 <span className="vs-tray-icon">🛞</span>
-                <span className="vs-tray-title-text">Inventori Ban Unit</span>
+                <span className="vs-tray-title-text">Stok Ban</span>
                 <span className="vs-tray-counter-badge">
-                  {unassignedTiresCount} siap • {assignedCount}/{wheelCount} terpasang
+                  {unassignedTiresCount} Siap • {assignedCount}/{wheelCount} Terpasang
                 </span>
                 {borrowedTires.length > 0 && (
                   <span className="vs-tray-borrowed-pill" title={`${borrowedTires.length} ban pinjaman dari unit sesama armada`}>
@@ -1997,15 +1997,15 @@ export default function VehicleSchematic3D({
                 )}
               </div>
 
-              <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <div className="vs-tray-actions-group">
                 <button
                   type="button"
                   className="vs-borrow-trigger-btn"
                   onClick={() => setIsBorrowModalOpen(true)}
-                  title="Pinjam ban dari unit lain dalam armada sesama jenis"
+                  title="Pinjam ban dari unit lain"
                 >
                   <span>🔄</span>
-                  <span>Pinjam Ban</span>
+                  <span>Pinjam</span>
                 </button>
 
                 {assignedCount > 0 && (
@@ -2021,7 +2021,7 @@ export default function VehicleSchematic3D({
               </div>
             </div>
 
-            {/* Filter Tabs & Panduan Drag */}
+            {/* Filter Tabs */}
             <div className="vs-tray-controls">
               <div className="vs-filter-tabs">
                 <button
@@ -2046,29 +2046,22 @@ export default function VehicleSchematic3D({
                   Semua ({allTires.length})
                 </button>
               </div>
-
-              <span className="vs-tray-hint-mini">
-                🖐️ Tarik ban ke denah roda
-              </span>
             </div>
 
             {/* List Kartu Ban */}
             <div className="vs-tray-list">
               {allTires.length === 0 ? (
                 <div className="vs-tray-empty">
-                  {isLoading ? '⟳ Memuat data inventori ban...' : 'Tidak ada data ban terdaftar untuk unit ini.'}
+                  {isLoading ? '⟳ Memuat data...' : 'Tidak ada data ban.'}
                 </div>
               ) : displayedTires.length === 0 ? (
                 <div className="vs-tray-empty">
                   {trayFilter === 'ready' && assignedCount > 0 ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', alignItems: 'center' }}>
-                      <span style={{ color: '#10b981', fontWeight: 600 }}>✓ Semua ban ({assignedCount}) sudah terpasang ke roda unit</span>
-                      <span style={{ fontSize: '0.72rem', color: '#94a3b8' }}>
-                        Copot ban dari posisi roda atau pilih tab "Terpasang" untuk melepas ban.
-                      </span>
+                    <div className="vs-tray-empty-success">
+                      <span>✓ Semua ban ({assignedCount}) sudah terpasang</span>
                     </div>
                   ) : (
-                    'Tidak ada ban yang cocok dengan filter yang dipilih.'
+                    'Tidak ada ban dalam filter ini.'
                   )}
                 </div>
               ) : (

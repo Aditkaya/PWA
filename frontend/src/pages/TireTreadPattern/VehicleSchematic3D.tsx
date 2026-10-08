@@ -779,6 +779,9 @@ export interface TireDetailModalProps {
   onClose: () => void;
   onRemove?: () => void;
   onReturn?: () => void;
+  onSwap?: (targetWheelId: string) => void;
+  availableWheels?: WheelMeta[];
+  getTireForWheel?: (wheelId: string) => StockBanItem | null;
 }
 
 export function TireDetailModal({
@@ -787,10 +790,26 @@ export function TireDetailModal({
   wheelId,
   onClose,
   onRemove,
-  onReturn
+  onReturn,
+  onSwap,
+  availableWheels,
+  getTireForWheel
 }: TireDetailModalProps) {
   const wheelCode = wheelMeta?.code || (wheelId ? wheelId.toUpperCase() : null);
   const wheelName = wheelMeta?.name || (wheelId ? `Roda ${wheelId}` : 'Roda Unit');
+  const [targetSwapWheelId, setTargetSwapWheelId] = useState<string>('');
+  const [swapFeedback, setSwapFeedback] = useState<string | null>(null);
+
+  const handleExecuteSwap = () => {
+    if (!targetSwapWheelId || !onSwap) return;
+    const targetMeta = availableWheels?.find((w) => w.id === targetSwapWheelId);
+    const targetCode = targetMeta?.code || targetSwapWheelId.toUpperCase();
+    onSwap(targetSwapWheelId);
+    setSwapFeedback(`Posisi ban berhasil ditukar ke [${targetCode}]!`);
+    setTimeout(() => {
+      onClose();
+    }, 450);
+  };
 
   return (
     <div className="vs-modal-backdrop" onClick={onClose}>
@@ -847,6 +866,55 @@ export function TireDetailModal({
               </div>
             </div>
           </div>
+
+          {/* Section: Tukar / Rotasi Posisi Ban */}
+          {onSwap && availableWheels && availableWheels.length > 1 && (
+            <div className="vs-modal-swap-box">
+              <div className="vs-modal-swap-header">
+                <span className="vs-modal-swap-icon">🔄</span>
+                <div className="vs-modal-swap-title-group">
+                  <span className="vs-modal-swap-title">Tukar / Rotasi Posisi Ban</span>
+                  <span className="vs-modal-swap-subtitle">
+                    Pindahkan atau tukar posisi ban #{tire.nomor_seri} ini dengan roda lain
+                  </span>
+                </div>
+              </div>
+              <div className="vs-modal-swap-row">
+                <select
+                  className="vs-modal-swap-select"
+                  value={targetSwapWheelId}
+                  onChange={(e) => setTargetSwapWheelId(e.target.value)}
+                  disabled={Boolean(swapFeedback)}
+                >
+                  <option value="" disabled>-- Pilih Roda Tujuan Tukar --</option>
+                  {availableWheels
+                    .filter((w) => w.id !== wheelId)
+                    .map((w) => {
+                      const otherTire = getTireForWheel?.(w.id);
+                      return (
+                        <option key={w.id} value={w.id}>
+                          [{w.code}] {w.name} {otherTire ? `⇄ Terpasang: #${otherTire.nomor_seri} (${otherTire.merk})` : '⚪ (Slot Kosong)'}
+                        </option>
+                      );
+                    })}
+                </select>
+                <button
+                  type="button"
+                  className="vs-modal-swap-btn"
+                  onClick={handleExecuteSwap}
+                  disabled={!targetSwapWheelId || Boolean(swapFeedback)}
+                  title="Tukar posisi ban sekarang"
+                >
+                  {swapFeedback ? '✓ Ditukar' : '🔄 Tukar Posisi'}
+                </button>
+              </div>
+              {swapFeedback && (
+                <div className="vs-modal-swap-feedback">
+                  ✓ {swapFeedback}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Grid Rincian Data Ban */}
           <div className="vs-modal-grid">
@@ -1680,14 +1748,127 @@ export default function VehicleSchematic3D({
     }
   };
 
+  // Menukar posisi dua ban yang sedang terpasang (atau memindahkan ke roda kosong)
+  const handleSwapTires = (wheelId1: string, wheelId2: string) => {
+    if (!wheelId1 || !wheelId2 || wheelId1 === wheelId2) return;
+
+    const nextAssigns = { ...assignments };
+    const ban1 = nextAssigns[wheelId1];
+    const ban2 = nextAssigns[wheelId2];
+
+    if (!ban1 && !ban2) return;
+
+    if (ban2) {
+      nextAssigns[wheelId1] = ban2;
+    } else {
+      delete nextAssigns[wheelId1];
+    }
+
+    if (ban1) {
+      nextAssigns[wheelId2] = ban1;
+    } else {
+      delete nextAssigns[wheelId2];
+    }
+
+    saveAssignments(nextAssigns);
+
+    const meta1 = wheelConfig?.wheels.find((w) => w.id === wheelId1);
+    const meta2 = wheelConfig?.wheels.find((w) => w.id === wheelId2);
+
+    // Kirim mutasi swap ke database MySQL
+    setDbSyncStatus('saving');
+    fetch('/api/tire-tread/installations/swap', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mobil_id: activeMobilId,
+        alat_berat_id: activeAlatBeratId,
+        category,
+        wheel_id_1: wheelId1,
+        wheel_id_2: wheelId2,
+        wheel_meta_1: meta1,
+        wheel_meta_2: meta2
+      })
+    })
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.status === 'success') {
+          setDbSyncStatus('synced');
+        } else {
+          syncAllInstallationsToBackend(nextAssigns);
+        }
+      })
+      .catch(() => {
+        syncAllInstallationsToBackend(nextAssigns);
+      });
+  };
+
+  const syncAllInstallationsToBackend = (assignMap: Record<string, number>) => {
+    const list = Object.entries(assignMap).map(([wId, bId]) => {
+      const tire = allTires.find((t) => t.id === bId);
+      const meta = wheelConfig?.wheels.find((w) => w.id === wId);
+      return {
+        wheel_id: wId,
+        wheel_code: meta?.code || wId.toUpperCase(),
+        wheel_name: meta?.name || `Roda ${wId}`,
+        stock_ban_id: bId,
+        nomor_seri: tire?.nomor_seri,
+        merk: tire?.merk,
+        ukuran: tire?.ukuran,
+        kondisi: tire?.kondisi,
+        is_borrowed: tire?.isBorrowed ? 1 : 0,
+        donor_unit_id: tire?.borrowedMeta?.donorUnitId || null,
+        donor_unit_name: tire?.borrowedMeta?.donorUnitName || null,
+        donor_category: tire?.borrowedMeta?.donorCategory || null,
+        borrowed_at: tire?.borrowedMeta?.borrowedAt || null
+      };
+    });
+
+    fetch('/api/tire-tread/installations/save-all', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        mobil_id: activeMobilId,
+        alat_berat_id: activeAlatBeratId,
+        category,
+        installations: list
+      })
+    })
+      .then((res) => res.json())
+      .then((json) => {
+        if (json.status === 'success') {
+          setDbSyncStatus('synced');
+        } else {
+          setDbSyncStatus('error');
+        }
+      })
+      .catch(() => {
+        setDbSyncStatus('error');
+      });
+  };
+
   // Pasang ban tertentu ke posisi roda dan simpan ke database
   const handleAssignTire = (wheelId: string, banId: number) => {
-    const nextAssigns = { ...assignments };
-    // Jika ban ini sebelumnya terpasang di roda lain, lepas dari roda lama
-    for (const [wKey, bVal] of Object.entries(nextAssigns)) {
+    // Cek apakah ban ini sebelumnya sudah terpasang di roda lain
+    let sourceWheelId: string | null = null;
+    for (const [wKey, bVal] of Object.entries(assignments)) {
       if (bVal === banId) {
-        delete nextAssigns[wKey];
+        sourceWheelId = wKey;
+        break;
       }
+    }
+
+    const targetExistingBanId = assignments[wheelId];
+
+    // Jika ban dipindahkan dari roda lain DAN roda tujuan sudah terpasang ban: TUKAR POSISI (SWAP)!
+    if (sourceWheelId && sourceWheelId !== wheelId && targetExistingBanId) {
+      handleSwapTires(sourceWheelId, wheelId);
+      return;
+    }
+
+    const nextAssigns = { ...assignments };
+    if (sourceWheelId) {
+      delete nextAssigns[sourceWheelId];
     }
     nextAssigns[wheelId] = banId;
     saveAssignments(nextAssigns);
@@ -1975,6 +2156,7 @@ export default function VehicleSchematic3D({
                 }}
                 onRemoveTireFromWheel={handleRemoveTire}
                 onReturnBorrowedTire={handleReturnTire}
+                onSwapTires={handleSwapTires}
                 draggedTireId={draggedTireId || touchDraggingTire?.id || null}
                 touchCoords={touchCoords}
                 onTargetWheelChange={(wId) => {
@@ -2023,6 +2205,19 @@ export default function VehicleSchematic3D({
                             >
                               ✓ #{getTireForWheel(activeWheelId)?.nomor_seri} ({getTireForWheel(activeWheelId)?.merk})
                             </span>
+                            <button
+                              type="button"
+                              className="vs-detach-btn vs-detach-btn--pill"
+                              style={{ background: 'rgba(56, 189, 248, 0.15)', borderColor: 'rgba(56, 189, 248, 0.45)', color: '#38bdf8' }}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                const t = getTireForWheel(activeWheelId);
+                                if (t) setBlueprintDetailTire({ tire: t, wheelId: activeWheelId });
+                              }}
+                              title="Tukar posisi ban ini"
+                            >
+                              🔄 Tukar
+                            </button>
                             <button
                               type="button"
                               className="vs-detach-btn vs-detach-btn--pill"
@@ -2309,6 +2504,8 @@ export default function VehicleSchematic3D({
           tire={blueprintDetailTire.tire}
           wheelId={blueprintDetailTire.wheelId}
           wheelMeta={wheelConfig?.wheels.find((w) => w.id === blueprintDetailTire.wheelId) || null}
+          availableWheels={wheelConfig?.wheels}
+          getTireForWheel={getTireForWheel}
           onClose={() => setBlueprintDetailTire(null)}
           onRemove={() => {
             if (blueprintDetailTire.wheelId) {
@@ -2318,6 +2515,12 @@ export default function VehicleSchematic3D({
           onReturn={() => {
             handleReturnTire(blueprintDetailTire.tire.id);
             setBlueprintDetailTire(null);
+          }}
+          onSwap={(targetWheelId) => {
+            if (blueprintDetailTire.wheelId) {
+              handleSwapTires(blueprintDetailTire.wheelId, targetWheelId);
+              setBlueprintDetailTire(null);
+            }
           }}
         />
       )}

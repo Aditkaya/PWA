@@ -632,6 +632,113 @@ class TireTreadPatternController {
             ]);
         }
     }
+
+    /**
+     * Menukar posisi dua ban pada roda unit (atau memindahkan ban ke roda kosong).
+     */
+    public function swapInstallations($data = []) {
+        $mobilId = !empty($data['mobil_id']) ? (int)$data['mobil_id'] : null;
+        $alatBeratId = !empty($data['alat_berat_id']) ? (int)$data['alat_berat_id'] : null;
+        $wheel1 = trim($data['wheel_id_1'] ?? $data['wheel_a'] ?? '');
+        $wheel2 = trim($data['wheel_id_2'] ?? $data['wheel_b'] ?? '');
+
+        if ((!$mobilId && !$alatBeratId) || !$wheel1 || !$wheel2) {
+            http_response_code(400);
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Field mobil_id/alat_berat_id, wheel_id_1, dan wheel_id_2 wajib diisi'
+            ]);
+            return;
+        }
+
+        try {
+            $pdo = Database::getConnection();
+            $pdo->beginTransaction();
+
+            $unitCond = $mobilId ? "mobil_id = ?" : "alat_berat_id = ?";
+            $unitVal = $mobilId ?: $alatBeratId;
+
+            // 1. Ambil data ban terpasang di wheel 1 dan wheel 2
+            $stmt1 = $pdo->prepare("SELECT * FROM tire_wheel_installations WHERE {$unitCond} AND wheel_id = ?");
+            $stmt1->execute([$unitVal, $wheel1]);
+            $row1 = $stmt1->fetch(\PDO::FETCH_ASSOC);
+
+            $stmt2 = $pdo->prepare("SELECT * FROM tire_wheel_installations WHERE {$unitCond} AND wheel_id = ?");
+            $stmt2->execute([$unitVal, $wheel2]);
+            $row2 = $stmt2->fetch(\PDO::FETCH_ASSOC);
+
+            if (!$row1 && !$row2) {
+                $pdo->rollBack();
+                echo json_encode([
+                    'status' => 'error',
+                    'message' => 'Kedua roda kosong, tidak ada ban yang dapat ditukar'
+                ]);
+                return;
+            }
+
+            // 2. Hapus kedua record dari roda ini untuk menghindari duplikasi
+            $delStmt = $pdo->prepare("DELETE FROM tire_wheel_installations WHERE {$unitCond} AND wheel_id IN (?, ?)");
+            $delStmt->execute([$unitVal, $wheel1, $wheel2]);
+
+            $wheelMeta1 = $data['wheel_meta_1'] ?? [];
+            $wheelMeta2 = $data['wheel_meta_2'] ?? [];
+
+            $insSql = "
+                INSERT INTO tire_wheel_installations 
+                    (mobil_id, alat_berat_id, category, wheel_id, wheel_code, wheel_name, 
+                     stock_ban_id, nomor_seri, merk, ukuran, kondisi, is_borrowed, 
+                     donor_unit_id, donor_unit_name, donor_category, borrowed_at, installed_at)
+                VALUES 
+                    (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())
+            ";
+            $insStmt = $pdo->prepare($insSql);
+
+            // Jika row1 ada, pasang ke wheel2
+            if ($row1) {
+                $code2 = !empty($wheelMeta2['code']) ? $wheelMeta2['code'] : strtoupper($wheel2);
+                $name2 = !empty($wheelMeta2['name']) ? $wheelMeta2['name'] : "Roda $wheel2";
+                $insStmt->execute([
+                    $row1['mobil_id'], $row1['alat_berat_id'], $row1['category'],
+                    $wheel2, $code2, $name2,
+                    $row1['stock_ban_id'], $row1['nomor_seri'], $row1['merk'], $row1['ukuran'],
+                    $row1['kondisi'], $row1['is_borrowed'], $row1['donor_unit_id'],
+                    $row1['donor_unit_name'], $row1['donor_category'], $row1['borrowed_at']
+                ]);
+            }
+
+            // Jika row2 ada, pasang ke wheel1
+            if ($row2) {
+                $code1 = !empty($wheelMeta1['code']) ? $wheelMeta1['code'] : strtoupper($wheel1);
+                $name1 = !empty($wheelMeta1['name']) ? $wheelMeta1['name'] : "Roda $wheel1";
+                $insStmt->execute([
+                    $row2['mobil_id'], $row2['alat_berat_id'], $row2['category'],
+                    $wheel1, $code1, $name1,
+                    $row2['stock_ban_id'], $row2['nomor_seri'], $row2['merk'], $row2['ukuran'],
+                    $row2['kondisi'], $row2['is_borrowed'], $row2['donor_unit_id'],
+                    $row2['donor_unit_name'], $row2['donor_category'], $row2['borrowed_at']
+                ]);
+            }
+
+            $pdo->commit();
+            http_response_code(200);
+            echo json_encode([
+                'status' => 'success',
+                'message' => "Posisi ban antara roda [$wheel1] dan [$wheel2] berhasil ditukar"
+            ]);
+
+        } catch (\Exception $e) {
+            if ($pdo && $pdo->inTransaction()) {
+                $pdo->rollBack();
+            }
+            http_response_code(500);
+            error_log('TireTreadPatternController swapInstallations error: ' . $e->getMessage());
+            echo json_encode([
+                'status' => 'error',
+                'message' => 'Gagal menukar posisi ban: ' . $e->getMessage()
+            ]);
+        }
+    }
 }
+
 
 

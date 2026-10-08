@@ -23,6 +23,7 @@ interface VehicleAnimation3DProps {
   onDropTireToWheel?: (wheelId: string, banId: number) => void;
   onRemoveTireFromWheel?: (wheelId: string) => void;
   onReturnBorrowedTire?: (tireId: number) => void;
+  onSwapTires?: (wheelId1: string, wheelId2: string) => void;
   draggedTireId?: number | null;
   touchCoords?: { x: number; y: number } | null;
   onTargetWheelChange?: (wheelId: string | null) => void;
@@ -257,6 +258,7 @@ export default function VehicleAnimation3D({
   onDropTireToWheel,
   onRemoveTireFromWheel,
   onReturnBorrowedTire,
+  onSwapTires,
   draggedTireId,
   touchCoords,
   onTargetWheelChange
@@ -1747,6 +1749,8 @@ export default function VehicleAnimation3D({
           tire={detailModalTire.tire}
           wheelId={detailModalTire.wheelId}
           wheelMeta={wheelConfig?.wheels.find((w) => w.id === detailModalTire.wheelId) || null}
+          availableWheels={wheelConfig?.wheels}
+          getTireForWheel={getTireForWheel}
           onClose={() => setDetailModalTire(null)}
           onRemove={() => {
             if (detailModalTire.wheelId) {
@@ -1756,6 +1760,12 @@ export default function VehicleAnimation3D({
           onReturn={() => {
             onReturnBorrowedTire?.(detailModalTire.tire.id);
             setDetailModalTire(null);
+          }}
+          onSwap={(targetWheelId) => {
+            if (detailModalTire.wheelId) {
+              onSwapTires?.(detailModalTire.wheelId, targetWheelId);
+              setDetailModalTire(null);
+            }
           }}
         />
       )}

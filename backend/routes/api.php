@@ -763,6 +763,13 @@ if ($uri === '/api/tire-tread/installations/save-all' && $method === 'POST') {
     exit();
 }
 
+if ($uri === '/api/tire-tread/installations/swap' && $method === 'POST') {
+    require_once __DIR__ . '/../app/Http/Controllers/TireTreadPatternController.php';
+    $controller = new \App\Http\Controllers\TireTreadPatternController();
+    $controller->swapInstallations(is_array($requestData) ? $requestData : []);
+    exit();
+}
+
 
 http_response_code(404);
 echo json_encode(['message' => 'Endpoint tidak ditemukan']);

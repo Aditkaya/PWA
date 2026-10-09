@@ -152,15 +152,6 @@ function Tire({
       className={`vs-tire${isActive ? ' vs-tire--active' : ''}${!isAssigned ? ' vs-tire--unassigned' : ''}`}
       onClick={() => onClick?.(id)}
       data-wheel-id={id}
-      {...({ draggable: isAssigned } as any)}
-      onDragStart={(e) => {
-        if (tireData) {
-          e.dataTransfer.setData('text/plain', String(tireData.id));
-          e.dataTransfer.setData('application/wheel-source', id);
-          e.dataTransfer.effectAllowed = 'move';
-          setGlobalActiveDraggedBanId(tireData.id);
-        }
-      }}
       onDragOver={(e) => {
         e.preventDefault();
         e.dataTransfer.dropEffect = 'copy';
@@ -359,6 +350,18 @@ function startTouchDragFromSchematic(
   if (tire) onTouchDragStart?.(tire, event);
 }
 
+function startPointerDragFromSchematic(
+  event: React.PointerEvent<SVGSVGElement>,
+  getTire: (wheelId: string) => StockBanItem | null,
+  onPointerDragStart?: (tire: StockBanItem, event: React.PointerEvent) => void
+) {
+  if (event.button !== 0 && event.pointerType !== 'touch') return;
+  if (!(event.target instanceof Element)) return;
+  const wheelId = event.target.closest('[data-wheel-id]')?.getAttribute('data-wheel-id');
+  const tire = wheelId ? getTire(wheelId) : null;
+  if (tire) onPointerDragStart?.(tire, event);
+}
+
 /* ═══════════════════════════════════════════════════════════════
    6-RODA — Tractor Head
    ═══════════════════════════════════════════════════════════════ */
@@ -368,6 +371,7 @@ function Schema6Roda({
   getTire,
   onDropTire,
   onTouchDragStart,
+  onPointerDragStart,
   touchTargetWheelId
 }: {
   selectedWheelId?: string | null;
@@ -375,6 +379,7 @@ function Schema6Roda({
   getTire: (wheelId: string) => StockBanItem | null;
   onDropTire?: (wheelId: string, banId: number) => void;
   onTouchDragStart?: (tire: StockBanItem, event: React.TouchEvent) => void;
+  onPointerDragStart?: (tire: StockBanItem, event: React.PointerEvent) => void;
   touchTargetWheelId?: string | null;
 }) {
   const ID = 's6';
@@ -390,6 +395,7 @@ function Schema6Roda({
       className="vs-svg"
       xmlns="http://www.w3.org/2000/svg"
       onTouchStartCapture={(event) => startTouchDragFromSchematic(event, getTire, onTouchDragStart)}
+      onPointerDownCapture={(event) => startPointerDragFromSchematic(event, getTire, onPointerDragStart)}
     >
       <SvgDefs id={ID} />
       <rect width={VW} height={VH} fill={`url(#${ID}_grid)`} opacity={0.6} />
@@ -448,6 +454,7 @@ function Schema8Roda({
   getTire,
   onDropTire,
   onTouchDragStart,
+  onPointerDragStart,
   touchTargetWheelId
 }: {
   selectedWheelId?: string | null;
@@ -455,6 +462,7 @@ function Schema8Roda({
   getTire: (wheelId: string) => StockBanItem | null;
   onDropTire?: (wheelId: string, banId: number) => void;
   onTouchDragStart?: (tire: StockBanItem, event: React.TouchEvent) => void;
+  onPointerDragStart?: (tire: StockBanItem, event: React.PointerEvent) => void;
   touchTargetWheelId?: string | null;
 }) {
   const ID = 's8';
@@ -470,6 +478,7 @@ function Schema8Roda({
       className="vs-svg"
       xmlns="http://www.w3.org/2000/svg"
       onTouchStartCapture={(event) => startTouchDragFromSchematic(event, getTire, onTouchDragStart)}
+      onPointerDownCapture={(event) => startPointerDragFromSchematic(event, getTire, onPointerDragStart)}
     >
       <SvgDefs id={ID} />
       <rect width={VW} height={VH} fill={`url(#${ID}_grid)`} opacity={0.6} />
@@ -524,6 +533,7 @@ function Schema12Roda({
   getTire,
   onDropTire,
   onTouchDragStart,
+  onPointerDragStart,
   touchTargetWheelId
 }: {
   selectedWheelId?: string | null;
@@ -531,6 +541,7 @@ function Schema12Roda({
   getTire: (wheelId: string) => StockBanItem | null;
   onDropTire?: (wheelId: string, banId: number) => void;
   onTouchDragStart?: (tire: StockBanItem, event: React.TouchEvent) => void;
+  onPointerDragStart?: (tire: StockBanItem, event: React.PointerEvent) => void;
   touchTargetWheelId?: string | null;
 }) {
   const ID = 's12';
@@ -563,6 +574,7 @@ function Schema12Roda({
       className="vs-svg"
       xmlns="http://www.w3.org/2000/svg"
       onTouchStartCapture={(event) => startTouchDragFromSchematic(event, getTire, onTouchDragStart)}
+      onPointerDownCapture={(event) => startPointerDragFromSchematic(event, getTire, onPointerDragStart)}
     >
       <SvgDefs id={ID} />
       <rect width={VW} height={VH} fill={`url(#${ID}_grid)`} opacity={0.6} />
@@ -604,6 +616,7 @@ function Schema4Roda({
   getTire,
   onDropTire,
   onTouchDragStart,
+  onPointerDragStart,
   touchTargetWheelId
 }: {
   selectedWheelId?: string | null;
@@ -611,6 +624,7 @@ function Schema4Roda({
   getTire: (wheelId: string) => StockBanItem | null;
   onDropTire?: (wheelId: string, banId: number) => void;
   onTouchDragStart?: (tire: StockBanItem, event: React.TouchEvent) => void;
+  onPointerDragStart?: (tire: StockBanItem, event: React.PointerEvent) => void;
   touchTargetWheelId?: string | null;
 }) {
   const ID = 's4';
@@ -626,6 +640,7 @@ function Schema4Roda({
       className="vs-svg"
       xmlns="http://www.w3.org/2000/svg"
       onTouchStartCapture={(event) => startTouchDragFromSchematic(event, getTire, onTouchDragStart)}
+      onPointerDownCapture={(event) => startPointerDragFromSchematic(event, getTire, onPointerDragStart)}
     >
       <SvgDefs id={ID} />
       <rect width={VW} height={VH} fill={`url(#${ID}_grid)`} opacity={0.6} />
@@ -2023,15 +2038,17 @@ export default function VehicleSchematic3D({
   const touchDraggingTireRef = useRef<StockBanItem | null>(null);
   const touchCoordsRef = useRef<{ x: number; y: number } | null>(null);
   const touchTargetWheelIdRef = useRef<string | null>(null);
+  const pointerDragActiveRef = useRef(false);
+  const pointerDragIdRef = useRef<number | null>(null);
 
-  const handleTouchStart = (ban: StockBanItem, e: React.TouchEvent) => {
-    if (e.touches.length !== 1) return;
-    const touch = e.touches[0];
-    const coords = { x: touch.clientX, y: touch.clientY };
+  const beginVirtualDrag = (ban: StockBanItem, x: number, y: number) => {
+    const coords = { x, y };
     setTouchDraggingTire(ban);
     setTouchCoords(coords);
+    setTouchTargetWheelId(null);
     touchDraggingTireRef.current = ban;
     touchCoordsRef.current = coords;
+    touchTargetWheelIdRef.current = null;
 
     if (navigator.vibrate) {
       try {
@@ -2040,10 +2057,29 @@ export default function VehicleSchematic3D({
     }
   };
 
+  const handleTouchStart = (ban: StockBanItem, e: React.TouchEvent) => {
+    if (e.touches.length !== 1) return;
+    const touch = e.touches[0];
+    beginVirtualDrag(ban, touch.clientX, touch.clientY);
+  };
+
+  const handleSchematicTouchDragStart = (ban: StockBanItem, e: React.TouchEvent) => {
+    if (!pointerDragActiveRef.current) handleTouchStart(ban, e);
+  };
+
+  const handleSchematicPointerDragStart = (ban: StockBanItem, e: React.PointerEvent) => {
+    if (e.button !== 0 && e.pointerType !== 'touch') return;
+    e.preventDefault();
+    pointerDragActiveRef.current = true;
+    pointerDragIdRef.current = e.pointerId;
+    beginVirtualDrag(ban, e.clientX, e.clientY);
+  };
+
   useEffect(() => {
     if (!touchDraggingTire) return;
 
     const handleTouchMove = (e: TouchEvent) => {
+      if (pointerDragActiveRef.current) return;
       if (e.touches.length === 0) return;
       if (e.cancelable) {
         e.preventDefault(); // Mencegah scrolling layar saat sedang mendrag ban
@@ -2063,6 +2099,55 @@ export default function VehicleSchematic3D({
     };
 
     const handleTouchEnd = () => {
+      if (pointerDragActiveRef.current) return;
+      finishVirtualDrop();
+    };
+
+    const updatePointerTarget = (x: number, y: number) => {
+      const coords = { x, y };
+      setTouchCoords(coords);
+      touchCoordsRef.current = coords;
+
+      if (viewMode === 'blueprint') {
+        const el = document.elementFromPoint(x, y);
+        const wheelEl = el?.closest('[data-wheel-id]');
+        const wheelId = wheelEl?.getAttribute('data-wheel-id') || null;
+        setTouchTargetWheelId(wheelId);
+        touchTargetWheelIdRef.current = wheelId;
+      }
+    };
+
+    const handlePointerMove = (e: PointerEvent) => {
+      if (!pointerDragActiveRef.current || e.pointerId !== pointerDragIdRef.current) return;
+      if (e.cancelable) e.preventDefault();
+      updatePointerTarget(e.clientX, e.clientY);
+    };
+
+    const handlePointerEnd = (e: PointerEvent) => {
+      if (!pointerDragActiveRef.current || e.pointerId !== pointerDragIdRef.current) return;
+      pointerDragActiveRef.current = false;
+      pointerDragIdRef.current = null;
+      finishVirtualDrop();
+    };
+
+    window.addEventListener('touchmove', handleTouchMove, { passive: false });
+    window.addEventListener('touchend', handleTouchEnd);
+    window.addEventListener('touchcancel', handleTouchEnd);
+    window.addEventListener('pointermove', handlePointerMove, { passive: false });
+    window.addEventListener('pointerup', handlePointerEnd);
+    window.addEventListener('pointercancel', handlePointerEnd);
+
+    return () => {
+      window.removeEventListener('touchmove', handleTouchMove);
+      window.removeEventListener('touchend', handleTouchEnd);
+      window.removeEventListener('touchcancel', handleTouchEnd);
+      window.removeEventListener('pointermove', handlePointerMove);
+      window.removeEventListener('pointerup', handlePointerEnd);
+      window.removeEventListener('pointercancel', handlePointerEnd);
+    };
+  }, [touchDraggingTire, viewMode]);
+
+  const finishVirtualDrop = () => {
       const currentTire = touchDraggingTireRef.current;
       const targetWheel = touchTargetWheelIdRef.current;
 
@@ -2081,18 +2166,7 @@ export default function VehicleSchematic3D({
       touchDraggingTireRef.current = null;
       touchCoordsRef.current = null;
       touchTargetWheelIdRef.current = null;
-    };
-
-    window.addEventListener('touchmove', handleTouchMove, { passive: false });
-    window.addEventListener('touchend', handleTouchEnd);
-    window.addEventListener('touchcancel', handleTouchEnd);
-
-    return () => {
-      window.removeEventListener('touchmove', handleTouchMove);
-      window.removeEventListener('touchend', handleTouchEnd);
-      window.removeEventListener('touchcancel', handleTouchEnd);
-    };
-  }, [touchDraggingTire, viewMode]);
+  };
 
   return (
     <div className="vs-wrapper">
@@ -2185,16 +2259,16 @@ export default function VehicleSchematic3D({
             ) : (
               <div className="vs-container">
                 {wheelCount === 6 && (
-                  <Schema6Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} onTouchDragStart={handleTouchStart} touchTargetWheelId={touchTargetWheelId} />
+                  <Schema6Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} onTouchDragStart={handleSchematicTouchDragStart} onPointerDragStart={handleSchematicPointerDragStart} touchTargetWheelId={touchTargetWheelId} />
                 )}
                 {wheelCount === 8 && (
-                  <Schema8Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} onTouchDragStart={handleTouchStart} touchTargetWheelId={touchTargetWheelId} />
+                  <Schema8Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} onTouchDragStart={handleSchematicTouchDragStart} onPointerDragStart={handleSchematicPointerDragStart} touchTargetWheelId={touchTargetWheelId} />
                 )}
                 {wheelCount === 12 && (
-                  <Schema12Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} onTouchDragStart={handleTouchStart} touchTargetWheelId={touchTargetWheelId} />
+                  <Schema12Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} onTouchDragStart={handleSchematicTouchDragStart} onPointerDragStart={handleSchematicPointerDragStart} touchTargetWheelId={touchTargetWheelId} />
                 )}
                 {wheelCount === 4 && (
-                  <Schema4Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} onTouchDragStart={handleTouchStart} touchTargetWheelId={touchTargetWheelId} />
+                  <Schema4Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} onTouchDragStart={handleSchematicTouchDragStart} onPointerDragStart={handleSchematicPointerDragStart} touchTargetWheelId={touchTargetWheelId} />
                 )}
 
                 {/* Status Bar untuk Blueprint 2D */}

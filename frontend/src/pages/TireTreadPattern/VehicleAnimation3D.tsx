@@ -318,6 +318,7 @@ export default function VehicleAnimation3D({
   }, [isDualSeparated]);
 
   const [cameraView, setCameraView] = useState<'perspective' | 'top' | 'side' | 'dualFocus'>('perspective');
+  const [showWheelPositionMap, setShowWheelPositionMap] = useState(false);
 
   // State Modal Detail Data Ban yang Terpasang
   const [detailModalTire, setDetailModalTire] = useState<{ tire: StockBanItem; wheelId: string } | null>(null);
@@ -1898,6 +1899,72 @@ export default function VehicleAnimation3D({
         )}
       </div>
 
+      <section className="vs-wheel-position-map" aria-label="Peta posisi ban pada unit">
+        <div className="vs-wheel-position-map__heading">
+          <div>
+            <strong>Posisi Setiap Ban</strong>
+            <span>Pilih posisi untuk menyorot roda pada tampilan 3D</span>
+          </div>
+          <div className="vs-wheel-position-map__actions">
+            {showWheelPositionMap && (
+              <div className="vs-wheel-position-map__legend">
+                <span><i className="is-installed" /> Terpasang</span>
+                <span><i /> Kosong</span>
+              </div>
+            )}
+            <button
+              type="button"
+              className="vs-wheel-position-map__toggle"
+              onClick={() => setShowWheelPositionMap((visible) => !visible)}
+              aria-expanded={showWheelPositionMap}
+            >
+              {showWheelPositionMap ? 'Sembunyikan' : 'Tampilkan'} <span>{showWheelPositionMap ? '⌃' : '⌄'}</span>
+            </button>
+          </div>
+        </div>
+        {showWheelPositionMap && (
+          <>
+            <div className="vs-wheel-position-map__front">▲ DEPAN UNIT</div>
+            <div className="vs-wheel-position-map__rows">
+          {axleGroups.map((group, groupIndex) => (
+            <div className="vs-wheel-position-row" key={`${group.label}-${groupIndex}`}>
+              {(['L', 'R'] as const).map((side) => {
+                const sideWheels = group.wheels
+                  .filter((wheel) => wheel.side === side)
+                  .sort((a, b) => Number(Boolean(b.isOuter)) - Number(Boolean(a.isOuter)));
+                return (
+                  <div className={`vs-wheel-position-side vs-wheel-position-side--${side.toLowerCase()}`} key={side}>
+                    <span className="vs-wheel-position-side__label">{side === 'L' ? 'KIRI' : 'KANAN'}</span>
+                    {sideWheels.map((wheel) => {
+                      const meta = wheelConfig?.wheels.find((item) => item.id === wheel.id);
+                      const tire = getTireForWheel(wheel.id);
+                      const code = meta?.code || wheel.id.toUpperCase();
+                      const slotType = wheel.isInner ? 'Dalam' : wheel.isOuter ? 'Luar' : meta?.positionType === 'steer' ? 'Kemudi' : 'Roda';
+                      const selected = selectedWheelId === wheel.id;
+                      return (
+                        <button
+                          type="button"
+                          key={wheel.id}
+                          className={`vs-wheel-position-slot ${tire ? 'is-installed' : 'is-empty'} ${wheel.isInner ? 'is-inner' : ''} ${selected ? 'is-selected' : ''}`}
+                          onClick={() => handleSelectWheelDirect(wheel.id)}
+                          aria-pressed={selected}
+                          title={`${meta?.name || `Posisi ${code}`} — ${tire ? `Ban #${tire.nomor_seri}` : 'Belum terpasang'}`}
+                        >
+                          <span className="vs-wheel-position-slot__top"><b>{code}</b><small>{slotType}</small></span>
+                          <span className="vs-wheel-position-slot__tire">{tire ? `#${tire.nomor_seri}` : 'Belum terpasang'}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                );
+              })}
+              <span className="vs-wheel-position-row__axle">{group.label}</span>
+            </div>
+          ))}
+            </div>
+          </>
+        )}
+      </section>
 
 
       {/* ── 4. MODAL POPUP DETAIL LENGKAP DATA BAN ── */}

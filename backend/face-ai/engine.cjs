@@ -26,12 +26,9 @@ const crypto = require('node:crypto');
 // terhadap variasi pencahayaan dan ekspresi normal.
 const BIOMETRIC_THRESHOLD = parseFloat(process.env.FACE_AI_THRESHOLD || '0.44');
 
-// Ukuran wajah minimum: wajah harus menempati minimal 8% area foto.
-// Mencegah spoofing menggunakan foto kecil/jauh.
-const MIN_FACE_AREA_RATIO = parseFloat(process.env.FACE_AI_MIN_AREA || '0.08');
-
-// Detektor dengan scoreThreshold lebih tinggi (0.6) agar hanya wajah jelas yang diterima.
-const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 416, scoreThreshold: 0.6 });
+// Input lebih besar dan ambang deteksi lebih rendah membantu kamera HP yang
+// kurang tajam serta wajah yang berada agak jauh dari kamera.
+const options = new faceapi.TinyFaceDetectorOptions({ inputSize: 608, scoreThreshold: 0.3 });
 const references = new Map();
 const MAX_REFERENCES = 500;
 
@@ -42,7 +39,7 @@ async function initialize(modelDir) {
     faceapi.nets.faceLandmark68Net.loadFromDisk(modelDir),
     faceapi.nets.faceRecognitionNet.loadFromDisk(modelDir),
   ]);
-  console.log(`[FaceAI] Siap. Threshold: ${BIOMETRIC_THRESHOLD}, Min area wajah: ${MIN_FACE_AREA_RATIO}`);
+  console.log(`[FaceAI] Siap. Threshold kecocokan: ${BIOMETRIC_THRESHOLD}`);
 }
 
 function decodeImage(value) {
@@ -62,11 +59,10 @@ function decodeImage(value) {
  * Ambil face descriptor dan validasi kualitas wajah.
  * Throws jika:
  *  - Tidak ada atau lebih dari 1 wajah
- *  - Wajah terlalu kecil (foto dari jauh / spoofing foto kecil)
+ *  - Wajah tidak dapat dideteksi atau lebih dari satu wajah
  */
 async function descriptor(image) {
   const decoded = decodeImage(image);
-  const totalPixels = decoded.width * decoded.height;
   const input = faceapi.tf.tensor3d(decoded.data, [decoded.height, decoded.width, 3], 'int32');
   try {
     const faces = await faceapi.detectAllFaces(input, options).withFaceLandmarks().withFaceDescriptors();
@@ -76,16 +72,6 @@ async function descriptor(image) {
     }
     if (faces.length > 1) {
       throw new Error('Terdeteksi lebih dari satu wajah. Pastikan hanya Anda yang ada di kamera saat absen.');
-    }
-
-    // Validasi ukuran wajah: wajah harus cukup besar dalam frame
-    const { box } = faces[0].detection;
-    const faceAreaRatio = (box.width * box.height) / totalPixels;
-    if (faceAreaRatio < MIN_FACE_AREA_RATIO) {
-      throw new Error(
-        `Wajah terlalu jauh dari kamera (area terdeteksi: ${(faceAreaRatio * 100).toFixed(1)}%). ` +
-        'Dekatkan wajah ke kamera hingga memenuhi minimal 1/3 layar.'
-      );
     }
 
     return faces[0].descriptor;

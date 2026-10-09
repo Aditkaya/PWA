@@ -1134,6 +1134,7 @@ function ReturnTireToWarehouseModal({
   const [proofNumber, setProofNumber] = useState('');
   const [notes, setNotes] = useState('');
   const [loadingLocations, setLoadingLocations] = useState(true);
+  const [loadingProofNumber, setLoadingProofNumber] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -1151,6 +1152,17 @@ function ReturnTireToWarehouseModal({
       })
       .catch(() => active && setError('Lokasi penyimpanan gagal dimuat.'))
       .finally(() => active && setLoadingLocations(false));
+    fetch('/api/tire-tread/next-return-proof')
+      .then((response) => response.json())
+      .then((result) => {
+        if (active && result.status === 'success' && result.data?.nomor_bukti) {
+          setProofNumber(result.data.nomor_bukti);
+        } else if (active) {
+          setError(result.message || 'Nomor bukti pengembalian gagal dibuat.');
+        }
+      })
+      .catch(() => active && setError('Nomor bukti pengembalian gagal dibuat.'))
+      .finally(() => active && setLoadingProofNumber(false));
     return () => { active = false; };
   }, []);
 
@@ -1204,7 +1216,7 @@ function ReturnTireToWarehouseModal({
 
         <label className="vs-warehouse-field">
           <span>Nomor Bukti Kembali</span>
-          <input value={proofNumber} onChange={(event) => setProofNumber(event.target.value)} placeholder="Masukkan nomor bukti pengembalian" maxLength={100} disabled={saving} />
+          <input value={proofNumber} placeholder={loadingProofNumber ? 'Membuat nomor bukti...' : 'Nomor bukti tidak tersedia'} readOnly disabled={saving || loadingProofNumber} />
         </label>
 
         <label className="vs-warehouse-field">
@@ -1216,7 +1228,7 @@ function ReturnTireToWarehouseModal({
 
         <div className="vs-warehouse-modal-actions">
           <button type="button" className="vs-warehouse-cancel" onClick={onClose} disabled={saving}>Batal</button>
-          <button type="submit" className="vs-warehouse-submit" disabled={!location || saving || loadingLocations}>
+          <button type="submit" className="vs-warehouse-submit" disabled={!location || !proofNumber || saving || loadingLocations || loadingProofNumber}>
             {saving ? 'Menyimpan...' : '✓ Kembalikan ke Gudang'}
           </button>
         </div>

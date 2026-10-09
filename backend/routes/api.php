@@ -733,6 +733,12 @@ if ($uri === '/api/tire-tread/warehouse-locations' && $method === 'GET') {
     exit();
 }
 
+if ($uri === '/api/tire-tread/next-return-proof' && $method === 'GET') {
+    require_once __DIR__ . '/../app/Http/Controllers/TireTreadPatternController.php';
+    (new \App\Http\Controllers\TireTreadPatternController())->getNextReturnProofNumber();
+    exit();
+}
+
 if ($uri === '/api/tire-tread/return-to-warehouse' && $method === 'POST') {
     require_once __DIR__ . '/../app/Http/Controllers/TireTreadPatternController.php';
     (new \App\Http\Controllers\TireTreadPatternController())->returnTireToWarehouse(is_array($requestData) ? $requestData : []);

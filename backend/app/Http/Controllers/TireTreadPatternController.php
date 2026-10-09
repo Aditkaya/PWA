@@ -12,7 +12,7 @@ class TireTreadPatternController {
     public function getWarehouseLocations() {
         try {
             $pdo = Database::getConnection();
-            $stmt = $pdo->query("SELECT DISTINCT TRIM(lokasi) AS lokasi FROM stock_bans WHERE lokasi IS NOT NULL AND TRIM(lokasi) <> '' ORDER BY lokasi ASC");
+            $stmt = $pdo->query("SELECT DISTINCT TRIM(lokasi) AS lokasi FROM stock_bans WHERE lokasi IS NOT NULL AND TRIM(lokasi) <> '' AND LOWER(TRIM(lokasi)) <> 'bapak suudi' ORDER BY lokasi ASC");
             echo json_encode(['status' => 'success', 'data' => $stmt->fetchAll(PDO::FETCH_COLUMN)]);
         } catch (\PDOException $e) {
             http_response_code(500);
@@ -21,13 +21,44 @@ class TireTreadPatternController {
         }
     }
 
+    /** Generate the next MYYMM##### return proof number, starting at 00003. */
+    public function getNextReturnProofNumber() {
+        try {
+            $pdo = Database::getConnection();
+            echo json_encode(['status' => 'success', 'data' => ['nomor_bukti' => $this->nextReturnProofNumber($pdo)]]);
+        } catch (\PDOException $e) {
+            http_response_code(500);
+            error_log('TireTreadPatternController getNextReturnProofNumber error: ' . $e->getMessage());
+            echo json_encode(['status' => 'error', 'message' => 'Gagal membuat nomor bukti pengembalian']);
+        }
+    }
+
+    private function nextReturnProofNumber(PDO $pdo) {
+        $prefix = 'M' . date('ym');
+        $stmt = $pdo->prepare('SELECT nomor_bukti FROM stock_bans WHERE nomor_bukti LIKE ?');
+        $stmt->execute([$prefix . '%']);
+        $maxNumber = 2;
+        foreach ($stmt->fetchAll(PDO::FETCH_COLUMN) as $existingNumber) {
+            if (preg_match('/^' . preg_quote($prefix, '/') . '(\d+)$/', (string)$existingNumber, $matches)) {
+                $maxNumber = max($maxNumber, (int)$matches[1]);
+            }
+        }
+        $logs = $pdo->prepare('SELECT notes FROM tire_installation_logs WHERE notes LIKE ?');
+        $logs->execute(['%Bukti: ' . $prefix . '%']);
+        foreach ($logs->fetchAll(PDO::FETCH_COLUMN) as $note) {
+            if (preg_match('/Bukti:\s*' . preg_quote($prefix, '/') . '(\d+)/', (string)$note, $matches)) {
+                $maxNumber = max($maxNumber, (int)$matches[1]);
+            }
+        }
+        return $prefix . str_pad((string)($maxNumber + 1), 5, '0', STR_PAD_LEFT);
+    }
+
     /** Return an installed tire to inventory and keep the installation audit trail. */
     public function returnTireToWarehouse($data = []) {
         $mobilId = !empty($data['mobil_id']) ? (int)$data['mobil_id'] : null;
         $alatBeratId = !empty($data['alat_berat_id']) ? (int)$data['alat_berat_id'] : null;
         $stockBanId = !empty($data['stock_ban_id']) ? (int)$data['stock_ban_id'] : null;
         $location = trim($data['lokasi'] ?? '');
-        $proofNumber = trim($data['nomor_bukti'] ?? '');
         $notes = trim($data['keterangan'] ?? '');
 
         if ((!$mobilId && !$alatBeratId) || !$stockBanId || $location === '') {
@@ -37,8 +68,19 @@ class TireTreadPatternController {
         }
 
         $pdo = null;
+        $lockName = null;
         try {
             $pdo = Database::getConnection();
+            $prefix = 'M' . date('ym');
+            $lockName = 'tire-return-proof-' . $prefix;
+            $lock = $pdo->prepare('SELECT GET_LOCK(?, 10)');
+            $lock->execute([$lockName]);
+            if ((int)$lock->fetchColumn() !== 1) {
+                http_response_code(503);
+                echo json_encode(['status' => 'error', 'message' => 'Nomor bukti sedang diproses. Silakan coba kembali.']);
+                return;
+            }
+            $proofNumber = $this->nextReturnProofNumber($pdo);
             $pdo->beginTransaction();
             $unitColumn = $mobilId ? 'mobil_id' : 'alat_berat_id';
             $unitId = $mobilId ?: $alatBeratId;
@@ -52,7 +94,7 @@ class TireTreadPatternController {
                 return;
             }
 
-            $locationStmt = $pdo->prepare("SELECT 1 FROM stock_bans WHERE LOWER(TRIM(lokasi)) = LOWER(TRIM(?)) LIMIT 1");
+            $locationStmt = $pdo->prepare("SELECT 1 FROM stock_bans WHERE LOWER(TRIM(lokasi)) = LOWER(TRIM(?)) AND LOWER(TRIM(lokasi)) <> 'bapak suudi' LIMIT 1");
             $locationStmt->execute([$location]);
             if (!$locationStmt->fetchColumn()) {
                 $pdo->rollBack();
@@ -78,12 +120,19 @@ class TireTreadPatternController {
             $delete->execute([$installation['id']]);
             $pdo->commit();
 
-            echo json_encode(['status' => 'success', 'message' => 'Ban berhasil dikembalikan ke gudang', 'data' => ['stock_ban_id' => $stockBanId, 'wheel_id' => $installation['wheel_id'], 'lokasi' => $location]]);
+            echo json_encode(['status' => 'success', 'message' => 'Ban berhasil dikembalikan ke gudang', 'data' => ['stock_ban_id' => $stockBanId, 'wheel_id' => $installation['wheel_id'], 'lokasi' => $location, 'nomor_bukti' => $proofNumber]]);
         } catch (\PDOException $e) {
             if ($pdo && $pdo->inTransaction()) $pdo->rollBack();
             http_response_code(500);
             error_log('TireTreadPatternController returnTireToWarehouse error: ' . $e->getMessage());
             echo json_encode(['status' => 'error', 'message' => 'Gagal mengembalikan ban ke gudang']);
+        } finally {
+            if ($pdo && $lockName !== null) {
+                try {
+                    $release = $pdo->prepare('SELECT RELEASE_LOCK(?)');
+                    $release->execute([$lockName]);
+                } catch (\PDOException $ignored) {}
+            }
         }
     }
 

@@ -157,6 +157,7 @@ function Tire({
         if (tireData) {
           e.dataTransfer.setData('text/plain', String(tireData.id));
           e.dataTransfer.setData('application/wheel-source', id);
+          e.dataTransfer.effectAllowed = 'move';
           setGlobalActiveDraggedBanId(tireData.id);
         }
       }}
@@ -347,6 +348,17 @@ function DirectionBadge({ cx, y }: { cx: number; y: number }) {
   );
 }
 
+function startTouchDragFromSchematic(
+  event: React.TouchEvent<SVGSVGElement>,
+  getTire: (wheelId: string) => StockBanItem | null,
+  onTouchDragStart?: (tire: StockBanItem, event: React.TouchEvent) => void
+) {
+  if (!(event.target instanceof Element)) return;
+  const wheelId = event.target.closest('[data-wheel-id]')?.getAttribute('data-wheel-id');
+  const tire = wheelId ? getTire(wheelId) : null;
+  if (tire) onTouchDragStart?.(tire, event);
+}
+
 /* ═══════════════════════════════════════════════════════════════
    6-RODA — Tractor Head
    ═══════════════════════════════════════════════════════════════ */
@@ -355,12 +367,14 @@ function Schema6Roda({
   onWheelClick,
   getTire,
   onDropTire,
+  onTouchDragStart,
   touchTargetWheelId
 }: {
   selectedWheelId?: string | null;
   onWheelClick?: (id: string) => void;
   getTire: (wheelId: string) => StockBanItem | null;
   onDropTire?: (wheelId: string, banId: number) => void;
+  onTouchDragStart?: (tire: StockBanItem, event: React.TouchEvent) => void;
   touchTargetWheelId?: string | null;
 }) {
   const ID = 's6';
@@ -371,7 +385,12 @@ function Schema6Roda({
   const driveY = 320;
 
   return (
-    <svg viewBox={`0 0 ${VW} ${VH}`} className="vs-svg" xmlns="http://www.w3.org/2000/svg">
+    <svg
+      viewBox={`0 0 ${VW} ${VH}`}
+      className="vs-svg"
+      xmlns="http://www.w3.org/2000/svg"
+      onTouchStartCapture={(event) => startTouchDragFromSchematic(event, getTire, onTouchDragStart)}
+    >
       <SvgDefs id={ID} />
       <rect width={VW} height={VH} fill={`url(#${ID}_grid)`} opacity={0.6} />
 
@@ -428,12 +447,14 @@ function Schema8Roda({
   onWheelClick,
   getTire,
   onDropTire,
+  onTouchDragStart,
   touchTargetWheelId
 }: {
   selectedWheelId?: string | null;
   onWheelClick?: (id: string) => void;
   getTire: (wheelId: string) => StockBanItem | null;
   onDropTire?: (wheelId: string, banId: number) => void;
+  onTouchDragStart?: (tire: StockBanItem, event: React.TouchEvent) => void;
   touchTargetWheelId?: string | null;
 }) {
   const ID = 's8';
@@ -444,7 +465,12 @@ function Schema8Roda({
   const a2Y = 350;
 
   return (
-    <svg viewBox={`0 0 ${VW} ${VH}`} className="vs-svg" xmlns="http://www.w3.org/2000/svg">
+    <svg
+      viewBox={`0 0 ${VW} ${VH}`}
+      className="vs-svg"
+      xmlns="http://www.w3.org/2000/svg"
+      onTouchStartCapture={(event) => startTouchDragFromSchematic(event, getTire, onTouchDragStart)}
+    >
       <SvgDefs id={ID} />
       <rect width={VW} height={VH} fill={`url(#${ID}_grid)`} opacity={0.6} />
 
@@ -497,12 +523,14 @@ function Schema12Roda({
   onWheelClick,
   getTire,
   onDropTire,
+  onTouchDragStart,
   touchTargetWheelId
 }: {
   selectedWheelId?: string | null;
   onWheelClick?: (id: string) => void;
   getTire: (wheelId: string) => StockBanItem | null;
   onDropTire?: (wheelId: string, banId: number) => void;
+  onTouchDragStart?: (tire: StockBanItem, event: React.TouchEvent) => void;
   touchTargetWheelId?: string | null;
 }) {
   const ID = 's12';
@@ -530,7 +558,12 @@ function Schema12Roda({
   }
 
   return (
-    <svg viewBox={`0 0 ${VW} ${VH}`} className="vs-svg" xmlns="http://www.w3.org/2000/svg">
+    <svg
+      viewBox={`0 0 ${VW} ${VH}`}
+      className="vs-svg"
+      xmlns="http://www.w3.org/2000/svg"
+      onTouchStartCapture={(event) => startTouchDragFromSchematic(event, getTire, onTouchDragStart)}
+    >
       <SvgDefs id={ID} />
       <rect width={VW} height={VH} fill={`url(#${ID}_grid)`} opacity={0.6} />
 
@@ -570,12 +603,14 @@ function Schema4Roda({
   onWheelClick,
   getTire,
   onDropTire,
+  onTouchDragStart,
   touchTargetWheelId
 }: {
   selectedWheelId?: string | null;
   onWheelClick?: (id: string) => void;
   getTire: (wheelId: string) => StockBanItem | null;
   onDropTire?: (wheelId: string, banId: number) => void;
+  onTouchDragStart?: (tire: StockBanItem, event: React.TouchEvent) => void;
   touchTargetWheelId?: string | null;
 }) {
   const ID = 's4';
@@ -586,7 +621,12 @@ function Schema4Roda({
   const rearY  = 310;
 
   return (
-    <svg viewBox={`0 0 ${VW} ${VH}`} className="vs-svg" xmlns="http://www.w3.org/2000/svg">
+    <svg
+      viewBox={`0 0 ${VW} ${VH}`}
+      className="vs-svg"
+      xmlns="http://www.w3.org/2000/svg"
+      onTouchStartCapture={(event) => startTouchDragFromSchematic(event, getTire, onTouchDragStart)}
+    >
       <SvgDefs id={ID} />
       <rect width={VW} height={VH} fill={`url(#${ID}_grid)`} opacity={0.6} />
 
@@ -2145,16 +2185,16 @@ export default function VehicleSchematic3D({
             ) : (
               <div className="vs-container">
                 {wheelCount === 6 && (
-                  <Schema6Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} touchTargetWheelId={touchTargetWheelId} />
+                  <Schema6Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} onTouchDragStart={handleTouchStart} touchTargetWheelId={touchTargetWheelId} />
                 )}
                 {wheelCount === 8 && (
-                  <Schema8Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} touchTargetWheelId={touchTargetWheelId} />
+                  <Schema8Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} onTouchDragStart={handleTouchStart} touchTargetWheelId={touchTargetWheelId} />
                 )}
                 {wheelCount === 12 && (
-                  <Schema12Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} touchTargetWheelId={touchTargetWheelId} />
+                  <Schema12Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} onTouchDragStart={handleTouchStart} touchTargetWheelId={touchTargetWheelId} />
                 )}
                 {wheelCount === 4 && (
-                  <Schema4Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} touchTargetWheelId={touchTargetWheelId} />
+                  <Schema4Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} onTouchDragStart={handleTouchStart} touchTargetWheelId={touchTargetWheelId} />
                 )}
 
                 {/* Status Bar untuk Blueprint 2D */}

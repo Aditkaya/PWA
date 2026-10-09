@@ -234,6 +234,11 @@
   transform-origin: center;
 }
 
+.vs-tire:not(.vs-tire--unassigned) {
+  touch-action: none;
+  user-select: none;
+}
+
 .vs-tire:hover {
   filter: brightness(1.35) drop-shadow(0 0 10px rgba(56, 189, 248, 0.6));
 }

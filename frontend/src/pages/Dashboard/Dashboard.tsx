@@ -112,6 +112,15 @@ export default function Dashboard() {
     return first.charAt(0).toUpperCase() + first.slice(1).toLowerCase();
   };
 
+  const getHonorific = () => {
+    const gender = String(
+      userProfile?.jenis_kelamin ?? userProfile?.gender ?? userProfile?.jk ?? ''
+    ).trim().toLowerCase();
+    if (/^(p|perempuan|wanita|female|f)$/.test(gender)) return 'Ibu';
+    if (/^(l|laki[-\s]?laki|pria|male|m)$/.test(gender)) return 'Bapak';
+    return '';
+  };
+
   const loadOfflinePendingToHistory = async () => {
     try {
       const offlineItems = await getOfflineAttendances();
@@ -529,7 +538,7 @@ export default function Dashboard() {
         className="greeting-card glass-panel"
         style={{ background: getGreetingGradient() }}
       >
-        <h2>{getGreeting()}, {getFirstName()}!</h2>
+        <h2>{getGreeting()}, {getHonorific() && `${getHonorific()} `}{getFirstName()}!</h2>
         <p>{hasFullDayLeave ? t.statusLeave : (isOvertimeMode ? t.statusOvertime : t.statusActive)}</p>
       </div>
 

@@ -23,6 +23,7 @@ interface VehicleAnimation3DProps {
   onDropTireToWheel?: (wheelId: string, banId: number) => void;
   onRemoveTireFromWheel?: (wheelId: string) => void;
   onReturnBorrowedTire?: (tireId: number) => void;
+  onReturnTireToWarehouse?: (tire: StockBanItem, wheelId: string) => void;
   onSwapTires?: (wheelId1: string, wheelId2: string) => void;
   draggedTireId?: number | null;
   touchCoords?: { x: number; y: number } | null;
@@ -258,6 +259,7 @@ export default function VehicleAnimation3D({
   onDropTireToWheel,
   onRemoveTireFromWheel,
   onReturnBorrowedTire,
+  onReturnTireToWarehouse,
   onSwapTires,
   draggedTireId,
   touchCoords,
@@ -1912,6 +1914,10 @@ export default function VehicleAnimation3D({
           }}
           onReturn={() => {
             onReturnBorrowedTire?.(detailModalTire.tire.id);
+            setDetailModalTire(null);
+          }}
+          onReturnWarehouse={() => {
+            onReturnTireToWarehouse?.(detailModalTire.tire, detailModalTire.wheelId);
             setDetailModalTire(null);
           }}
         />

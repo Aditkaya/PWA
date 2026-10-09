@@ -27,6 +27,7 @@ export interface StockBanItem {
   status_ban_luar?: string | null;
   mobil_id?: number | null;
   alat_berat_id?: number | null;
+  isSynthetic?: boolean;
   isBorrowed?: boolean;
   borrowedMeta?: {
     donorUnitId: number | string;
@@ -54,6 +55,7 @@ export interface VehicleSchematicProps {
   mobilId?: number | string | null;
   alat_berat_id?: number | string | null;
   alatBeratId?: number | string | null;
+  unitName?: string;
   category?: string;
   wheelConfig?: {
     wheels: WheelMeta[];
@@ -845,6 +847,7 @@ export interface TireDetailModalProps {
   onClose: () => void;
   onRemove?: () => void;
   onReturn?: () => void;
+  onReturnWarehouse?: () => void;
 }
 
 export function TireDetailModal({
@@ -853,7 +856,8 @@ export function TireDetailModal({
   wheelId,
   onClose,
   onRemove,
-  onReturn
+  onReturn,
+  onReturnWarehouse
 }: TireDetailModalProps) {
   const wheelCode = wheelMeta?.code || (wheelId ? wheelId.toUpperCase() : null);
   const wheelName = wheelMeta?.name || (wheelId ? `Roda ${wheelId}` : 'Roda Unit');
@@ -1052,6 +1056,16 @@ export function TireDetailModal({
         </div>
 
         <div className="vs-modal-footer">
+          {onReturnWarehouse && !tire.isBorrowed && !tire.isSynthetic && (
+            <button
+              type="button"
+              className="vs-warehouse-return-btn"
+              onClick={onReturnWarehouse}
+              title="Kembalikan ban ke gudang"
+            >
+              ↩ Kembalikan ke Gudang
+            </button>
+          )}
           {tire.isBorrowed && onReturn && (
             <button
               type="button"
@@ -1096,6 +1110,117 @@ export function TireDetailModal({
           </button>
         </div>
       </div>
+    </div>
+  );
+}
+
+function ReturnTireToWarehouseModal({
+  tire,
+  mobilId,
+  alatBeratId,
+  unitName,
+  onClose,
+  onSuccess
+}: {
+  tire: StockBanItem;
+  mobilId: number | string | null;
+  alatBeratId: number | string | null;
+  unitName: string;
+  onClose: () => void;
+  onSuccess: () => void;
+}) {
+  const [locations, setLocations] = useState<string[]>([]);
+  const [location, setLocation] = useState('');
+  const [proofNumber, setProofNumber] = useState('');
+  const [notes, setNotes] = useState('');
+  const [loadingLocations, setLoadingLocations] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    fetch('/api/tire-tread/warehouse-locations')
+      .then((response) => response.json())
+      .then((result) => {
+        if (!active) return;
+        if (result.status === 'success' && Array.isArray(result.data)) {
+          setLocations(result.data.filter((value: unknown): value is string => typeof value === 'string'));
+        } else {
+          setError(result.message || 'Lokasi penyimpanan gagal dimuat.');
+        }
+      })
+      .catch(() => active && setError('Lokasi penyimpanan gagal dimuat.'))
+      .finally(() => active && setLoadingLocations(false));
+    return () => { active = false; };
+  }, []);
+
+  const submit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!location || saving) return;
+    setSaving(true);
+    setError('');
+    try {
+      const response = await fetch('/api/tire-tread/return-to-warehouse', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          mobil_id: mobilId,
+          alat_berat_id: alatBeratId,
+          stock_ban_id: tire.id,
+          lokasi: location,
+          nomor_bukti: proofNumber,
+          keterangan: notes
+        })
+      });
+      const result = await response.json();
+      if (!response.ok || result.status !== 'success') throw new Error(result.message || 'Ban gagal dikembalikan.');
+      onSuccess();
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : 'Ban gagal dikembalikan.');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="vs-warehouse-modal-backdrop" onClick={onClose}>
+      <form className="vs-warehouse-modal" onClick={(event) => event.stopPropagation()} onSubmit={submit}>
+        <div className="vs-warehouse-modal-heading">
+          <span className="vs-warehouse-modal-icon">↶</span>
+          <div>
+            <h3>Kembalikan Ban ke Gudang</h3>
+            <p>Nomor Seri: <strong>{tire.nomor_seri}</strong><br />Dari Unit: <strong>{unitName || '-'}</strong></p>
+          </div>
+          <button type="button" className="vs-warehouse-close" onClick={onClose} aria-label="Tutup">×</button>
+        </div>
+
+        <label className="vs-warehouse-field">
+          <span>Lokasi Penyimpanan <b>*</b></span>
+          <select required value={location} onChange={(event) => setLocation(event.target.value)} disabled={loadingLocations || saving}>
+            <option value="">{loadingLocations ? 'Memuat lokasi...' : '-- Pilih Lokasi --'}</option>
+            {locations.map((item) => <option key={item} value={item}>{item}</option>)}
+          </select>
+        </label>
+
+        <label className="vs-warehouse-field">
+          <span>Nomor Bukti Kembali</span>
+          <input value={proofNumber} onChange={(event) => setProofNumber(event.target.value)} placeholder="Masukkan nomor bukti pengembalian" maxLength={100} disabled={saving} />
+        </label>
+
+        <label className="vs-warehouse-field">
+          <span>Keterangan (Opsional)</span>
+          <textarea value={notes} onChange={(event) => setNotes(event.target.value)} placeholder="Catatan kondisi ban atau alasan pengembalian..." rows={3} maxLength={1000} disabled={saving} />
+        </label>
+
+        {error && <div className="vs-warehouse-error" role="alert">{error}</div>}
+
+        <div className="vs-warehouse-modal-actions">
+          <button type="button" className="vs-warehouse-cancel" onClick={onClose} disabled={saving}>Batal</button>
+          <button type="submit" className="vs-warehouse-submit" disabled={!location || saving || loadingLocations}>
+            {saving ? 'Menyimpan...' : '✓ Kembalikan ke Gudang'}
+          </button>
+        </div>
+      </form>
     </div>
   );
 }
@@ -1372,6 +1497,7 @@ export default function VehicleSchematic3D({
   mobilId,
   alat_berat_id,
   alatBeratId,
+  unitName: currentUnitName,
   category,
   wheelConfig
 }: VehicleSchematicProps) {
@@ -1598,6 +1724,7 @@ export default function VehicleSchematic3D({
                 ukuran: defaultSpec,
                 kondisi: 'Original (Bagus)',
                 status: 'Terpakai',
+                isSynthetic: true,
                 mobil_id: activeMobilId ? Number(activeMobilId) : null,
                 alat_berat_id: activeAlatBeratId ? Number(activeAlatBeratId) : null,
                 lokasi: 'Unit Operasional'
@@ -1726,6 +1853,7 @@ export default function VehicleSchematic3D({
 
   // State modal detail ban untuk Blueprint 2D & list tray
   const [blueprintDetailTire, setBlueprintDetailTire] = useState<{ tire: StockBanItem; wheelId: string } | null>(null);
+  const [warehouseReturn, setWarehouseReturn] = useState<{ tire: StockBanItem; wheelId: string } | null>(null);
 
   // Handler pinjam ban dari unit donor
   const handleBorrowTire = (tire: StockBanItem, donorUnit: { id: number | string; name: string }) => {
@@ -2248,6 +2376,7 @@ export default function VehicleSchematic3D({
                 }}
                 onRemoveTireFromWheel={handleRemoveTire}
                 onReturnBorrowedTire={handleReturnTire}
+                onReturnTireToWarehouse={(tire, wheelId) => setWarehouseReturn({ tire, wheelId })}
                 onSwapTires={handleSwapTires}
                 draggedTireId={draggedTireId || touchDraggingTire?.id || null}
                 touchCoords={touchCoords}
@@ -2605,6 +2734,29 @@ export default function VehicleSchematic3D({
           onReturn={() => {
             handleReturnTire(blueprintDetailTire.tire.id);
             setBlueprintDetailTire(null);
+          }}
+          onReturnWarehouse={() => {
+            setWarehouseReturn(blueprintDetailTire);
+            setBlueprintDetailTire(null);
+          }}
+        />
+      )}
+
+      {warehouseReturn && (
+        <ReturnTireToWarehouseModal
+          tire={warehouseReturn.tire}
+          mobilId={activeMobilId}
+          alatBeratId={activeAlatBeratId}
+          unitName={currentUnitName || (activeMobilId ? `Mobil #${activeMobilId}` : activeAlatBeratId ? `Alat Berat #${activeAlatBeratId}` : '-')}
+          onClose={() => setWarehouseReturn(null)}
+          onSuccess={() => {
+            const nextAssignments = { ...assignments };
+            delete nextAssignments[warehouseReturn.wheelId];
+            saveAssignments(nextAssignments);
+            setTires((current) => current.filter((item) => item.id !== warehouseReturn.tire.id));
+            onWheelClick?.(warehouseReturn.wheelId, null);
+            setWarehouseReturn(null);
+            setDbSyncStatus('synced');
           }}
         />
       )}

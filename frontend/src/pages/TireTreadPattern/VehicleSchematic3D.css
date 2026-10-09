@@ -2790,6 +2790,104 @@
   }
 }
 
+.vs-warehouse-return-btn {
+  border: 1px solid rgba(129, 140, 248, 0.55);
+  border-radius: 8px;
+  padding: 7px 12px;
+  color: #c7d2fe;
+  background: rgba(79, 70, 229, 0.2);
+  font: inherit;
+  font-size: 0.76rem;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.vs-warehouse-return-btn:hover { background: rgba(79, 70, 229, 0.38); }
+
+.vs-warehouse-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000001;
+  display: grid;
+  place-items: center;
+  padding: 16px;
+  background: rgba(4, 10, 22, 0.74);
+  backdrop-filter: blur(4px);
+}
+
+.vs-warehouse-modal {
+  width: min(100%, 540px);
+  max-height: min(90dvh, 760px);
+  overflow: auto;
+  padding: 22px 24px 0;
+  color: #0f172a;
+  background: #fff;
+  border-radius: 12px;
+  box-shadow: 0 24px 70px rgba(0, 0, 0, 0.4);
+}
+
+.vs-warehouse-modal-heading {
+  display: grid;
+  grid-template-columns: 52px 1fr 32px;
+  align-items: start;
+  gap: 14px;
+  margin-bottom: 18px;
+}
+
+.vs-warehouse-modal-icon {
+  display: grid;
+  place-items: center;
+  width: 50px;
+  height: 50px;
+  color: #4f46e5;
+  background: #e0e7ff;
+  border-radius: 50%;
+  font-size: 28px;
+  font-weight: 700;
+}
+
+.vs-warehouse-modal-heading h3 { margin: 2px 0 12px; font-size: 1.2rem; }
+.vs-warehouse-modal-heading p { margin: 0; padding: 12px 14px; color: #64748b; background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 9px; line-height: 1.6; }
+.vs-warehouse-modal-heading p strong { color: #0f172a; }
+.vs-warehouse-close { border: 0; background: transparent; color: #64748b; font-size: 26px; cursor: pointer; }
+
+.vs-warehouse-field { display: grid; gap: 7px; margin: 16px 0; color: #1e293b; font-weight: 600; }
+.vs-warehouse-field b { color: #ef4444; }
+.vs-warehouse-field select,
+.vs-warehouse-field input,
+.vs-warehouse-field textarea {
+  width: 100%;
+  min-height: 48px;
+  box-sizing: border-box;
+  padding: 11px 14px;
+  color: #0f172a;
+  background: #fff;
+  border: 1px solid #cbd5e1;
+  border-radius: 9px;
+  font: inherit;
+  font-weight: 400;
+}
+.vs-warehouse-field textarea { resize: vertical; }
+.vs-warehouse-field select:focus,
+.vs-warehouse-field input:focus,
+.vs-warehouse-field textarea:focus { outline: 2px solid #6366f1; outline-offset: 1px; }
+.vs-warehouse-field input::placeholder,
+.vs-warehouse-field textarea::placeholder { color: #94a3b8; }
+.vs-warehouse-error { margin: 10px 0; padding: 10px 12px; color: #b91c1c; background: #fef2f2; border-radius: 8px; font-size: 0.9rem; }
+.vs-warehouse-modal-actions { display: flex; justify-content: flex-end; gap: 12px; margin: 22px -24px 0; padding: 16px 24px; background: #f8fafc; border-top: 1px solid #e2e8f0; }
+.vs-warehouse-modal-actions button { min-height: 44px; padding: 0 18px; border-radius: 9px; font: inherit; font-weight: 700; cursor: pointer; }
+.vs-warehouse-cancel { color: #334155; background: #fff; border: 1px solid #cbd5e1; }
+.vs-warehouse-submit { color: #fff; background: #4f46e5; border: 1px solid #4f46e5; }
+.vs-warehouse-submit:disabled { opacity: 0.55; cursor: not-allowed; }
+
+@media (max-width: 520px) {
+  .vs-warehouse-modal { padding: 18px 16px 0; }
+  .vs-warehouse-modal-heading { grid-template-columns: 42px 1fr 24px; gap: 10px; }
+  .vs-warehouse-modal-icon { width: 40px; height: 40px; font-size: 23px; }
+  .vs-warehouse-modal-heading h3 { font-size: 1.05rem; }
+  .vs-warehouse-modal-actions { margin-right: -16px; margin-left: -16px; padding-right: 16px; padding-left: 16px; }
+}
+
 .vs-floating-touch-label {
   display: flex;
   flex-direction: column;

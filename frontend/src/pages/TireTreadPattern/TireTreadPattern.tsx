@@ -665,6 +665,7 @@ export default function TireTreadPattern() {
               }}
               mobil_id={selectedCategory?.id === 'forklift' ? undefined : selectedUnit.id}
               alat_berat_id={selectedCategory?.id === 'forklift' ? selectedUnit.id : undefined}
+              unitName={selectedUnit.nama || selectedUnit.nickname || selectedUnit.nomor_polisi || selectedUnit.kode_alat || selectedUnit.kode_no || selectedUnit.jenis}
               category={selectedCategory?.id}
               wheelConfig={selectedWheelConfig}
             />

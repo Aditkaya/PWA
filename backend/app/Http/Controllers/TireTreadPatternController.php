@@ -8,6 +8,85 @@ use Database;
 require_once __DIR__ . '/../../../config/database.php';
 
 class TireTreadPatternController {
+    /** Return existing storage locations used by the tire inventory. */
+    public function getWarehouseLocations() {
+        try {
+            $pdo = Database::getConnection();
+            $stmt = $pdo->query("SELECT DISTINCT TRIM(lokasi) AS lokasi FROM stock_bans WHERE lokasi IS NOT NULL AND TRIM(lokasi) <> '' ORDER BY lokasi ASC");
+            echo json_encode(['status' => 'success', 'data' => $stmt->fetchAll(PDO::FETCH_COLUMN)]);
+        } catch (\PDOException $e) {
+            http_response_code(500);
+            error_log('TireTreadPatternController getWarehouseLocations error: ' . $e->getMessage());
+            echo json_encode(['status' => 'error', 'message' => 'Gagal memuat lokasi penyimpanan']);
+        }
+    }
+
+    /** Return an installed tire to inventory and keep the installation audit trail. */
+    public function returnTireToWarehouse($data = []) {
+        $mobilId = !empty($data['mobil_id']) ? (int)$data['mobil_id'] : null;
+        $alatBeratId = !empty($data['alat_berat_id']) ? (int)$data['alat_berat_id'] : null;
+        $stockBanId = !empty($data['stock_ban_id']) ? (int)$data['stock_ban_id'] : null;
+        $location = trim($data['lokasi'] ?? '');
+        $proofNumber = trim($data['nomor_bukti'] ?? '');
+        $notes = trim($data['keterangan'] ?? '');
+
+        if ((!$mobilId && !$alatBeratId) || !$stockBanId || $location === '') {
+            http_response_code(400);
+            echo json_encode(['status' => 'error', 'message' => 'Unit, ban, dan lokasi penyimpanan wajib dipilih']);
+            return;
+        }
+
+        $pdo = null;
+        try {
+            $pdo = Database::getConnection();
+            $pdo->beginTransaction();
+            $unitColumn = $mobilId ? 'mobil_id' : 'alat_berat_id';
+            $unitId = $mobilId ?: $alatBeratId;
+            $stmt = $pdo->prepare("SELECT twi.* FROM tire_wheel_installations twi JOIN stock_bans sb ON sb.id = twi.stock_ban_id WHERE twi.stock_ban_id = :stock_ban_id AND twi.{$unitColumn} = :unit_id AND sb.status = 'Terpakai' FOR UPDATE");
+            $stmt->execute([':stock_ban_id' => $stockBanId, ':unit_id' => $unitId]);
+            $installation = $stmt->fetch(PDO::FETCH_ASSOC);
+            if (!$installation) {
+                $pdo->rollBack();
+                http_response_code(404);
+                echo json_encode(['status' => 'error', 'message' => 'Ban tidak ditemukan sebagai ban terpasang pada unit ini']);
+                return;
+            }
+
+            $locationStmt = $pdo->prepare("SELECT 1 FROM stock_bans WHERE LOWER(TRIM(lokasi)) = LOWER(TRIM(?)) LIMIT 1");
+            $locationStmt->execute([$location]);
+            if (!$locationStmt->fetchColumn()) {
+                $pdo->rollBack();
+                http_response_code(422);
+                echo json_encode(['status' => 'error', 'message' => 'Lokasi penyimpanan tidak valid']);
+                return;
+            }
+
+            $log = $pdo->prepare("INSERT INTO tire_installation_logs (mobil_id, alat_berat_id, category, wheel_id, wheel_code, stock_ban_id, nomor_seri, action, is_borrowed, donor_unit_id, donor_unit_name, notes) VALUES (:mobil_id, :alat_berat_id, :category, :wheel_id, :wheel_code, :stock_ban_id, :nomor_seri, 'copot', :is_borrowed, :donor_unit_id, :donor_unit_name, :notes)");
+            $log->execute([
+                ':mobil_id' => $installation['mobil_id'], ':alat_berat_id' => $installation['alat_berat_id'],
+                ':category' => $installation['category'], ':wheel_id' => $installation['wheel_id'],
+                ':wheel_code' => $installation['wheel_code'], ':stock_ban_id' => $stockBanId,
+                ':nomor_seri' => $installation['nomor_seri'], ':is_borrowed' => $installation['is_borrowed'],
+                ':donor_unit_id' => $installation['donor_unit_id'], ':donor_unit_name' => $installation['donor_unit_name'],
+                ':notes' => 'Kembalikan ke gudang ' . $location . ($proofNumber !== '' ? ' | Bukti: ' . $proofNumber : '') . ($notes !== '' ? ' | ' . $notes : '')
+            ]);
+
+            $proofValue = $proofNumber !== '' ? $proofNumber : null;
+            $update = $pdo->prepare("UPDATE stock_bans SET status = 'Tersedia', lokasi = :lokasi, nomor_bukti = CASE WHEN :proof_check IS NULL THEN nomor_bukti ELSE :proof_value END, tanggal_kembali = CURDATE(), mobil_id = NULL, alat_berat_id = NULL WHERE id = :id");
+            $update->execute([':lokasi' => $location, ':proof_check' => $proofValue, ':proof_value' => $proofValue, ':id' => $stockBanId]);
+            $delete = $pdo->prepare('DELETE FROM tire_wheel_installations WHERE id = ?');
+            $delete->execute([$installation['id']]);
+            $pdo->commit();
+
+            echo json_encode(['status' => 'success', 'message' => 'Ban berhasil dikembalikan ke gudang', 'data' => ['stock_ban_id' => $stockBanId, 'wheel_id' => $installation['wheel_id'], 'lokasi' => $location]]);
+        } catch (\PDOException $e) {
+            if ($pdo && $pdo->inTransaction()) $pdo->rollBack();
+            http_response_code(500);
+            error_log('TireTreadPatternController returnTireToWarehouse error: ' . $e->getMessage());
+            echo json_encode(['status' => 'error', 'message' => 'Gagal mengembalikan ban ke gudang']);
+        }
+    }
+
     /**
      * Mengambil daftar kendaraan atau alat berat berdasarkan kategori:
      * - tractor-head: dari tabel mobils dengan jenis TRACTOR HEAD / TRACKTOR HEAD

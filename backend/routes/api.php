@@ -727,6 +727,18 @@ if ($uri === '/api/tire-tread/tires' && $method === 'GET') {
     exit();
 }
 
+if ($uri === '/api/tire-tread/warehouse-locations' && $method === 'GET') {
+    require_once __DIR__ . '/../app/Http/Controllers/TireTreadPatternController.php';
+    (new \App\Http\Controllers\TireTreadPatternController())->getWarehouseLocations();
+    exit();
+}
+
+if ($uri === '/api/tire-tread/return-to-warehouse' && $method === 'POST') {
+    require_once __DIR__ . '/../app/Http/Controllers/TireTreadPatternController.php';
+    (new \App\Http\Controllers\TireTreadPatternController())->returnTireToWarehouse(is_array($requestData) ? $requestData : []);
+    exit();
+}
+
 // ── Tire Wheel Installations (Database Persistent Mount & Audit Log) ──
 if ($uri === '/api/tire-tread/installations' && $method === 'GET') {
     require_once __DIR__ . '/../app/Http/Controllers/TireTreadPatternController.php';

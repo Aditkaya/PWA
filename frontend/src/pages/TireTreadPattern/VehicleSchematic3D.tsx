@@ -790,9 +790,6 @@ export interface TireDetailModalProps {
   onClose: () => void;
   onRemove?: () => void;
   onReturn?: () => void;
-  onSwap?: (targetWheelId: string) => void;
-  availableWheels?: WheelMeta[];
-  getTireForWheel?: (wheelId: string) => StockBanItem | null;
 }
 
 export function TireDetailModal({
@@ -801,26 +798,10 @@ export function TireDetailModal({
   wheelId,
   onClose,
   onRemove,
-  onReturn,
-  onSwap,
-  availableWheels,
-  getTireForWheel
+  onReturn
 }: TireDetailModalProps) {
   const wheelCode = wheelMeta?.code || (wheelId ? wheelId.toUpperCase() : null);
   const wheelName = wheelMeta?.name || (wheelId ? `Roda ${wheelId}` : 'Roda Unit');
-  const [targetSwapWheelId, setTargetSwapWheelId] = useState<string>('');
-  const [swapFeedback, setSwapFeedback] = useState<string | null>(null);
-
-  const handleExecuteSwap = () => {
-    if (!targetSwapWheelId || !onSwap) return;
-    const targetMeta = availableWheels?.find((w) => w.id === targetSwapWheelId);
-    const targetCode = targetMeta?.code || targetSwapWheelId.toUpperCase();
-    onSwap(targetSwapWheelId);
-    setSwapFeedback(`Posisi ban berhasil ditukar ke [${targetCode}]!`);
-    setTimeout(() => {
-      onClose();
-    }, 450);
-  };
 
   return (
     <div className="vs-modal-backdrop" onClick={onClose}>
@@ -877,55 +858,6 @@ export function TireDetailModal({
               </div>
             </div>
           </div>
-
-          {/* Section: Tukar / Rotasi Posisi Ban */}
-          {onSwap && availableWheels && availableWheels.length > 1 && (
-            <div className="vs-modal-swap-box">
-              <div className="vs-modal-swap-header">
-                <span className="vs-modal-swap-icon">🔄</span>
-                <div className="vs-modal-swap-title-group">
-                  <span className="vs-modal-swap-title">Tukar / Rotasi Posisi Ban</span>
-                  <span className="vs-modal-swap-subtitle">
-                    Pindahkan atau tukar posisi ban #{tire.nomor_seri} ini dengan roda lain
-                  </span>
-                </div>
-              </div>
-              <div className="vs-modal-swap-row">
-                <select
-                  className="vs-modal-swap-select"
-                  value={targetSwapWheelId}
-                  onChange={(e) => setTargetSwapWheelId(e.target.value)}
-                  disabled={Boolean(swapFeedback)}
-                >
-                  <option value="" disabled>-- Pilih Roda Tujuan Tukar --</option>
-                  {availableWheels
-                    .filter((w) => w.id !== wheelId)
-                    .map((w) => {
-                      const otherTire = getTireForWheel?.(w.id);
-                      return (
-                        <option key={w.id} value={w.id}>
-                          [{w.code}] {w.name} {otherTire ? `⇄ Terpasang: #${otherTire.nomor_seri} (${otherTire.merk})` : '⚪ (Slot Kosong)'}
-                        </option>
-                      );
-                    })}
-                </select>
-                <button
-                  type="button"
-                  className="vs-modal-swap-btn"
-                  onClick={handleExecuteSwap}
-                  disabled={!targetSwapWheelId || Boolean(swapFeedback)}
-                  title="Tukar posisi ban sekarang"
-                >
-                  {swapFeedback ? '✓ Ditukar' : '🔄 Tukar Posisi'}
-                </button>
-              </div>
-              {swapFeedback && (
-                <div className="vs-modal-swap-feedback">
-                  ✓ {swapFeedback}
-                </div>
-              )}
-            </div>
-          )}
 
           {/* Grid Rincian Data Ban */}
           <div className="vs-modal-grid">
@@ -2550,8 +2482,6 @@ export default function VehicleSchematic3D({
           tire={blueprintDetailTire.tire}
           wheelId={blueprintDetailTire.wheelId}
           wheelMeta={wheelConfig?.wheels.find((w) => w.id === blueprintDetailTire.wheelId) || null}
-          availableWheels={wheelConfig?.wheels}
-          getTireForWheel={getTireForWheel}
           onClose={() => setBlueprintDetailTire(null)}
           onRemove={() => {
             if (blueprintDetailTire.wheelId) {
@@ -2561,12 +2491,6 @@ export default function VehicleSchematic3D({
           onReturn={() => {
             handleReturnTire(blueprintDetailTire.tire.id);
             setBlueprintDetailTire(null);
-          }}
-          onSwap={(targetWheelId) => {
-            if (blueprintDetailTire.wheelId) {
-              handleSwapTires(blueprintDetailTire.wheelId, targetWheelId);
-              setBlueprintDetailTire(null);
-            }
           }}
         />
       )}

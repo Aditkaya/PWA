@@ -1,4 +1,5 @@
 import { createContext, useContext, useState, useEffect, useMemo, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import './VehicleSchematic3D.css';
 import VehicleAnimation3D from './VehicleAnimation3D';
 
@@ -2824,34 +2825,37 @@ export default function VehicleSchematic3D({
 
       {/* ── FLOATING TOUCH TIRE (DRAG AND DROP LAYAR SENTUH HP) ── */}
       {touchDraggingTire && touchCoords && (
-        <div
-          className="vs-floating-touch-tire"
-          style={{
-            left: `${touchCoords.x}px`,
-            top: `${touchCoords.y}px`
-          }}
-        >
-          <RealisticTireGraphic
-            ban={touchDraggingTire}
-            size={76}
-            isAssigned={Boolean(touchTargetWheelId)}
-            assignedCode={
-              touchTargetWheelId
-                ? wheelConfig?.wheels.find((w) => w.id === touchTargetWheelId)?.code || touchTargetWheelId.toUpperCase()
-                : null
-            }
-          />
-          <div className="vs-floating-touch-label">
-            <span className="vs-floating-touch-brand">{touchDraggingTire.merk}</span>
-            {touchTargetWheelId ? (
-              <span className="vs-floating-touch-target">
-                ➜ Pasang di {wheelConfig?.wheels.find((w) => w.id === touchTargetWheelId)?.code || touchTargetWheelId.toUpperCase()}
-              </span>
-            ) : (
-              <span className="vs-floating-touch-hint">Geser ke roda kendaraan</span>
-            )}
-          </div>
-        </div>
+        createPortal(
+          <div
+            className="vs-floating-touch-tire"
+            style={{
+              left: `${touchCoords.x}px`,
+              top: `${touchCoords.y}px`
+            }}
+          >
+            <RealisticTireGraphic
+              ban={touchDraggingTire}
+              size={76}
+              isAssigned={Boolean(touchTargetWheelId)}
+              assignedCode={
+                touchTargetWheelId
+                  ? wheelConfig?.wheels.find((w) => w.id === touchTargetWheelId)?.code || touchTargetWheelId.toUpperCase()
+                  : null
+              }
+            />
+            <div className="vs-floating-touch-label">
+              <span className="vs-floating-touch-brand">{touchDraggingTire.merk}</span>
+              {touchTargetWheelId ? (
+                <span className="vs-floating-touch-target">
+                  ➜ Pasang di {wheelConfig?.wheels.find((w) => w.id === touchTargetWheelId)?.code || touchTargetWheelId.toUpperCase()}
+                </span>
+              ) : (
+                <span className="vs-floating-touch-hint">Geser ke roda kendaraan</span>
+              )}
+            </div>
+          </div>,
+          document.body
+        )
       )}
     </div>
   );

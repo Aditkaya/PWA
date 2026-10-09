@@ -308,7 +308,7 @@ export default function TireTreadPattern() {
   const [selectedWheelId, setSelectedWheelId] = useState<string | null>(null);
 
   // Toggle Hide / Unhide Bagian Spesifikasi & Rekomendasi Unit
-  const [showUnitSpecs, setShowUnitSpecs] = useState<boolean>(true);
+  const [showUnitSpecs, setShowUnitSpecs] = useState<boolean>(false);
 
   // Ambil data dari database sesuai kategori yang dipilih
   useEffect(() => {
@@ -408,6 +408,7 @@ export default function TireTreadPattern() {
   const handleSelectUnit = (unit: UnitItem) => {
     setSelectedUnit(unit);
     setSelectedWheelId(null);
+    setShowUnitSpecs(false);
   };
 
   return (
@@ -788,20 +789,6 @@ export default function TireTreadPattern() {
             </div>
           )}
 
-          {/* Tombol Kembali ke Daftar Unit */}
-          <div className="unit-bottom-actions">
-            <button
-              type="button"
-              className="btn-back-to-list"
-              onClick={() => {
-                setSelectedUnit(null);
-                window.scrollTo({ top: 0, behavior: 'smooth' });
-              }}
-            >
-              <ArrowLeft size={16} />
-              <span>Kembali ke Daftar Unit {selectedCategory.name}</span>
-            </button>
-          </div>
         </div>
       ) : (
         /* ====================================================================

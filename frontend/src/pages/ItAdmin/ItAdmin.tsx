@@ -24,6 +24,7 @@ import {
   ShieldCheck,
   RotateCcw,
   Newspaper,
+  Disc,
 } from "lucide-react";
 import { useAuthStore } from "../../store/auth.store";
 import { useToast } from "../../contexts/ToastContext";
@@ -44,7 +45,8 @@ type FeatureKey =
   | "amprahan"
   | "gerak_voyage"
   | "perbarui_wajah"
-  | "berita";
+  | "berita"
+  | "tire_tread_pattern";
 
 interface FeaturePermissions {
   [key: string]: boolean;
@@ -84,6 +86,7 @@ const FEATURES: {
   { key: "gerak_voyage",       label: "Tanggal Gerak Voyage", desc: "Akses tanggal pergerakan kapal & voyage",  icon: <Navigation size={18} />,     color: "#38bdf8" },
   { key: "perbarui_wajah",     label: "Perbarui Wajah Ulang", desc: "Izin memindai ulang biometrik wajah",      icon: <ScanFace size={18} />,       color: "#10b981" },
   { key: "berita",             label: "Menu Berita",          desc: "Akses membaca berita internal & pamflet",  icon: <Newspaper size={18} />,      color: "#0ea5e9" },
+  { key: "tire_tread_pattern", label: "Tire Tread Pattern",   desc: "Akses menu pola dan kondisi tapak ban",    icon: <Disc size={18} />,           color: "#f97316" },
 ];
 
 const TOTAL_FEATURES = FEATURES.length;

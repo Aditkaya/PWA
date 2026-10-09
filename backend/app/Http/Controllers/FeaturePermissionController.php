@@ -23,6 +23,7 @@ class FeaturePermissionController
         'gerak_voyage',
         'perbarui_wajah',
         'berita',
+        'tire_tread_pattern',
     ];
 
     /** Fitur standar (default) untuk karyawan biasa */

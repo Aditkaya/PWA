@@ -28,6 +28,8 @@ interface HistoryItem {
   is_offline?: boolean
 }
 
+const NEWS_API_BASE = import.meta.env.VITE_API_URL ?? ''
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const [time, setTime] = useState(new Date())
@@ -92,7 +94,7 @@ export default function Dashboard() {
     let cancelled = false
     const loadAnnouncements = async () => {
       try {
-        const response = await fetch('/api/berita?tipe=berita&limit=30')
+        const response = await fetch(`${NEWS_API_BASE}/api/berita?limit=50`)
         if (!response.ok) return
         const result = await response.json()
         if (!result.success || !Array.isArray(result.data) || cancelled) return
@@ -573,17 +575,15 @@ export default function Dashboard() {
         <p>{hasFullDayLeave ? t.statusLeave : (isOvertimeMode ? t.statusOvertime : t.statusActive)}</p>
       </div>
 
-      {announcementText && (
-        <div className="announcement-ticker glass-panel" role="status" aria-label="Pengumuman">
-          <div className="announcement-ticker-label"><Megaphone size={17} /><span>Pengumuman</span></div>
-          <div className="announcement-ticker-viewport">
-            <div className="announcement-ticker-track">
-              <span>{announcementText}</span>
-              <span aria-hidden="true">{announcementText}</span>
-            </div>
+      <div className="announcement-ticker glass-panel" role="status" aria-label="Pengumuman">
+        <div className="announcement-ticker-label"><Megaphone size={17} /><span>Pengumuman</span></div>
+        <div className="announcement-ticker-viewport">
+          <div className="announcement-ticker-track">
+            <span>{announcementText || 'Belum ada pengumuman saat ini.'}</span>
+            <span aria-hidden="true">{announcementText || 'Belum ada pengumuman saat ini.'}</span>
           </div>
         </div>
-      )}
+      </div>
 
       {pendingOfflineCount > 0 && (
         <div className="offline-banner glass-panel">

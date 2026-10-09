@@ -158,7 +158,6 @@ export default function CutiModal({ isOpen, onClose, userProfile }: CutiModalPro
                   type="date" 
                   value={tanggalMulai}
                   onChange={(e) => setTanggalMulai(e.target.value)}
-                  min={new Date().toISOString().split('T')[0]}
                   required
                 />
               </div>
@@ -168,7 +167,6 @@ export default function CutiModal({ isOpen, onClose, userProfile }: CutiModalPro
                   type="date" 
                   value={tanggalSelesai}
                   onChange={(e) => setTanggalSelesai(e.target.value)}
-                  min={tanggalMulai || new Date().toISOString().split('T')[0]}
                   required
                 />
               </div>

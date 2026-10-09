@@ -359,13 +359,13 @@ function startTouchDragFromSchematic(
 function startPointerDragFromSchematic(
   event: React.PointerEvent<SVGSVGElement>,
   getTire: (wheelId: string) => StockBanItem | null,
-  onPointerDragStart?: (tire: StockBanItem, event: React.PointerEvent) => void
+  onPointerDragStart?: (tire: StockBanItem, event: React.PointerEvent, wheelId: string) => void
 ) {
   if (event.button !== 0 && event.pointerType !== 'touch') return;
   if (!(event.target instanceof Element)) return;
   const wheelId = event.target.closest('[data-wheel-id]')?.getAttribute('data-wheel-id');
   const tire = wheelId ? getTire(wheelId) : null;
-  if (tire) onPointerDragStart?.(tire, event);
+  if (tire && wheelId) onPointerDragStart?.(tire, event, wheelId);
 }
 
 /* ═══════════════════════════════════════════════════════════════
@@ -385,7 +385,7 @@ function Schema6Roda({
   getTire: (wheelId: string) => StockBanItem | null;
   onDropTire?: (wheelId: string, banId: number) => void;
   onTouchDragStart?: (tire: StockBanItem, event: React.TouchEvent) => void;
-  onPointerDragStart?: (tire: StockBanItem, event: React.PointerEvent) => void;
+  onPointerDragStart?: (tire: StockBanItem, event: React.PointerEvent, wheelId: string) => void;
   touchTargetWheelId?: string | null;
 }) {
   const ID = 's6';
@@ -468,7 +468,7 @@ function Schema8Roda({
   getTire: (wheelId: string) => StockBanItem | null;
   onDropTire?: (wheelId: string, banId: number) => void;
   onTouchDragStart?: (tire: StockBanItem, event: React.TouchEvent) => void;
-  onPointerDragStart?: (tire: StockBanItem, event: React.PointerEvent) => void;
+  onPointerDragStart?: (tire: StockBanItem, event: React.PointerEvent, wheelId: string) => void;
   touchTargetWheelId?: string | null;
 }) {
   const ID = 's8';
@@ -547,7 +547,7 @@ function Schema12Roda({
   getTire: (wheelId: string) => StockBanItem | null;
   onDropTire?: (wheelId: string, banId: number) => void;
   onTouchDragStart?: (tire: StockBanItem, event: React.TouchEvent) => void;
-  onPointerDragStart?: (tire: StockBanItem, event: React.PointerEvent) => void;
+  onPointerDragStart?: (tire: StockBanItem, event: React.PointerEvent, wheelId: string) => void;
   touchTargetWheelId?: string | null;
 }) {
   const ID = 's12';
@@ -630,7 +630,7 @@ function Schema4Roda({
   getTire: (wheelId: string) => StockBanItem | null;
   onDropTire?: (wheelId: string, banId: number) => void;
   onTouchDragStart?: (tire: StockBanItem, event: React.TouchEvent) => void;
-  onPointerDragStart?: (tire: StockBanItem, event: React.PointerEvent) => void;
+  onPointerDragStart?: (tire: StockBanItem, event: React.PointerEvent, wheelId: string) => void;
   touchTargetWheelId?: string | null;
 }) {
   const ID = 's4';
@@ -1940,6 +1940,9 @@ export default function VehicleSchematic3D({
 
   // Handler klik roda pada diagram atau saat memilih posisi dari dropdown
   const handleSelectWheel = (wheelId: string) => {
+    // Mobile browsers may emit a synthetic click after a completed drag. Ignore
+    // that click so moving a tire does not also open the destination details.
+    if (Date.now() < suppressWheelClickUntilRef.current) return;
     setInternalWheelId(wheelId);
     const tire = getTireForWheel(wheelId);
     onWheelClick?.(wheelId, tire);
@@ -1947,6 +1950,9 @@ export default function VehicleSchematic3D({
       setBlueprintDetailTire({ tire, wheelId });
     }
   };
+  const handleSelectWheelRef = useRef(handleSelectWheel);
+  handleSelectWheelRef.current = handleSelectWheel;
+  const suppressWheelClickUntilRef = useRef(0);
 
   // Menukar posisi dua ban yang sedang terpasang (atau memindahkan ke roda kosong)
   const handleSwapTires = (wheelId1: string, wheelId2: string) => {
@@ -2192,7 +2198,14 @@ export default function VehicleSchematic3D({
   const touchDraggingTireRef = useRef<StockBanItem | null>(null);
   const touchCoordsRef = useRef<{ x: number; y: number } | null>(null);
   const touchTargetWheelIdRef = useRef<string | null>(null);
-  const pendingSchematicPointerDragRef = useRef<{ ban: StockBanItem; pointerId: number; x: number; y: number } | null>(null);
+  const pendingSchematicPointerDragRef = useRef<{
+    ban: StockBanItem;
+    wheelId: string;
+    pointerId: number;
+    pointerType: string;
+    x: number;
+    y: number;
+  } | null>(null);
   const pointerDragActiveRef = useRef(false);
   const pointerDragIdRef = useRef<number | null>(null);
 
@@ -2223,10 +2236,17 @@ export default function VehicleSchematic3D({
     if (!pointerDragActiveRef.current) handleTouchStart(ban, e);
   };
 
-  const handleSchematicPointerDragStart = (ban: StockBanItem, e: React.PointerEvent) => {
+  const handleSchematicPointerDragStart = (ban: StockBanItem, e: React.PointerEvent, wheelId: string) => {
     if (e.button !== 0 && e.pointerType !== 'touch') return;
     pointerDragIdRef.current = e.pointerId;
-    pendingSchematicPointerDragRef.current = { ban, pointerId: e.pointerId, x: e.clientX, y: e.clientY };
+    pendingSchematicPointerDragRef.current = {
+      ban,
+      wheelId,
+      pointerId: e.pointerId,
+      pointerType: e.pointerType,
+      x: e.clientX,
+      y: e.clientY
+    };
   };
 
   useEffect(() => {
@@ -2286,10 +2306,18 @@ export default function VehicleSchematic3D({
     const handlePointerEnd = (e: PointerEvent) => {
       if (e.pointerId !== pointerDragIdRef.current) return;
       const didDrag = pointerDragActiveRef.current;
+      const pending = pendingSchematicPointerDragRef.current;
       pointerDragActiveRef.current = false;
       pointerDragIdRef.current = null;
       pendingSchematicPointerDragRef.current = null;
-      if (didDrag) finishVirtualDrop();
+      if (didDrag) {
+        suppressWheelClickUntilRef.current = Date.now() + 500;
+        finishVirtualDrop();
+      } else if (pending?.pointerType === 'touch') {
+        // Mobile browsers can omit the synthesized click after a pointer gesture
+        // on SVG elements; open the tire detail on the same single tap instead.
+        handleSelectWheelRef.current(pending.wheelId);
+      }
     };
 
     window.addEventListener('touchmove', handleTouchMove, { passive: false });

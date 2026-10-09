@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { useOutletContext, useNavigate } from 'react-router-dom'
-import { Clock, Coffee, LogOut, LogIn, CalendarDays, Sun, Plane, AlertCircle, Info, XCircle, ScanFace, ClipboardCheck, CalendarClock, Shield, WifiOff, RefreshCw } from 'lucide-react'
+import { Clock, Coffee, LogOut, LogIn, CalendarDays, Sun, Plane, AlertCircle, Info, XCircle, ScanFace, ClipboardCheck, CalendarClock, Shield, WifiOff, RefreshCw, Megaphone } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import CameraModal from '../../components/CameraModal'
 import IzinModal from '../../components/IzinModal'
@@ -54,6 +54,7 @@ export default function Dashboard() {
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0)
   const [pendingOfflineCount, setPendingOfflineCount] = useState(0)
   const [isSyncing, setIsSyncing] = useState(false)
+  const [announcementText, setAnnouncementText] = useState('')
   
   const { lang } = useLangStore()
   const { isOvertimeMode } = useModeStore()
@@ -85,6 +86,36 @@ export default function Dashboard() {
   useEffect(() => {
     const timer = setInterval(() => setTime(new Date()), 1000)
     return () => clearInterval(timer)
+  }, [])
+
+  useEffect(() => {
+    let cancelled = false
+    const loadAnnouncements = async () => {
+      try {
+        const response = await fetch('/api/berita?tipe=berita&limit=30')
+        if (!response.ok) return
+        const result = await response.json()
+        if (!result.success || !Array.isArray(result.data) || cancelled) return
+
+        const parser = new DOMParser()
+        const messages = result.data
+          .map((item: { konten?: string }) =>
+            parser.parseFromString(item.konten || '', 'text/html').body.textContent?.replace(/\s+/g, ' ').trim() || ''
+          )
+          .filter(Boolean)
+
+        if (!cancelled) setAnnouncementText(messages.join('  •  '))
+      } catch {
+        // Dashboard tetap bisa digunakan saat layanan berita sedang offline.
+      }
+    }
+
+    loadAnnouncements()
+    const refreshTimer = window.setInterval(loadAnnouncements, 60_000)
+    return () => {
+      cancelled = true
+      window.clearInterval(refreshTimer)
+    }
   }, [])
 
   const getGreeting = () => {
@@ -541,6 +572,18 @@ export default function Dashboard() {
         <h2>{getGreeting()}, {getHonorific() && `${getHonorific()} `}{getFirstName()}!</h2>
         <p>{hasFullDayLeave ? t.statusLeave : (isOvertimeMode ? t.statusOvertime : t.statusActive)}</p>
       </div>
+
+      {announcementText && (
+        <div className="announcement-ticker glass-panel" role="status" aria-label="Pengumuman">
+          <div className="announcement-ticker-label"><Megaphone size={17} /><span>Pengumuman</span></div>
+          <div className="announcement-ticker-viewport">
+            <div className="announcement-ticker-track">
+              <span>{announcementText}</span>
+              <span aria-hidden="true">{announcementText}</span>
+            </div>
+          </div>
+        </div>
+      )}
 
       {pendingOfflineCount > 0 && (
         <div className="offline-banner glass-panel">

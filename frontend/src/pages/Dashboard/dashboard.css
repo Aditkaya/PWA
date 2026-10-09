@@ -176,7 +176,7 @@
 .announcement-ticker-track {
   display: flex;
   width: max-content;
-  animation: announcementTickerScroll 28s linear infinite;
+  animation: announcementTickerScroll 22s linear infinite;
 }
 
 .announcement-ticker-track span {

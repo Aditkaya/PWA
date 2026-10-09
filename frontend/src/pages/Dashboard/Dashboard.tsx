@@ -30,6 +30,36 @@ interface HistoryItem {
 
 const NEWS_API_BASE = import.meta.env.VITE_API_URL ?? ''
 
+function sanitizeAnnouncementHtml(html: string): string {
+  const document = new DOMParser().parseFromString(html, 'text/html')
+  const escapeText = (text: string) => text
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+
+  const serialize = (node: Node): string => {
+    if (node.nodeType === Node.TEXT_NODE) return escapeText(node.textContent || '')
+    if (!(node instanceof HTMLElement)) return Array.from(node.childNodes).map(serialize).join('')
+
+    const tag = node.tagName.toLowerCase()
+    if (['script', 'style', 'iframe', 'object', 'svg', 'math'].includes(tag)) return ''
+    if (tag === 'br') return '<br>'
+
+    let content = Array.from(node.childNodes).map(serialize).join('')
+    const weight = node.style.fontWeight
+    const isBold = tag === 'b' || tag === 'strong' || weight === 'bold' || Number.parseInt(weight, 10) >= 600
+    const isItalic = tag === 'i' || tag === 'em' || node.style.fontStyle === 'italic'
+    const isUnderlined = tag === 'u' || node.style.textDecorationLine.includes('underline')
+    if (isBold) content = `<strong>${content}</strong>`
+    if (isItalic) content = `<em>${content}</em>`
+    if (isUnderlined) content = `<u>${content}</u>`
+    if (['p', 'div', 'li'].includes(tag)) content += ' '
+    return content
+  }
+
+  return Array.from(document.body.childNodes).map(serialize).join('').replace(/\s+/g, ' ').trim()
+}
+
 export default function Dashboard() {
   const navigate = useNavigate()
   const [time, setTime] = useState(new Date())
@@ -56,7 +86,7 @@ export default function Dashboard() {
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0)
   const [pendingOfflineCount, setPendingOfflineCount] = useState(0)
   const [isSyncing, setIsSyncing] = useState(false)
-  const [announcementText, setAnnouncementText] = useState('')
+  const [announcementMarkup, setAnnouncementMarkup] = useState('')
   const [announcementDuration, setAnnouncementDuration] = useState(22)
   
   const { lang } = useLangStore()
@@ -100,14 +130,11 @@ export default function Dashboard() {
         const result = await response.json()
         if (!result.success || !Array.isArray(result.data) || cancelled) return
 
-        const parser = new DOMParser()
         const messages = result.data
-          .map((item: { konten?: string; kecepatan_teks?: number | string | null }) =>
-            parser.parseFromString(item.konten || '', 'text/html').body.textContent?.replace(/\s+/g, ' ').trim() || ''
-          )
+          .map((item: { konten?: string; kecepatan_teks?: number | string | null }) => sanitizeAnnouncementHtml(item.konten || ''))
           .filter(Boolean)
 
-        if (!cancelled) setAnnouncementText(messages.join('  •  '))
+        if (!cancelled) setAnnouncementMarkup(messages.join('  •  '))
         const speedValue = Number(result.data.find((item: { konten?: string; kecepatan_teks?: number | string | null }) => item.konten?.trim())?.kecepatan_teks)
         if (!cancelled) {
           setAnnouncementDuration(Number.isFinite(speedValue) && speedValue > 0
@@ -727,8 +754,8 @@ export default function Dashboard() {
         <div className="announcement-ticker-label"><Megaphone size={17} /><span>Pengumuman</span></div>
         <div className="announcement-ticker-viewport">
           <div className="announcement-ticker-track" style={{ animationDuration: `${announcementDuration}s` }}>
-            <span>{announcementText || 'Belum ada pengumuman saat ini.'}</span>
-            <span aria-hidden="true">{announcementText || 'Belum ada pengumuman saat ini.'}</span>
+            <span dangerouslySetInnerHTML={{ __html: announcementMarkup || 'Belum ada pengumuman saat ini.' }} />
+            <span aria-hidden="true" dangerouslySetInnerHTML={{ __html: announcementMarkup || 'Belum ada pengumuman saat ini.' }} />
           </div>
         </div>
       </div>

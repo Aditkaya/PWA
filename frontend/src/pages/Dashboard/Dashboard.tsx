@@ -575,16 +575,6 @@ export default function Dashboard() {
         <p>{hasFullDayLeave ? t.statusLeave : (isOvertimeMode ? t.statusOvertime : t.statusActive)}</p>
       </div>
 
-      <div className="announcement-ticker glass-panel" role="status" aria-label="Pengumuman">
-        <div className="announcement-ticker-label"><Megaphone size={17} /><span>Pengumuman</span></div>
-        <div className="announcement-ticker-viewport">
-          <div className="announcement-ticker-track">
-            <span>{announcementText || 'Belum ada pengumuman saat ini.'}</span>
-            <span aria-hidden="true">{announcementText || 'Belum ada pengumuman saat ini.'}</span>
-          </div>
-        </div>
-      </div>
-
       {pendingOfflineCount > 0 && (
         <div className="offline-banner glass-panel">
           <div className="offline-banner-left">
@@ -725,6 +715,16 @@ export default function Dashboard() {
           <PamfletCarousel />
         </div>
       )}
+
+      <div className="announcement-ticker glass-panel" role="status" aria-label="Pengumuman">
+        <div className="announcement-ticker-label"><Megaphone size={17} /><span>Pengumuman</span></div>
+        <div className="announcement-ticker-viewport">
+          <div className="announcement-ticker-track">
+            <span>{announcementText || 'Belum ada pengumuman saat ini.'}</span>
+            <span aria-hidden="true">{announcementText || 'Belum ada pengumuman saat ini.'}</span>
+          </div>
+        </div>
+      </div>
 
       {!isOvertimeMode && (
         <div className="leave-section glass-panel">

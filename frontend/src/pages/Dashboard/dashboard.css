@@ -176,16 +176,12 @@
 .announcement-ticker-track {
   display: flex;
   width: max-content;
-  animation: announcementTickerScroll 36s linear infinite;
+  animation: announcementTickerScroll 28s linear infinite;
 }
 
 .announcement-ticker-track span {
   flex: 0 0 auto;
   padding-right: 48px;
-}
-
-.announcement-ticker:hover .announcement-ticker-track {
-  animation-play-state: paused;
 }
 
 @keyframes announcementTickerScroll {

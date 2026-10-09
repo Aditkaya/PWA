@@ -33,7 +33,7 @@ class BeritaController
                 $bindings[':tipe'] = $tipe;
             }
 
-            $sql = "SELECT b.id, b.judul, b.konten, b.tipe, b.gambar, b.pinned,
+            $sql = "SELECT b.id, b.judul, b.konten, b.kecepatan_teks, b.tipe, b.gambar, b.pinned,
                            b.published_at, b.created_at, u.username AS created_by_name
                     FROM beritas b
                     LEFT JOIN users u ON b.created_by = u.id
@@ -50,7 +50,7 @@ class BeritaController
 
             // Fallback: Jika mencari pamflet dan hasilnya kosong, ambil berita apa saja yang memiliki gambar
             if ($tipe === 'pamflet' && empty($beritas)) {
-                $fallbackSql = "SELECT b.id, b.judul, b.konten, b.tipe, b.gambar, b.pinned,
+                $fallbackSql = "SELECT b.id, b.judul, b.konten, b.kecepatan_teks, b.tipe, b.gambar, b.pinned,
                                        b.published_at, b.created_at, u.username AS created_by_name
                                 FROM beritas b
                                 LEFT JOIN users u ON b.created_by = u.id
@@ -94,7 +94,7 @@ class BeritaController
     {
         try {
             $stmt = $this->pdo->prepare(
-                "SELECT b.id, b.judul, b.konten, b.tipe, b.gambar, b.pinned,
+                "SELECT b.id, b.judul, b.konten, b.kecepatan_teks, b.tipe, b.gambar, b.pinned,
                         b.published_at, b.created_at, u.username AS created_by_name
                  FROM beritas b
                  LEFT JOIN users u ON b.created_by = u.id

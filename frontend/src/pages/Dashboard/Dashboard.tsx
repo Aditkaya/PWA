@@ -57,6 +57,7 @@ export default function Dashboard() {
   const [pendingOfflineCount, setPendingOfflineCount] = useState(0)
   const [isSyncing, setIsSyncing] = useState(false)
   const [announcementText, setAnnouncementText] = useState('')
+  const [announcementDuration, setAnnouncementDuration] = useState(22)
   
   const { lang } = useLangStore()
   const { isOvertimeMode } = useModeStore()
@@ -101,12 +102,18 @@ export default function Dashboard() {
 
         const parser = new DOMParser()
         const messages = result.data
-          .map((item: { konten?: string }) =>
+          .map((item: { konten?: string; kecepatan_teks?: number | string | null }) =>
             parser.parseFromString(item.konten || '', 'text/html').body.textContent?.replace(/\s+/g, ' ').trim() || ''
           )
           .filter(Boolean)
 
         if (!cancelled) setAnnouncementText(messages.join('  •  '))
+        const speedValue = Number(result.data.find((item: { konten?: string; kecepatan_teks?: number | string | null }) => item.konten?.trim())?.kecepatan_teks)
+        if (!cancelled) {
+          setAnnouncementDuration(Number.isFinite(speedValue) && speedValue > 0
+            ? Math.min(120, Math.max(5, speedValue))
+            : 22)
+        }
       } catch {
         // Dashboard tetap bisa digunakan saat layanan berita sedang offline.
       }
@@ -719,7 +726,7 @@ export default function Dashboard() {
       <div className="announcement-ticker glass-panel" role="status" aria-label="Pengumuman">
         <div className="announcement-ticker-label"><Megaphone size={17} /><span>Pengumuman</span></div>
         <div className="announcement-ticker-viewport">
-          <div className="announcement-ticker-track">
+          <div className="announcement-ticker-track" style={{ animationDuration: `${announcementDuration}s` }}>
             <span>{announcementText || 'Belum ada pengumuman saat ini.'}</span>
             <span aria-hidden="true">{announcementText || 'Belum ada pengumuman saat ini.'}</span>
           </div>

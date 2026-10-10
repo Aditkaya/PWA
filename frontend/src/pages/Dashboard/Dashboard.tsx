@@ -125,7 +125,8 @@ export default function Dashboard() {
     let cancelled = false
     const loadAnnouncements = async () => {
       try {
-        const response = await fetch(`${NEWS_API_BASE}/api/berita?limit=50`)
+        const deptParam = userProfile?.departemen ? `&departemen=${encodeURIComponent(userProfile.departemen)}` : ''
+        const response = await fetch(`${NEWS_API_BASE}/api/berita?limit=50${deptParam}`)
         if (!response.ok) return
         const result = await response.json()
         if (!result.success || !Array.isArray(result.data) || cancelled) return
@@ -152,7 +153,7 @@ export default function Dashboard() {
       cancelled = true
       window.clearInterval(refreshTimer)
     }
-  }, [])
+  }, [userProfile?.departemen])
 
   const getGreeting = () => {
     const hour = time.getHours();

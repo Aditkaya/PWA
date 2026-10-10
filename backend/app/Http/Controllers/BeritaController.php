@@ -25,6 +25,7 @@ class BeritaController
             $tipe    = in_array($rawTipe, ['berita', 'pamflet']) ? $rawTipe : null;
             $limit   = min((int)($params['limit']  ?? 20), 50);
             $offset  = max((int)($params['offset'] ?? 0), 0);
+            $departemen = isset($params['departemen']) ? trim($params['departemen']) : null;
 
             $where = "(b.is_active = 1 OR b.is_active IS NULL) AND (b.published_at IS NULL OR b.published_at <= NOW())";
             $bindings = [];
@@ -32,8 +33,12 @@ class BeritaController
                 $where .= " AND LOWER(TRIM(b.tipe)) = :tipe";
                 $bindings[':tipe'] = $tipe;
             }
+            if ($departemen) {
+                $where .= " AND (b.target_departemen IS NULL OR b.target_departemen = '' OR b.target_departemen = '[]' OR JSON_CONTAINS(b.target_departemen, :dept_json))";
+                $bindings[':dept_json'] = json_encode($departemen);
+            }
 
-            $sql = "SELECT b.id, b.judul, b.konten, b.kecepatan_teks, b.tipe, b.gambar, b.pinned,
+            $sql = "SELECT b.id, b.judul, b.konten, b.target_departemen, b.kecepatan_teks, b.tipe, b.gambar, b.pinned,
                            b.published_at, b.created_at, u.username AS created_by_name
                     FROM beritas b
                     LEFT JOIN users u ON b.created_by = u.id
@@ -94,7 +99,7 @@ class BeritaController
     {
         try {
             $stmt = $this->pdo->prepare(
-                "SELECT b.id, b.judul, b.konten, b.kecepatan_teks, b.tipe, b.gambar, b.pinned,
+                "SELECT b.id, b.judul, b.konten, b.target_departemen, b.kecepatan_teks, b.tipe, b.gambar, b.pinned,
                         b.published_at, b.created_at, u.username AS created_by_name
                  FROM beritas b
                  LEFT JOIN users u ON b.created_by = u.id

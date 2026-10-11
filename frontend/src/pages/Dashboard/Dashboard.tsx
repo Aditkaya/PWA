@@ -369,7 +369,9 @@ export default function Dashboard() {
     };
   }, [user])
 
-  const now = new Date()
+  const now = time
+  const jakartaTime = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
+  const isBreakLockedByTime = jakartaTime >= '13:00'
   const todayString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
   // Tanggal kemarin untuk mendeteksi sesi lembur lintas malam
   const yesterdayDate = new Date(now)
@@ -710,7 +712,7 @@ export default function Dashboard() {
             </button>
             <button 
               className="btn-attendance break-out" 
-              disabled={hasFullDayLeave || !todayCheckIn || !!todayBreakOut || !!todayBreakIn || !!todayCheckOut || (userProfile && userProfile.is_face_verified === false)}
+              disabled={isBreakLockedByTime || hasFullDayLeave || !todayCheckIn || !!todayBreakOut || !!todayBreakIn || !!todayCheckOut || (userProfile && userProfile.is_face_verified === false)}
               onClick={() => handleAttendanceClick('Istirahat Keluar')}
             >
               <Coffee size={20} strokeWidth={1.5} />
@@ -718,7 +720,7 @@ export default function Dashboard() {
             </button>
             <button 
               className="btn-attendance break-in" 
-              disabled={hasFullDayLeave || !todayBreakOut || !!todayBreakIn || (userProfile && userProfile.is_face_verified === false)}
+              disabled={isBreakLockedByTime || hasFullDayLeave || !todayBreakOut || !!todayBreakIn || (userProfile && userProfile.is_face_verified === false)}
               onClick={() => handleAttendanceClick('Istirahat Masuk')}
             >
               <Coffee size={20} strokeWidth={1.5} />

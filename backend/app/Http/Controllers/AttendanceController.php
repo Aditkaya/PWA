@@ -26,6 +26,15 @@ class AttendanceController {
             return;
         }
 
+        if (in_array(strtolower(trim($tipe)), ['istirahat keluar', 'istirahat masuk'], true)) {
+            $now = new \DateTimeImmutable('now', new \DateTimeZone('Asia/Jakarta'));
+            if ($now->format('H:i') >= '13:00') {
+                http_response_code(403);
+                echo json_encode(['message' => 'Absensi istirahat hanya dapat dilakukan sebelum pukul 13.00 WIB.']);
+                return;
+            }
+        }
+
         $isOffline = !empty($postData['is_offline']);
         $waktuOffline = !empty($postData['waktu_offline']) ? trim($postData['waktu_offline']) : null;
         $waktuAbsenParam = null;

@@ -54,7 +54,7 @@ function createServer({ token, worker }) {
       return reply(res, 401, { message: 'Unauthorized' });
     }
     if (req.method === 'GET' && req.url === '/health') return reply(res, ready ? 200 : 503, { ready, backend });
-    if (req.method !== 'POST' || !['/verify', '/validate', '/quality'].includes(req.url)) return reply(res, 404, { message: 'Not found' });
+    if (req.method !== 'POST' || !['/verify', '/validate'].includes(req.url)) return reply(res, 404, { message: 'Not found' });
     if (!ready) return reply(res, 503, { message: 'AI sedang disiapkan. Silakan coba lagi.' });
     if (queue.length >= 8) return reply(res, 503, { message: 'Server AI sedang sibuk. Silakan coba lagi.' });
     try {

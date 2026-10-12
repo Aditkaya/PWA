@@ -1,9 +1,9 @@
 # Validasi wajah di server
 
 HP hanya membuka kamera/GPS dan mengirim foto ketika pengguna menekan tombol foto.
-Sebelum foto diproses, `POST /api/attendance/face-quality` memeriksa pencahayaan dan jarak wajah.
-Jika foto terlalu gelap atau wajah terlalu dekat, kamera menampilkan peringatan dan tidak meneruskan foto.
-`POST /api/attendance/break` memeriksa kualitas dan kecocokan wajah lagi sebelum menulis foto atau absensi.
+`POST /api/attendance/break` memeriksa deteksi dan kecocokan identitas wajah sebelum menulis foto atau absensi.
+Tidak ada ambang khusus untuk pencahayaan atau jarak wajah. Foto yang sangat buram tetap bisa gagal dicocokkan
+karena model tidak dapat mengenali wajah dengan jelas.
 Registrasi (`POST /api/face-registration`) juga memeriksa bahwa foto berisi tepat satu wajah.
 Foto yang ditolak tidak disimpan. Kegagalan layanan menghasilkan HTTP 503, bukan melewati validasi.
 

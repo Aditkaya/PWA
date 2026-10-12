@@ -13,9 +13,6 @@ class FaceVerificationService {
         if (!$token || !function_exists('curl_init')) {
             $isLocal = (isset($_SERVER['SERVER_NAME']) && in_array($_SERVER['SERVER_NAME'], ['localhost', '127.0.0.1'])) || (php_sapi_name() === 'cli');
             if ($isLocal) {
-                if ($endpoint === '/quality') {
-                    throw new FaceVerificationException('Layanan pemeriksaan kualitas foto belum tersedia. Pastikan layanan AI berjalan lalu coba lagi.', 503);
-                }
                 // Di localhost development, izinkan bypass jika service AI Python belum berjalan
                 if ($endpoint === '/register') {
                     return ['valid' => true];
@@ -106,15 +103,6 @@ class FaceVerificationService {
         return $jpeg;
     }
 
-    public function validateAttendanceQuality($dataUrl) {
-        $jpeg = $this->decodePhoto($dataUrl);
-        $result = $this->request('/quality', ['image' => base64_encode($jpeg)]);
-        if (($result['valid'] ?? false) !== true) {
-            throw new FaceVerificationException('Kualitas foto belum memenuhi syarat. Silakan perbaiki pencahayaan dan posisi wajah.', 422);
-        }
-        return true;
-    }
-
     public function verifyAttendance($pdo, $userId, $dataUrl) {
         $jpeg = $this->decodePhoto($dataUrl);
 
@@ -179,7 +167,7 @@ class FaceVerificationService {
             ));
             throw new FaceVerificationException(
                 'Wajah tidak cocok dengan foto terdaftar. ' .
-                'Pastikan Anda menghadap kamera langsung dengan pencahayaan yang baik, lalu coba lagi. ' .
+                'Pastikan wajah terlihat jelas dan menghadap kamera, lalu coba lagi. ' .
                 'Jika masalah berlanjut, hubungi HRD untuk registrasi ulang wajah.',
                 422
             );

@@ -35,10 +35,23 @@ class FaceVerificationService {
         ]);
         $body = curl_exec($curl);
         $status = curl_getinfo($curl, CURLINFO_HTTP_CODE);
+        $curlFailed = $body === false;
         curl_close($curl);
         $data = is_string($body) ? json_decode($body, true) : null;
         if ($status === 422) {
             throw new FaceVerificationException($data['message'] ?? 'Foto wajah tidak valid.', 422);
+        }
+        if ($curlFailed) {
+            throw new FaceVerificationException('Layanan validasi wajah tidak dapat dihubungi. Pastikan layanan AI berjalan dan URL FACE_AI_URL dapat dijangkau dari PHP.', 503);
+        }
+        if ($status === 401) {
+            throw new FaceVerificationException('Token PHP dan layanan validasi wajah tidak cocok. Samakan FACE_AI_TOKEN lalu mulai ulang kedua layanan.', 503);
+        }
+        if ($status === 404) {
+            throw new FaceVerificationException('Versi layanan AI belum mendukung pemeriksaan ini. Perbarui dan mulai ulang layanan face-ai.', 503);
+        }
+        if ($status === 503 && is_array($data) && !empty($data['message'])) {
+            throw new FaceVerificationException($data['message'], 503);
         }
         if ($status !== 200 || !is_array($data)) {
             throw new FaceVerificationException('Server validasi wajah tidak tersedia atau sedang sibuk. Silakan coba lagi.', 503);

@@ -18,21 +18,40 @@ class HistoryController {
             echo json_encode(['message' => 'User ID diperlukan']);
             return;
         }
+        $month = $getData['month'] ?? null;
+        $monthStart = null;
+        $monthEnd = null;
+        if ($month !== null) {
+            if (!is_string($month) || !preg_match('/^\d{4}-(0[1-9]|1[0-2])$/', $month)) {
+                http_response_code(400);
+                echo json_encode(['message' => 'Format bulan harus YYYY-MM']);
+                return;
+            }
+            $monthStart = $month . '-01';
+            $monthEnd = (new \DateTimeImmutable($monthStart))->modify('+1 month')->format('Y-m-d');
+        }
         try {
             $pdo = Database::getConnection();
             $workDate = \App\Helpers\AttendanceWorkDate::sql('mysql', 'a', 0);
+            $monthFilter = $monthStart !== null ? "AND ($workDate) >= ? AND ($workDate) < ?" : '';
+            $limit = $monthStart === null ? 'LIMIT 50' : '';
             $stmt = $pdo->prepare("
             SELECT a.id, $workDate as date, DATE(a.waktu) as actual_date, a.waktu as occurred_at, a.tipe as type, TIME_FORMAT(a.waktu, '%H:%i') as time, IFNULL(a.status, 'Selesai') as status, a.foto, a.detail_lokasi as location, a.latitude as lat, a.longitude as lng, a.keterangan
             FROM absensis a
             JOIN users u ON a.karyawan_id = u.karyawan_id
-            WHERE u.id = ?
+            WHERE u.id = ? $monthFilter
             ORDER BY a.waktu DESC
-            LIMIT 50
+            $limit
         ");
-            $stmt->execute([$user_id]);
+            $params = [$user_id];
+            if ($monthStart !== null) {
+                $params[] = $monthStart;
+                $params[] = $monthEnd;
+            }
+            $stmt->execute($params);
             $history = $stmt->fetchAll();
 
-            // Pair against all stored logs before LIMIT, retaining the actual date for display.
+            // Retain the actual timestamp date while displaying any adjusted work date.
             foreach ($history as &$record) {
                 $record['is_overnight'] = $record['date'] !== $record['actual_date'];
             }

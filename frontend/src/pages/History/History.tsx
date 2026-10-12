@@ -66,8 +66,9 @@ export default function History() {
     if (!user?.id) return
     try {
       if (showLoading) setLoading(true)
+      const month = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`
       const [histRes, permRes, holiRes] = await Promise.all([
-        fetch(`/api/history?user_id=${user.id}`),
+        fetch(`/api/history?user_id=${user.id}&month=${month}`),
         fetch(`/api/permohonan?user_id=${user.id}`),
         fetch('/api/holidays')
       ])
@@ -126,7 +127,7 @@ export default function History() {
 
   useEffect(() => {
     fetchData(true)
-  }, [user])
+  }, [user, currentDate])
 
   const daysInMonth = new Date(currentDate.getFullYear(), currentDate.getMonth() + 1, 0).getDate()
   const firstDayOfMonth = new Date(currentDate.getFullYear(), currentDate.getMonth(), 1).getDay()

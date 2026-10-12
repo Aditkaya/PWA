@@ -48,6 +48,7 @@ export default function History() {
   const [holidaysData, setHolidaysData] = useState<HolidayItem[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
+  const [selectedPermohonanFilter, setSelectedPermohonanFilter] = useState('')
 
   const { lang } = useLangStore()
   const t = translations[lang]
@@ -217,16 +218,28 @@ export default function History() {
 
   const selectedEvents = selectedDay ? getEventsForDay(selectedDay) : []
   
-  const filteredPermohonanData = permohonanData.filter(item => {
-    if (!searchQuery) return true;
-    const query = searchQuery.toLowerCase();
-    return (
-      (item.tipe || '').toLowerCase().includes(query) ||
-      (item.jenis || '').toLowerCase().includes(query) ||
-      (item.keterangan || '').toLowerCase().includes(query) ||
-      (item.status || '').toLowerCase().includes(query)
-    );
-  });
+  const getPermohonanFilterKey = (item: PermohonanItem) =>
+    `${(item.tipe || '').trim().toLocaleLowerCase()}::${(item.jenis || '').trim().toLocaleLowerCase()}`
+  const permohonanFilterOptions = permohonanData.reduce<Array<{ value: string; label: string }>>((options, item) => {
+    const value = getPermohonanFilterKey(item)
+    if (!options.some(option => option.value === value)) {
+      options.push({ value, label: item.jenis ? `${item.tipe} - ${item.jenis}` : item.tipe })
+    }
+    return options
+  }, [])
+  const filteredPermohonanData = selectedPermohonanFilter
+    ? permohonanData.filter(item => {
+        if (getPermohonanFilterKey(item) !== selectedPermohonanFilter) return false
+        if (!searchQuery) return true
+        const query = searchQuery.toLowerCase()
+        return (
+          (item.tipe || '').toLowerCase().includes(query) ||
+          (item.jenis || '').toLowerCase().includes(query) ||
+          (item.keterangan || '').toLowerCase().includes(query) ||
+          (item.status || '').toLowerCase().includes(query)
+        )
+      })
+    : []
   
   const toggleItem = async (id: number | string) => {
     const isExpanding = !expandedItems.includes(id);
@@ -457,14 +470,31 @@ export default function History() {
         </>
       ) : (
         <div className="permohonan-list fade-in">
+          <div className="permohonan-filter-container glass-panel">
+            <label htmlFor="permohonan-category-filter">Filter jenis permohonan</label>
+            <select
+              id="permohonan-category-filter"
+              value={selectedPermohonanFilter}
+              onChange={(event) => {
+                setSelectedPermohonanFilter(event.target.value)
+                setSearchQuery('')
+              }}
+            >
+              <option value="">Pilih jenis permohonan</option>
+              {permohonanFilterOptions.map(option => (
+                <option key={option.value} value={option.value}>{option.label}</option>
+              ))}
+            </select>
+          </div>
           <div className="search-container glass-panel" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', padding: '10px 16px', gap: '8px', borderRadius: '12px' }}>
             <Search size={20} color="var(--text-secondary)" />
             <input 
               type="text" 
-              placeholder="Cari permohonan (Cuti, Izin, Sakit...)" 
+              placeholder="Cari dalam kategori terpilih..."
               value={searchQuery}
+              disabled={!selectedPermohonanFilter}
               onChange={(e) => setSearchQuery(e.target.value)}
-              style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', fontSize: '0.95rem' }}
+              style={{ flex: 1, background: 'transparent', border: 'none', color: 'var(--text-primary)', outline: 'none', fontSize: '0.95rem', opacity: selectedPermohonanFilter ? 1 : 0.5 }}
             />
             {searchQuery && (
               <button onClick={() => setSearchQuery('')} className="icon-btn" style={{ padding: '4px' }}>
@@ -473,7 +503,12 @@ export default function History() {
             )}
           </div>
 
-          {filteredPermohonanData.length > 0 ? (
+          {!selectedPermohonanFilter ? (
+            <div className="empty-state glass-panel">
+              <Info size={32} />
+              <p>Pilih jenis permohonan untuk menampilkan data.</p>
+            </div>
+          ) : filteredPermohonanData.length > 0 ? (
             <div className="history-list">
               {filteredPermohonanData.map(item => {
                 const itemKey = `${item.tipe}-${item.id}`;

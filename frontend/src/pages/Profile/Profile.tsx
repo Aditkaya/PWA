@@ -973,7 +973,7 @@ export default function Profile() {
               }}>
                 <span style={{ fontSize: '0.82rem', color: 'var(--text-secondary)' }}>Standar Biometrik</span>
                 <span style={{ fontSize: '0.82rem', fontWeight: 600, color: '#38bdf8' }}>
-                  Threshold Ketat (0.44)
+                  Threshold Toleran (0,50)
                 </span>
               </div>
             </div>

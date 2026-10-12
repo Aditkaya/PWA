@@ -499,6 +499,7 @@ export default function Dashboard() {
     if (!user?.id) throw new Error('Silakan masuk kembali sebelum absen.')
     const controller = new AbortController()
     const timeout = setTimeout(() => controller.abort(), 20000)
+    let attendanceCompleted = false
     let detailLokasi = locationData?.address || '';
     if (locationData?.outOfRangeMessage) {
       detailLokasi += ` (${locationData.outOfRangeMessage})`;
@@ -526,6 +527,7 @@ export default function Dashboard() {
       // Check if navigator is already offline before fetch
       if (!navigator.onLine) {
         await handleOfflineSave(imageSrc, locationData, detailLokasi);
+        attendanceCompleted = true;
         return;
       }
 
@@ -544,10 +546,12 @@ export default function Dashboard() {
             showToast(data.message || t.attendanceRecorded.replace('{type}', attendanceType), 'success');
           }
           fetchHistoryAndProfile(); // Refresh data
+          attendanceCompleted = true;
         } else {
           // If server error 502, 503, 504 (server offline / bad gateway)
           if ([502, 503, 504].includes(response.status)) {
             await handleOfflineSave(imageSrc, locationData, detailLokasi);
+            attendanceCompleted = true;
             return;
           }
           const data = await response.json().catch(() => ({}))
@@ -565,14 +569,17 @@ export default function Dashboard() {
 
         if (isOfflineLike) {
           await handleOfflineSave(imageSrc, locationData, detailLokasi);
+          attendanceCompleted = true;
           return;
         }
         throw fetchError;
       }
     } finally {
       clearTimeout(timeout)
-      setIsCameraOpen(false)
-      setPermitReason('')
+      if (attendanceCompleted) {
+        setIsCameraOpen(false)
+        setPermitReason('')
+      }
     }
   }
 

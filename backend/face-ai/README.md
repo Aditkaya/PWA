@@ -1,7 +1,9 @@
 # Validasi wajah di server
 
 HP hanya membuka kamera/GPS dan mengirim foto ketika pengguna menekan tombol foto.
-`POST /api/attendance/break` memanggil layanan AI sebelum menulis foto atau absensi.
+Sebelum foto diproses, `POST /api/attendance/face-quality` memeriksa pencahayaan dan jarak wajah.
+Jika foto terlalu gelap atau wajah terlalu dekat, kamera menampilkan peringatan dan tidak meneruskan foto.
+`POST /api/attendance/break` memeriksa kualitas dan kecocokan wajah lagi sebelum menulis foto atau absensi.
 Registrasi (`POST /api/face-registration`) juga memeriksa bahwa foto berisi tepat satu wajah.
 Foto yang ditolak tidak disimpan. Kegagalan layanan menghasilkan HTTP 503, bukan melewati validasi.
 
@@ -82,13 +84,16 @@ Konfigurasi opsional (environment proses):
 | `FACE_AI_PORT` | Node | `8001` |
 | `FACE_AI_MODEL_DIR` | Node | folder `models` di layanan ini |
 | `FACE_AI_BACKEND` | Node | otomatis mencoba native; `tensorflow` mewajibkan native, `cpu` untuk fallback |
+| `FACE_AI_THRESHOLD` | Node | `0.50`, jarak maksimum kecocokan wajah; nilai lebih tinggi lebih toleran |
 
 Jika PHP dan Node berjalan di container berbeda, alamat loopback tidak saling menjangkau;
 contoh ini untuk dua proses pada host yang sama. Jangan membuka layanan ke jaringan umum.
 
 ## Perilaku dan batas
 
-- Model pencocokan dan ambang jarak 0,58 mengikuti implementasi sebelumnya. Backend
+- Model pencocokan menggunakan ambang jarak 0,50 secara bawaan agar variasi pencahayaan,
+  sudut, dan ekspresi lebih mudah diterima. Nilai ini bisa diatur melalui `FACE_AI_THRESHOLD`.
+  Nilai yang lebih tinggi lebih toleran, tetapi meningkatkan risiko wajah orang berbeda dianggap cocok. Backend
   mengambil foto referensi dari data pengguna, bukan menerima referensi dari browser.
 - Model berada di backend; paket frontend tidak mengimpor face-api atau meminta `/models`.
 - Saat PWA diperbarui, cache model perangkat dari implementasi sebelumnya dibersihkan.

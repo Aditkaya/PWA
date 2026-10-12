@@ -340,6 +340,19 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       const context = frame.getContext('2d');
       if (!context || !frame.width || !frame.height) throw new Error('Kamera belum siap. Silakan coba lagi.');
       context.drawImage(video, 0, 0);
+      const qualityForm = new FormData();
+      qualityForm.append('foto_base64', frame.toDataURL('image/jpeg', 0.85));
+      setStatusMsg('Memeriksa pencahayaan dan jarak wajah...');
+      let qualityResponse: Response;
+      try {
+        qualityResponse = await fetch('/api/attendance/face-quality', { method: 'POST', body: qualityForm });
+      } catch {
+        throw new Error('Kualitas foto belum dapat diperiksa. Pastikan koneksi internet aktif lalu coba lagi.');
+      }
+      const qualityResult = await qualityResponse.json().catch(() => ({}));
+      if (!qualityResponse.ok || qualityResult.valid !== true) {
+        throw new Error(qualityResult.message || 'Kualitas foto belum memenuhi syarat. Perbaiki pencahayaan dan posisi wajah lalu coba lagi.');
+      }
       verifiedFrameRef.current = frame;
       await captureAndValidate();
     } catch (error) {
@@ -481,7 +494,8 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
 
   // Quality gate: jika akurasi GPS > 50 meter, tombol absensi tidak bisa digunakan
   const errorMsg = cameraError || gpsError;
-  const canTakePhoto = isCameraReady && isLocationReady && !errorMsg && !isProcessing;
+  const canTakePhoto = isCameraReady && isLocationReady && !errorMsg && !isProcessing && !validationError;
+  const isPhotoQualityWarning = /gelap|terlalu dekat|kualitas foto|wajah tidak terdeteksi|mundur sedikit|lebih terang/i.test(validationError);
 
   // Label kualitas sinyal GPS untuk ditampilkan di UI
   const gpsQualityLabel = gpsAccuracy === null
@@ -568,7 +582,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
               <AlertCircle size={22} style={{ flexShrink: 0, marginTop: '2px', color: '#fecaca' }} />
               <div style={{ flex: 1 }}>
                 <div style={{ fontWeight: 700, fontSize: '0.9rem', marginBottom: '2px' }}>
-                  Verifikasi Wajah Gagal
+                  {isPhotoQualityWarning ? 'Kualitas Foto Belum Memadai' : 'Verifikasi Wajah Gagal'}
                 </div>
                 <div style={{ fontSize: '0.8rem', lineHeight: '1.35', opacity: 0.95 }}>
                   {validationError}
@@ -665,7 +679,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
                     pointerEvents: 'none'
                   }}>
                     <AlertCircle size={18} color="#ffffff" />
-                    <span>Wajah Ditolak</span>
+                    <span>{isPhotoQualityWarning ? 'Perbaiki Posisi' : 'Wajah Ditolak'}</span>
                   </div>
                 )}
               </div>
@@ -689,7 +703,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
           <div style={{ width: '100%', display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
             {validationError ? (
               <div style={{ padding: '8px 16px', background: 'rgba(220, 38, 38, 0.95)', color: 'white', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.4)' }}>
-                <AlertCircle size={16} /> Wajah tidak cocok. Silakan arahkan wajah Anda dan foto ulang.
+                <AlertCircle size={16} /> {isPhotoQualityWarning ? validationError : 'Wajah tidak cocok. Silakan arahkan wajah Anda dan foto ulang.'}
               </div>
             ) : canTakePhoto ? (
               <div style={{ padding: '8px 16px', background: 'rgba(34, 197, 94, 0.9)', color: 'white', borderRadius: '20px', fontSize: '0.9rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 6px rgba(0,0,0,0.1)' }}>

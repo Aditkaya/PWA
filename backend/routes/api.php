@@ -559,6 +559,13 @@ if ($uri === '/api/attendance/break' && $method === 'POST') {
     exit();
 }
 
+if ($uri === '/api/attendance/face-quality' && $method === 'POST') {
+    require_once __DIR__ . '/../app/Http/Controllers/AttendanceController.php';
+    $controller = new \App\Http\Controllers\AttendanceController();
+    $controller->checkFaceQuality($_POST);
+    exit();
+}
+
 if ($uri === '/api/attendance/lupa' && $method === 'POST') {
     require_once __DIR__ . '/../app/Http/Controllers/AttendanceController.php';
     $controller = new \App\Http\Controllers\AttendanceController();

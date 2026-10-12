@@ -10,6 +10,18 @@ use PDO;
 use Exception;
 
 class AttendanceController {
+
+    public function checkFaceQuality($postData) {
+        $foto_base64 = $postData['foto_base64'] ?? null;
+        try {
+            (new \App\Services\FaceVerificationService())->validateAttendanceQuality($foto_base64);
+            http_response_code(200);
+            echo json_encode(['valid' => true]);
+        } catch (\App\Services\FaceVerificationException $e) {
+            http_response_code($e->getCode() ?: 422);
+            echo json_encode(['message' => $e->getMessage()]);
+        }
+    }
     
     public function submitBreak($postData) {
         $user_id = $postData['user_id'] ?? null;

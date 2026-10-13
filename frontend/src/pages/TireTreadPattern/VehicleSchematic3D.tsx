@@ -49,6 +49,7 @@ export interface WheelMeta {
 }
 
 const RecentlySwappedWheelContext = createContext<ReadonlySet<string>>(new Set());
+const BlueprintClickSelectContext = createContext(false);
 
 export interface VehicleSchematicProps {
   wheelCount: 6 | 8 | 12 | 4;
@@ -148,6 +149,7 @@ function Tire({
   const c = DS[type];
   const rx = W / 2, ry = H / 2;
   const isAssigned = Boolean(tireData);
+  const clickSelectOnly = useContext(BlueprintClickSelectContext);
   const isRecentlySwapped = useContext(RecentlySwappedWheelContext).has(id);
   const [isDndOver, setIsDndOver] = useState(false);
 
@@ -167,13 +169,14 @@ function Tire({
       onDrop={(e) => {
         e.preventDefault();
         setIsDndOver(false);
+        if (clickSelectOnly) return;
         const rawData = e.dataTransfer.getData('text/plain');
         const banId = Number(rawData) || globalActiveDraggedBanId;
         if (banId) {
           onDropTire?.(id, Number(banId));
         }
       }}
-      style={{ cursor: isAssigned ? 'grab' : 'pointer' }}
+      style={{ cursor: clickSelectOnly ? 'pointer' : isAssigned ? 'grab' : 'pointer' }}
     >
       {/* Active Glowing Ring atau Drag-Over Highlight */}
       {(isActive || isDndOver || isTouchOver || isRecentlySwapped) && (
@@ -1891,6 +1894,7 @@ export default function VehicleSchematic3D({
 
   // State modal detail ban untuk Blueprint 2D & list tray
   const [blueprintDetailTire, setBlueprintDetailTire] = useState<{ tire: StockBanItem; wheelId: string } | null>(null);
+  const [selectedBanId, setSelectedBanId] = useState<number | null>(null);
   const [warehouseReturn, setWarehouseReturn] = useState<{ tire: StockBanItem; wheelId: string } | null>(null);
   const [recentlySwappedWheelIds, setRecentlySwappedWheelIds] = useState<ReadonlySet<string>>(new Set());
   const recentSwapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -1971,11 +1975,18 @@ export default function VehicleSchematic3D({
 
   // Handler klik roda pada diagram atau saat memilih posisi dari dropdown
   const handleSelectWheel = (wheelId: string) => {
-    // Mobile browsers may emit a synthetic click after a completed drag. Ignore
-    // that click so moving a tire does not also open the destination details.
+    // Ignore synthetic click events emitted by mobile browsers after a drag.
     if (Date.now() < suppressWheelClickUntilRef.current) return;
-    setInternalWheelId(wheelId);
     const tire = getTireForWheel(wheelId);
+    if (viewMode === 'blueprint' && selectedBanId !== null) {
+      handleAssignTire(wheelId, selectedBanId);
+      setSelectedBanId(null);
+      return;
+    }
+    setInternalWheelId(wheelId);
+    if (viewMode === 'blueprint' && tire) {
+      setSelectedBanId(tire.id);
+    }
     onWheelClick?.(wheelId, tire);
   };
   const handleSelectWheelRef = useRef(handleSelectWheel);
@@ -2101,7 +2112,9 @@ export default function VehicleSchematic3D({
 
     // Kirim mutasi simpan ke database MySQL
     setDbSyncStatus('saving');
-    fetch('/api/tire-tread/installations/assign', {
+    const assignmentRequest = targetExistingBanId && targetExistingBanId !== banId && !sourceWheelId
+      ? (syncAllInstallationsToBackend(nextAssigns), null)
+      : fetch('/api/tire-tread/installations/assign', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -2122,7 +2135,9 @@ export default function VehicleSchematic3D({
         donor_category: assignedTire?.borrowedMeta?.donorCategory || null,
         borrowed_at: assignedTire?.borrowedMeta?.borrowedAt || null
       })
-    })
+    });
+    if (!assignmentRequest) return;
+    assignmentRequest
       .then((res) => res.json())
       .then((json) => {
         if (json.status === 'success') {
@@ -2408,7 +2423,10 @@ export default function VehicleSchematic3D({
   return (
     <div className="vs-wrapper">
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10, padding: '9px 12px', border: '1px solid rgba(56,189,248,.25)', borderRadius: 10, background: 'rgba(2,12,25,.75)', color: '#cbd5e1', fontSize: 12 }}>
-        <span>Aktivitas: <strong style={{ color: '#7dd3fc' }}>{selectedActivity === 'replace' ? 'Ganti / pasang ban • Inventori gudang' : 'Pindahkan posisi ban'}</strong></span>
+        <span>
+          Aktivitas: <strong style={{ color: '#7dd3fc' }}>{selectedActivity === 'replace' ? 'Ganti / pasang ban • Inventori gudang' : 'Pindahkan posisi ban'}</strong>
+          {viewMode === 'blueprint' && <span style={{ display: 'block', marginTop: 3, color: selectedBanId ? '#34d399' : '#94a3b8' }}>{selectedBanId ? `Ban #${allTires.find((t) => t.id === selectedBanId)?.nomor_seri || selectedBanId} dipilih — pilih posisi tujuan.` : '2D: pilih ban, lalu pilih posisi tujuan. Ban di posisi tujuan akan ditukar.'}</span>}
+        </span>
         <button type="button" onClick={() => setSelectedActivity(null)} style={{ border: '1px solid rgba(56,189,248,.4)', borderRadius: 7, padding: '5px 9px', color: '#7dd3fc', background: 'transparent', cursor: 'pointer' }}>Ganti aktivitas</button>
       </div>
       {/* ── WORKBENCH GRID CONTAINER (2-KOLOM PADA DESKTOP, RESPONSIVE) ── */}
@@ -2422,7 +2440,7 @@ export default function VehicleSchematic3D({
               <button
                 type="button"
                 className={`vs-mode-btn ${viewMode === '3d-anim' ? 'vs-mode-btn--active' : ''}`}
-                onClick={() => setViewMode('3d-anim')}
+                onClick={() => { setViewMode('3d-anim'); setSelectedBanId(null); }}
               >
                 <span>3D</span>
               </button>
@@ -2501,23 +2519,31 @@ export default function VehicleSchematic3D({
             ) : (
               <div className="vs-container">
                 {wheelCount === 6 && (
-                  <RecentlySwappedWheelContext.Provider value={recentlySwappedWheelIds}>
-                    <Schema6Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} onTouchDragStart={handleSchematicTouchDragStart} onPointerDragStart={handleSchematicPointerDragStart} touchTargetWheelId={touchTargetWheelId} />
+                    <RecentlySwappedWheelContext.Provider value={recentlySwappedWheelIds}>
+                    <BlueprintClickSelectContext.Provider value>
+                    <Schema6Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={undefined} onTouchDragStart={undefined} onPointerDragStart={undefined} touchTargetWheelId={null} />
+                    </BlueprintClickSelectContext.Provider>
                   </RecentlySwappedWheelContext.Provider>
                 )}
                 {wheelCount === 8 && (
-                  <RecentlySwappedWheelContext.Provider value={recentlySwappedWheelIds}>
-                    <Schema8Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} onTouchDragStart={handleSchematicTouchDragStart} onPointerDragStart={handleSchematicPointerDragStart} touchTargetWheelId={touchTargetWheelId} />
+                    <RecentlySwappedWheelContext.Provider value={recentlySwappedWheelIds}>
+                    <BlueprintClickSelectContext.Provider value>
+                    <Schema8Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={undefined} onTouchDragStart={undefined} onPointerDragStart={undefined} touchTargetWheelId={null} />
+                    </BlueprintClickSelectContext.Provider>
                   </RecentlySwappedWheelContext.Provider>
                 )}
                 {wheelCount === 12 && (
-                  <RecentlySwappedWheelContext.Provider value={recentlySwappedWheelIds}>
-                    <Schema12Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} onTouchDragStart={handleSchematicTouchDragStart} onPointerDragStart={handleSchematicPointerDragStart} touchTargetWheelId={touchTargetWheelId} />
+                    <RecentlySwappedWheelContext.Provider value={recentlySwappedWheelIds}>
+                    <BlueprintClickSelectContext.Provider value>
+                    <Schema12Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={undefined} onTouchDragStart={undefined} onPointerDragStart={undefined} touchTargetWheelId={null} />
+                    </BlueprintClickSelectContext.Provider>
                   </RecentlySwappedWheelContext.Provider>
                 )}
                 {wheelCount === 4 && (
-                  <RecentlySwappedWheelContext.Provider value={recentlySwappedWheelIds}>
-                    <Schema4Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={handleAssignTire} onTouchDragStart={handleSchematicTouchDragStart} onPointerDragStart={handleSchematicPointerDragStart} touchTargetWheelId={touchTargetWheelId} />
+                    <RecentlySwappedWheelContext.Provider value={recentlySwappedWheelIds}>
+                    <BlueprintClickSelectContext.Provider value>
+                    <Schema4Roda selectedWheelId={activeWheelId} onWheelClick={handleSelectWheel} getTire={getTireForWheel} onDropTire={undefined} onTouchDragStart={undefined} onPointerDragStart={undefined} touchTargetWheelId={null} />
+                    </BlueprintClickSelectContext.Provider>
                   </RecentlySwappedWheelContext.Provider>
                 )}
 
@@ -2704,7 +2730,11 @@ export default function VehicleSchematic3D({
                   return (
                     <div
                       key={ban.id}
-                      draggable={true}
+                      draggable={viewMode === '3d-anim'}
+                      onClick={() => {
+                        if (viewMode !== 'blueprint') return;
+                        setSelectedBanId((current) => current === ban.id ? null : ban.id);
+                      }}
                       onDragStart={(e) => {
                         // Jika sedang aktif touch drag di layar HP, batalkan HTML5 drag bawaan agar tidak muncul kotak hitam & badge (+) dari OS Android
                         if (touchDraggingTireRef.current) {
@@ -2734,20 +2764,21 @@ export default function VehicleSchematic3D({
                       className={`vs-tire-card ${isDraggingThis ? 'vs-tire-card--dragging' : ''} ${
                         placedAtWheel ? 'vs-tire-card--assigned' : ''
                       }`}
-                      title="Pegang & Tarik ban ini ke 3D atau denah unit"
+                      style={viewMode === 'blueprint' && selectedBanId === ban.id ? { outline: '2px solid #38bdf8', boxShadow: '0 0 16px rgba(56,189,248,.35)' } : undefined}
+                      title={viewMode === 'blueprint' ? 'Pilih ban ini, lalu pilih posisi tujuan pada denah 2D' : 'Pegang & Tarik ban ini ke tampilan 3D'}
                     >
                       <div className="vs-card-left">
                         <span
                           className="vs-drag-handle"
-                          title="Tarik Ban ke Roda (Sentuh & Geser)"
-                          onTouchStart={(e) => handleTouchStart(ban, e)}
+                          title={viewMode === 'blueprint' ? 'Pilih ban untuk dipindahkan' : 'Tarik Ban ke Roda (Sentuh & Geser)'}
+                          onTouchStart={viewMode === '3d-anim' ? (e) => handleTouchStart(ban, e) : undefined}
                         >
-                          ⠿
+                          {viewMode === 'blueprint' ? '✓' : '⠿'}
                         </span>
                         <div
                           className="vs-tire-touch-trigger"
-                          title="Sentuh & Geser gambar ban ke unit"
-                          onTouchStart={(e) => handleTouchStart(ban, e)}
+                          title={viewMode === 'blueprint' ? 'Pilih ban, kemudian pilih roda tujuan' : 'Sentuh & Geser gambar ban ke unit'}
+                          onTouchStart={viewMode === '3d-anim' ? (e) => handleTouchStart(ban, e) : undefined}
                         >
                           <RealisticTireGraphic
                             ban={ban}

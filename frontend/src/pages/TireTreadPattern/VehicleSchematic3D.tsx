@@ -275,6 +275,27 @@ function Tire({
           >
             #{tireData.nomor_seri.length > 8 ? tireData.nomor_seri.slice(0, 7) + '…' : tireData.nomor_seri}
           </text>
+          <g
+            role="button"
+            tabIndex={0}
+            aria-label={`Lihat detail ban ${tireData.nomor_seri}`}
+            onClick={(event) => {
+              event.stopPropagation();
+              window.dispatchEvent(new CustomEvent('tire-detail-request', { detail: { tire: tireData, wheelId: id } }));
+            }}
+            onKeyDown={(event) => {
+              if (event.key === 'Enter' || event.key === ' ') {
+                event.preventDefault();
+                event.stopPropagation();
+                window.dispatchEvent(new CustomEvent('tire-detail-request', { detail: { tire: tireData, wheelId: id } }));
+              }
+            }}
+            style={{ cursor: 'pointer' }}
+          >
+            <circle cx={cx + rx - 2} cy={cy - ry + 2} r="7" fill="#061426" stroke="#38bdf8" strokeWidth="1.2" />
+            <path d={`M ${cx + rx - 6} ${cy - ry + 2} Q ${cx + rx - 2} ${cy - ry - 2} ${cx + rx + 2} ${cy - ry + 2} Q ${cx + rx - 2} ${cy - ry + 6} ${cx + rx - 6} ${cy - ry + 2} Z`} fill="none" stroke="#7dd3fc" strokeWidth="1" />
+            <circle cx={cx + rx - 2} cy={cy - ry + 2} r="1.2" fill="#7dd3fc" />
+          </g>
         </g>
       ) : (
         <g>
@@ -1517,6 +1538,7 @@ export default function VehicleSchematic3D({
   category,
   wheelConfig
 }: VehicleSchematicProps) {
+  const [selectedActivity, setSelectedActivity] = useState<'replace' | 'move' | null>(null);
   const activeMobilId = mobil_id ?? mobilId ?? null;
   const activeAlatBeratId = alat_berat_id ?? alatBeratId ?? null;
 
@@ -1873,6 +1895,15 @@ export default function VehicleSchematic3D({
   const [recentlySwappedWheelIds, setRecentlySwappedWheelIds] = useState<ReadonlySet<string>>(new Set());
   const recentSwapTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  useEffect(() => {
+    const openTireDetails = (event: Event) => {
+      const detail = (event as CustomEvent<{ tire: StockBanItem; wheelId: string }>).detail;
+      if (detail?.tire && detail?.wheelId) setBlueprintDetailTire(detail);
+    };
+    window.addEventListener('tire-detail-request', openTireDetails);
+    return () => window.removeEventListener('tire-detail-request', openTireDetails);
+  }, []);
+
   useEffect(() => () => {
     if (recentSwapTimerRef.current) clearTimeout(recentSwapTimerRef.current);
   }, []);
@@ -1946,9 +1977,6 @@ export default function VehicleSchematic3D({
     setInternalWheelId(wheelId);
     const tire = getTireForWheel(wheelId);
     onWheelClick?.(wheelId, tire);
-    if (tire && viewMode === 'blueprint') {
-      setBlueprintDetailTire({ tire, wheelId });
-    }
   };
   const handleSelectWheelRef = useRef(handleSelectWheel);
   handleSelectWheelRef.current = handleSelectWheel;
@@ -2358,8 +2386,31 @@ export default function VehicleSchematic3D({
       touchTargetWheelIdRef.current = null;
   };
 
+  if (!selectedActivity) {
+    return (
+      <div className="vs-wrapper">
+        <section style={{ padding: 20, border: '1px solid rgba(56,189,248,.35)', borderRadius: 14, background: 'rgba(2,12,25,.94)', color: '#e2e8f0' }}>
+          <h3 style={{ margin: '0 0 6px', color: '#7dd3fc' }}>Pilih aktivitas ban</h3>
+          <p style={{ margin: '0 0 16px', color: '#94a3b8', fontSize: 13 }}>Pilih aktivitas terlebih dahulu. Denah dan inventori ban akan aktif setelah pilihan dibuat.</p>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(210px, 1fr))', gap: 10 }}>
+            <button type="button" onClick={() => setSelectedActivity('replace')} style={{ padding: 15, borderRadius: 10, border: '1px solid rgba(16,185,129,.55)', background: 'rgba(16,185,129,.12)', color: '#d1fae5', textAlign: 'left', cursor: 'pointer' }}>
+              <strong>🔧 Ganti / pasang ban</strong><br /><span style={{ color: '#94a3b8', fontSize: 12 }}>Pilih ban dari gudang, lalu tentukan posisi pemasangan.</span>
+            </button>
+            <button type="button" onClick={() => setSelectedActivity('move')} style={{ padding: 15, borderRadius: 10, border: '1px solid rgba(245,158,11,.55)', background: 'rgba(245,158,11,.1)', color: '#fef3c7', textAlign: 'left', cursor: 'pointer' }}>
+              <strong>↔ Pindahkan posisi ban</strong><br /><span style={{ color: '#94a3b8', fontSize: 12 }}>Pindahkan atau tukar ban yang sudah terpasang di unit.</span>
+            </button>
+          </div>
+        </section>
+      </div>
+    );
+  }
+
   return (
     <div className="vs-wrapper">
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, marginBottom: 10, padding: '9px 12px', border: '1px solid rgba(56,189,248,.25)', borderRadius: 10, background: 'rgba(2,12,25,.75)', color: '#cbd5e1', fontSize: 12 }}>
+        <span>Aktivitas: <strong style={{ color: '#7dd3fc' }}>{selectedActivity === 'replace' ? 'Ganti / pasang ban • Inventori gudang' : 'Pindahkan posisi ban'}</strong></span>
+        <button type="button" onClick={() => setSelectedActivity(null)} style={{ border: '1px solid rgba(56,189,248,.4)', borderRadius: 7, padding: '5px 9px', color: '#7dd3fc', background: 'transparent', cursor: 'pointer' }}>Ganti aktivitas</button>
+      </div>
       {/* ── WORKBENCH GRID CONTAINER (2-KOLOM PADA DESKTOP, RESPONSIVE) ── */}
       <div className="vs-workbench">
         {/* ── KOLOM 1: STAGE VISUAL (3D STUDIO / BLUEPRINT 2D) ── */}

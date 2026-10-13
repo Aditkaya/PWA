@@ -2574,66 +2574,6 @@ export default function VehicleSchematic3D({
                   </RecentlySwappedWheelContext.Provider>
                 )}
 
-                {/* Status Bar untuk Blueprint 2D */}
-                {activeWheelId && (
-                  <div className="vs-3d-status-bar" style={{ marginTop: '12px' }}>
-                    <div className="vs-3d-wheel-tag">
-                      <div className="vs-3d-tag-left">
-                        <span className="vs-3d-code-pill">
-                          {wheelConfig?.wheels.find((w) => w.id === activeWheelId)?.code || activeWheelId.toUpperCase()}
-                        </span>
-                        <span className="vs-3d-wheel-title">
-                          {wheelConfig?.wheels.find((w) => w.id === activeWheelId)?.name || `Roda ${activeWheelId}`}
-                        </span>
-                      </div>
-
-                      <div className="vs-3d-tag-right">
-                        {getTireForWheel(activeWheelId) ? (
-                          <div className="vs-3d-assigned-actions">
-                            <span
-                              className="vs-3d-tire-pill vs-3d-tire-pill--ok vs-3d-tire-pill--clickable"
-                              onClick={() => {
-                                const t = getTireForWheel(activeWheelId);
-                                if (t) setBlueprintDetailTire({ tire: t, wheelId: activeWheelId });
-                              }}
-                              title="Klik untuk detail data ban"
-                            >
-                              ✓ #{getTireForWheel(activeWheelId)?.nomor_seri} ({getTireForWheel(activeWheelId)?.merk})
-                            </span>
-                            <button
-                              type="button"
-                              className="vs-detach-btn vs-detach-btn--pill"
-                              style={{ background: 'rgba(56, 189, 248, 0.15)', borderColor: 'rgba(56, 189, 248, 0.45)', color: '#38bdf8' }}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                const t = getTireForWheel(activeWheelId);
-                                if (t) setBlueprintDetailTire({ tire: t, wheelId: activeWheelId });
-                              }}
-                              title="Tukar posisi ban ini"
-                            >
-                              🔄 Tukar
-                            </button>
-                            <button
-                              type="button"
-                              className="vs-detach-btn vs-detach-btn--pill"
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                handleRemoveTire(activeWheelId);
-                              }}
-                              title="Copot ban"
-                            >
-                              ✕ Copot
-                            </button>
-                          </div>
-                        ) : (
-                          <span className="vs-3d-tire-pill vs-3d-tire-pill--empty">
-                            ⚪ Kosong
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                )}
               </div>
             )}
           </div>

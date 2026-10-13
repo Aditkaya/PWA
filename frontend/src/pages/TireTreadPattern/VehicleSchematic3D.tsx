@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useMemo, useRef } from 
 import { createPortal } from 'react-dom';
 import './VehicleSchematic3D.css';
 import VehicleAnimation3D from './VehicleAnimation3D';
+import { useToast } from '../../contexts/ToastContext';
 
 /* ─────────────────────────────────────────────────────────────
    TYPE DEFINITIONS
@@ -1541,6 +1542,7 @@ export default function VehicleSchematic3D({
   category,
   wheelConfig
 }: VehicleSchematicProps) {
+  const { showToast } = useToast();
   const [selectedActivity, setSelectedActivity] = useState<'replace' | 'move' | null>(null);
   const activeMobilId = mobil_id ?? mobilId ?? null;
   const activeAlatBeratId = alat_berat_id ?? alatBeratId ?? null;
@@ -1815,7 +1817,7 @@ export default function VehicleSchematic3D({
   }, [tires, borrowedTires]);
 
   // Sinkronkan seluruh posisi ban unit ke backend database MySQL
-  const syncAllInstallationsToBackend = (assignMap: Record<string, number>) => {
+  const syncAllInstallationsToBackend = (assignMap: Record<string, number>, activityMessage?: string) => {
     const list = Object.entries(assignMap).map(([wId, bId]) => {
       const tire = allTires.find((t) => t.id === bId);
       const meta = wheelConfig?.wheels.find((w) => w.id === wId);
@@ -1853,12 +1855,15 @@ export default function VehicleSchematic3D({
       .then((json) => {
         if (json.status === 'success') {
           setDbSyncStatus('synced');
+          if (activityMessage) showToast(`${activityMessage} berhasil.`, 'success');
         } else {
           setDbSyncStatus('error');
+          if (activityMessage) showToast(`${activityMessage} gagal disimpan. ${json.message || 'Silakan coba lagi.'}`, 'error');
         }
       })
       .catch(() => {
         setDbSyncStatus('error');
+        if (activityMessage) showToast(`${activityMessage} gagal karena koneksi ke server bermasalah.`, 'error');
       });
   };
 
@@ -1994,7 +1999,7 @@ export default function VehicleSchematic3D({
   const suppressWheelClickUntilRef = useRef(0);
 
   // Menukar posisi dua ban yang sedang terpasang (atau memindahkan ke roda kosong)
-  const handleSwapTires = (wheelId1: string, wheelId2: string) => {
+  const handleSwapTires = (wheelId1: string, wheelId2: string, activityMessage?: string) => {
     if (!wheelId1 || !wheelId2 || wheelId1 === wheelId2) return;
 
     const nextAssigns = { ...assignments };
@@ -2070,17 +2075,23 @@ export default function VehicleSchematic3D({
       .then((json) => {
         if (json.status === 'success') {
           setDbSyncStatus('synced');
+          if (activityMessage) showToast(`${activityMessage} berhasil.`, 'success');
         } else {
-          syncAllInstallationsToBackend(nextAssigns);
+          syncAllInstallationsToBackend(nextAssigns, activityMessage);
         }
       })
       .catch(() => {
-        syncAllInstallationsToBackend(nextAssigns);
+        syncAllInstallationsToBackend(nextAssigns, activityMessage);
       });
   };
 
   // Pasang ban tertentu ke posisi roda dan simpan ke database
   const handleAssignTire = (wheelId: string, banId: number) => {
+    if (assignments[wheelId] === banId) {
+      setSelectedBanId(null);
+      showToast('Ban tersebut sudah berada di posisi yang dipilih.', 'info');
+      return;
+    }
     // Cek apakah ban ini sebelumnya sudah terpasang di roda lain
     let sourceWheelId: string | null = null;
     for (const [wKey, bVal] of Object.entries(assignments)) {
@@ -2091,10 +2102,20 @@ export default function VehicleSchematic3D({
     }
 
     const targetExistingBanId = assignments[wheelId];
+    const movedTire = allTires.find((t) => t.id === banId);
+    const targetTire = targetExistingBanId ? allTires.find((t) => t.id === targetExistingBanId) : null;
+    const targetName = wheelConfig?.wheels.find((w) => w.id === wheelId)?.name || `posisi ${wheelId.toUpperCase()}`;
+    const activityMessage = sourceWheelId && targetExistingBanId
+      ? `Tukar ban #${movedTire?.nomor_seri || banId} dengan ban #${targetTire?.nomor_seri || targetExistingBanId}`
+      : sourceWheelId
+        ? `Pindahkan ban #${movedTire?.nomor_seri || banId} ke ${targetName}`
+        : targetExistingBanId
+          ? `Ganti ban di ${targetName} dengan #${movedTire?.nomor_seri || banId}`
+          : `Pasang ban #${movedTire?.nomor_seri || banId} di ${targetName}`;
 
     // Jika ban dipindahkan dari roda lain DAN roda tujuan sudah terpasang ban: TUKAR POSISI (SWAP)!
     if (sourceWheelId && sourceWheelId !== wheelId && targetExistingBanId) {
-      handleSwapTires(sourceWheelId, wheelId);
+      handleSwapTires(sourceWheelId, wheelId, activityMessage);
       return;
     }
 
@@ -2113,7 +2134,7 @@ export default function VehicleSchematic3D({
     // Kirim mutasi simpan ke database MySQL
     setDbSyncStatus('saving');
     const assignmentRequest = targetExistingBanId && targetExistingBanId !== banId && !sourceWheelId
-      ? (syncAllInstallationsToBackend(nextAssigns), null)
+      ? (syncAllInstallationsToBackend(nextAssigns, activityMessage), null)
       : fetch('/api/tire-tread/installations/assign', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -2142,18 +2163,24 @@ export default function VehicleSchematic3D({
       .then((json) => {
         if (json.status === 'success') {
           setDbSyncStatus('synced');
+          showToast(`${activityMessage} berhasil.`, 'success');
         } else {
           setDbSyncStatus('error');
+          showToast(`${activityMessage} gagal disimpan. ${json.message || 'Silakan coba lagi.'}`, 'error');
         }
       })
       .catch((err) => {
         console.warn('Gagal menyimpan posisi ban ke database:', err);
         setDbSyncStatus('error');
+        showToast(`${activityMessage} gagal karena koneksi ke server bermasalah.`, 'error');
       });
   };
 
   // Lepas ban dari posisi roda dan hapus dari database
   const handleRemoveTire = (wheelId: string) => {
+    const removedTire = getTireForWheel(wheelId);
+    const wheelName = wheelConfig?.wheels.find((w) => w.id === wheelId)?.name || `posisi ${wheelId.toUpperCase()}`;
+    const activityMessage = `Copot ban #${removedTire?.nomor_seri || ''} dari ${wheelName}`;
     const nextAssigns = { ...assignments };
     delete nextAssigns[wheelId];
     saveAssignments(nextAssigns);
@@ -2171,10 +2198,19 @@ export default function VehicleSchematic3D({
       })
     })
       .then((res) => res.json())
-      .then(() => setDbSyncStatus('synced'))
+      .then((json) => {
+        if (json.status === 'success') {
+          setDbSyncStatus('synced');
+          showToast(`${activityMessage} berhasil.`, 'success');
+        } else {
+          setDbSyncStatus('error');
+          showToast(`${activityMessage} gagal disimpan. ${json.message || 'Silakan coba lagi.'}`, 'error');
+        }
+      })
       .catch((err) => {
         console.warn('Gagal mencopot ban dari database:', err);
         setDbSyncStatus('error');
+        showToast(`${activityMessage} gagal karena koneksi ke server bermasalah.`, 'error');
       });
   };
 
@@ -2194,10 +2230,19 @@ export default function VehicleSchematic3D({
       })
     })
       .then((res) => res.json())
-      .then(() => setDbSyncStatus('synced'))
+      .then((json) => {
+        if (json.status === 'success') {
+          setDbSyncStatus('synced');
+          showToast('Lepas semua ban berhasil.', 'success');
+        } else {
+          setDbSyncStatus('error');
+          showToast(`Lepas semua ban gagal. ${json.message || 'Silakan coba lagi.'}`, 'error');
+        }
+      })
       .catch((err) => {
         console.warn('Gagal mengosongkan ban di database:', err);
         setDbSyncStatus('error');
+        showToast('Lepas semua ban gagal karena koneksi ke server bermasalah.', 'error');
       });
   };
 

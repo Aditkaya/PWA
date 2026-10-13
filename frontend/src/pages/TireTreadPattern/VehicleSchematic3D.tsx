@@ -2274,24 +2274,6 @@ export default function VehicleSchematic3D({
     beginVirtualDrag(ban, touch.clientX, touch.clientY);
   };
 
-  const handleSchematicTouchDragStart = (ban: StockBanItem, e: React.TouchEvent) => {
-    if ('PointerEvent' in window) return;
-    if (!pointerDragActiveRef.current) handleTouchStart(ban, e);
-  };
-
-  const handleSchematicPointerDragStart = (ban: StockBanItem, e: React.PointerEvent, wheelId: string) => {
-    if (e.button !== 0 && e.pointerType !== 'touch') return;
-    pointerDragIdRef.current = e.pointerId;
-    pendingSchematicPointerDragRef.current = {
-      ban,
-      wheelId,
-      pointerId: e.pointerId,
-      pointerType: e.pointerType,
-      x: e.clientX,
-      y: e.clientY
-    };
-  };
-
   useEffect(() => {
     const handleTouchMove = (e: TouchEvent) => {
       if (pointerDragActiveRef.current || !touchDraggingTireRef.current) return;

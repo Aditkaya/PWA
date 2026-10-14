@@ -1062,17 +1062,6 @@ export function TireDetailModal({
               </div>
             )}
 
-            {tire.harga_beli && (
-              <div className="vs-modal-field">
-                <span className="vs-modal-field-label">Harga Beli</span>
-                <span className="vs-modal-field-value" style={{ color: '#f59e0b' }}>
-                  {typeof tire.harga_beli === 'number'
-                    ? `Rp ${tire.harga_beli.toLocaleString('id-ID')}`
-                    : `Rp ${Number(tire.harga_beli).toLocaleString('id-ID') || tire.harga_beli}`}
-                </span>
-              </div>
-            )}
-
             {tire.keterangan && (
               <div className="vs-modal-field" style={{ gridColumn: '1 / -1' }}>
                 <span className="vs-modal-field-label">Keterangan / Catatan</span>

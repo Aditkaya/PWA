@@ -1239,11 +1239,14 @@ export default function VehicleAnimation3D({
       if (dist > 6 || elapsed > 300) return;
       if (touchCoordsRef.current || dndHoverWheelIdRef.current) return;
 
-      // Klik biasa hanya memilih posisi; detail ban dibuka lewat ikon detail.
+      // Tap pada ban terpasang membuka detail ban yang tepat.
       const hitWheelId = getExactTireHitAtCoords(event.clientX, event.clientY);
       if (hitWheelId) {
         const tire = getTireForWheelRef.current(hitWheelId);
         onWheelClickRef.current?.(hitWheelId, tire);
+        if (tire) {
+          setDetailModalTire({ tire, wheelId: hitWheelId });
+        }
       }
     };
 

@@ -553,7 +553,12 @@ export default function VehicleAnimation3D({
     const isMobile = width < 500;
     const fov = isMobile ? 48 : 40;
     const camera = new THREE.PerspectiveCamera(fov, width / height, 0.1, 100);
+    // Bring the vehicle closer on narrow canvases so wheel details remain
+    // readable on phones while the full vehicle still fits in frame.
     camera.position.copy(presets.perspective);
+    if (isMobile) {
+      camera.position.lerp(presets.target, 0.2);
+    }
     camera.lookAt(presets.target);
     cameraRef.current = camera;
 
@@ -953,18 +958,19 @@ export default function VehicleAnimation3D({
       wheelGroup.add(tireMesh);
 
       // Alur Ring Tapak Ban
-      const treadRingGeo = new THREE.CylinderGeometry(tireRadius + 0.003, tireRadius + 0.003, tireWidth * 0.86, 80, 12, true);
-      treadRingGeo.rotateZ(Math.PI / 2);
-      const treadMesh = new THREE.Mesh(treadRingGeo, new THREE.MeshStandardMaterial({
-        color: 0xffffff,
-        map: treadTexture || undefined,
-        bumpMap: treadTexture || undefined,
-        bumpScale: 0.018,
-        roughness: 0.98,
-        metalness: 0,
-        side: THREE.DoubleSide
-      }));
+      const treadMesh = new THREE.Group();
       treadMesh.name = 'treadMesh';
+      // Recessed-looking circumferential channels make the tread visible even
+      // at the small wheel size used by the mobile 3D viewport.
+      const treadGrooveMat = new THREE.MeshStandardMaterial({ color: 0x08090b, roughness: 1, metalness: 0 });
+      for (let groove = 0; groove < 5; groove++) {
+        const grooveGeo = new THREE.TorusGeometry(tireRadius + 0.004, 0.012, 6, 80);
+        grooveGeo.rotateY(Math.PI / 2);
+        const grooveMesh = new THREE.Mesh(grooveGeo, treadGrooveMat);
+        grooveMesh.position.x = (groove - 2) * (tireWidth * 0.17);
+        grooveMesh.castShadow = true;
+        treadMesh.add(grooveMesh);
+      }
       wheelGroup.add(treadMesh);
 
       // Velg Alloy Perak

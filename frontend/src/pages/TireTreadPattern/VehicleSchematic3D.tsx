@@ -2808,11 +2808,19 @@ export default function VehicleSchematic3D({
                             className="vs-status-badge vs-status-badge--ready vs-btn-quick-assign"
                             onClick={(e) => {
                               e.stopPropagation();
-                              if (activeWheelId) {
+                              if (viewMode === 'blueprint') {
+                                if (activeWheelId) {
+                                  handleAssignTire(activeWheelId, ban.id);
+                                  setSelectedBanId(null);
+                                } else {
+                                  setSelectedBanId((current) => current === ban.id ? null : ban.id);
+                                  showToast('Ban dipilih. Ketuk posisi roda pada denah 2D untuk memasangnya.', 'info');
+                                }
+                              } else if (activeWheelId) {
                                 handleAssignTire(activeWheelId, ban.id);
                               }
                             }}
-                            title={`Klik untuk pasang langsung ke roda [${wheelConfig?.wheels.find((w) => w.id === activeWheelId)?.code || activeWheelId.toUpperCase()}]`}
+                            title={viewMode === 'blueprint' ? (activeWheelId ? `Pasang ke posisi [${wheelConfig?.wheels.find((w) => w.id === activeWheelId)?.code || activeWheelId.toUpperCase()}]` : 'Pilih ban ini, lalu ketuk posisi roda pada denah 2D') : `Klik untuk pasang langsung ke roda [${wheelConfig?.wheels.find((w) => w.id === activeWheelId)?.code || activeWheelId.toUpperCase()}]`}
                           >
                             ⚪ Siap Pasang
                           </button>

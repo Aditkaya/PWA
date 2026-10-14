@@ -912,10 +912,14 @@ export default function VehicleAnimation3D({
 
     const treadTexture = createTireTreadTexture();
     const tireRubberMat = new THREE.MeshStandardMaterial({
-      color: 0x18181b,
+      // A lighter base lets the procedural tread map remain visible instead
+      // of multiplying it into an almost uniform black surface.
+      color: 0x77777b,
       map: treadTexture || undefined,
-      roughness: 0.88,
-      metalness: 0.12
+      bumpMap: treadTexture || undefined,
+      bumpScale: 0.022,
+      roughness: 0.96,
+      metalness: 0.02
     });
 
     const rimAlloyMat = new THREE.MeshStandardMaterial({
@@ -940,7 +944,7 @@ export default function VehicleAnimation3D({
       wheelGroup.userData = { wheelId: coord.id, baseCoord: coord };
 
       // 1. Karet Ban
-      const tireGeo = new THREE.CylinderGeometry(tireRadius, tireRadius, tireWidth, 32);
+      const tireGeo = new THREE.CylinderGeometry(tireRadius, tireRadius, tireWidth, 80, 12);
       tireGeo.rotateZ(Math.PI / 2);
       const tireMesh = new THREE.Mesh(tireGeo, tireRubberMat.clone());
       tireMesh.name = 'tireMesh';
@@ -949,9 +953,17 @@ export default function VehicleAnimation3D({
       wheelGroup.add(tireMesh);
 
       // Alur Ring Tapak Ban
-      const treadRingGeo = new THREE.CylinderGeometry(tireRadius + 0.006, tireRadius + 0.006, tireWidth * 0.78, 32, 2, true);
+      const treadRingGeo = new THREE.CylinderGeometry(tireRadius + 0.003, tireRadius + 0.003, tireWidth * 0.86, 80, 12, true);
       treadRingGeo.rotateZ(Math.PI / 2);
-      const treadMesh = new THREE.Mesh(treadRingGeo, new THREE.MeshStandardMaterial({ color: 0x09090b, roughness: 0.95, wireframe: true }));
+      const treadMesh = new THREE.Mesh(treadRingGeo, new THREE.MeshStandardMaterial({
+        color: 0xffffff,
+        map: treadTexture || undefined,
+        bumpMap: treadTexture || undefined,
+        bumpScale: 0.018,
+        roughness: 0.98,
+        metalness: 0,
+        side: THREE.DoubleSide
+      }));
       treadMesh.name = 'treadMesh';
       wheelGroup.add(treadMesh);
 

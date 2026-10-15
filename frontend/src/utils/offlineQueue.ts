@@ -44,9 +44,10 @@ export async function saveOfflineAttendance(item: OfflineAttendanceItem): Promis
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
-    const request = store.put(item);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error || new Error('Gagal menyimpan absensi offline'));
+    store.put(item);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error || new Error('Gagal menyimpan absensi offline'));
+    tx.onabort = () => reject(tx.error || new Error('Gagal menyimpan absensi offline'));
   });
 }
 
@@ -76,25 +77,29 @@ export async function removeOfflineAttendance(id: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const tx = db.transaction(STORE_NAME, 'readwrite');
     const store = tx.objectStore(STORE_NAME);
-    const request = store.delete(id);
-    request.onsuccess = () => resolve();
-    request.onerror = () => reject(request.error || new Error('Gagal menghapus antrean offline'));
+    store.delete(id);
+    tx.oncomplete = () => resolve();
+    tx.onerror = () => reject(tx.error || new Error('Gagal menghapus antrean offline'));
   });
 }
 
-export async function getPendingOfflineCount(): Promise<number> {
+export async function getPendingOfflineCount(userId?: number): Promise<number> {
   try {
     const items = await getOfflineAttendances();
-    return items.length;
+    return userId === undefined ? items.length : items.filter(item => item.user_id === userId).length;
   } catch {
     return 0;
   }
 }
 
 export async function syncOfflineAttendances(
-  onProgress?: (synced: number, total: number) => void
+  userId: number,
+  onProgress?: (synced: number, total: number) => void,
+  retryFailed = false
 ): Promise<{ success: number; failed: number; errors: string[] }> {
-  const items = await getOfflineAttendances();
+  const items = (await getOfflineAttendances()).filter(item => item.user_id === userId && (
+    retryFailed || item.status !== 'failed' || item.error_message?.includes('kedaluwarsa')
+  ));
   if (items.length === 0) {
     return { success: 0, failed: 0, errors: [] };
   }
@@ -149,19 +154,15 @@ export async function syncOfflineAttendances(
         const data = await response.json().catch(() => ({}));
         const errMsg = data.message || `Server error (${response.status})`;
         
-        // Jika server error 502/503/504 (server masih mati), hentikan loop agar tidak buang-buang koneksi
-        if ([502, 503, 504].includes(response.status)) {
+        if (response.status >= 500 || response.status === 429) {
           errors.push('Server masih belum merespons (Offline). Sinkronisasi ditunda.');
           break;
         }
 
-        // Jika validasi bisnis ditolak permanen (misal 400/422 wajah tidak cocok), simpan error
         failedCount++;
         errors.push(`Absen ${item.tipe}: ${errMsg}`);
-        // Jika error validasi wajah / format, tetap hapus agar tidak menyangkut selamanya, tapi catat error
-        if (response.status === 422 || response.status === 400) {
-          await removeOfflineAttendance(item.id);
-        }
+        // Preserve rejected evidence for review instead of silently deleting it.
+        await saveOfflineAttendance({ ...item, status: 'failed', error_message: errMsg });
       }
     } catch (netErr: any) {
       // Jaringan terputus saat proses sync

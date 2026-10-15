@@ -26,15 +26,6 @@ class AttendanceController {
             return;
         }
 
-        if (in_array(strtolower(trim($tipe)), ['istirahat keluar', 'istirahat masuk'], true)) {
-            $now = new \DateTimeImmutable('now', new \DateTimeZone('Asia/Jakarta'));
-            if ($now->format('H:i') >= '13:00') {
-                http_response_code(403);
-                echo json_encode(['message' => 'Absensi istirahat hanya dapat dilakukan sebelum pukul 13.00 WIB.']);
-                return;
-            }
-        }
-
         $isOffline = !empty($postData['is_offline']);
         $waktuOffline = !empty($postData['waktu_offline']) ? trim($postData['waktu_offline']) : null;
         $waktuAbsenParam = null;
@@ -60,18 +51,29 @@ class AttendanceController {
                 }
             }
 
-            // Batasi waktu offline: toleransi 30 menit ke depan (clock drift jam HP) dan maksimal 48 jam ke belakang
-            if ($parsedTime && $parsedTime <= (time() + 1800) && $parsedTime >= (time() - 86400 * 2)) {
+            // Tidak ada batas usia antrean offline. Tolak hanya waktu yang tidak valid atau terlalu jauh di masa depan.
+            if ($parsedTime && $parsedTime <= (time() + 1800)) {
                 $waktuAbsenParam = $formattedWaktu;
                 $tagOffline = "[Offline: " . $tagTime . "]";
                 $keterangan = $keterangan ? ($keterangan . " " . $tagOffline) : $tagOffline;
             } else {
                 http_response_code(422);
                 echo json_encode([
-                    'message' => 'Waktu absensi offline tidak valid atau kedaluwarsa.',
+                    'message' => 'Waktu absensi offline tidak valid atau berada di masa depan.',
                     'server_time' => date('Y-m-d H:i:s'),
                     'received_time' => $waktuOffline
                 ]);
+                return;
+            }
+        }
+
+        if (in_array(strtolower(trim($tipe)), ['istirahat keluar', 'istirahat masuk'], true)) {
+            $waktuIstirahat = $waktuAbsenParam
+                ? new \DateTimeImmutable($waktuAbsenParam, new \DateTimeZone('Asia/Jakarta'))
+                : new \DateTimeImmutable('now', new \DateTimeZone('Asia/Jakarta'));
+            if ($waktuIstirahat->format('H:i') >= '13:00') {
+                http_response_code(403);
+                echo json_encode(['message' => 'Absensi istirahat hanya dapat dilakukan sebelum pukul 13.00 WIB.']);
                 return;
             }
         }
@@ -168,7 +170,7 @@ class AttendanceController {
                 $image_parts = explode(";base64,", $foto_base64);
                 if (count($image_parts) == 2) {
                     $image_base64 = base64_decode($image_parts[1]);
-                    $filename = 'break_' . $nik . '_' . time() . '.jpg';
+                    $filename = 'break_' . $nik . '_' . time() . '_' . bin2hex(random_bytes(6)) . '.jpg';
                     $file_path = $upload_dir . $filename;
                     file_put_contents($file_path, $image_base64);
                     $db_photo_path = 'uploads/attendance/' . $tipe_folder . '/' . $filename;

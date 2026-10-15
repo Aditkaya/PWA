@@ -69,22 +69,22 @@ export default function History() {
       if (showLoading) setLoading(true)
       const month = `${currentDate.getFullYear()}-${String(currentDate.getMonth() + 1).padStart(2, '0')}`
       const [histRes, permRes, holiRes] = await Promise.all([
-        fetch(`/api/history?user_id=${user.id}&month=${month}`),
-        fetch(`/api/permohonan?user_id=${user.id}`),
-        fetch('/api/holidays')
+        fetch(`/api/history?user_id=${user.id}&month=${month}`).catch(() => null),
+        fetch(`/api/permohonan?user_id=${user.id}`).catch(() => null),
+        fetch('/api/holidays').catch(() => null)
       ])
 
-      if (histRes.ok) {
+      if (histRes?.ok) {
         const histResult = await histRes.json()
         setHistoryData(histResult.data)
       }
       
-      if (permRes.ok) {
+      if (permRes?.ok) {
         const permResult = await permRes.json()
         setPermohonanData(permResult.data)
       }
 
-      if (holiRes.ok) {
+      if (holiRes?.ok) {
         const holiResult = await holiRes.json()
         setHolidaysData(holiResult.data || [])
       }
@@ -104,10 +104,10 @@ export default function History() {
                 actual_date: datePart,
                 type: item.tipe,
                 time: timePart.slice(0, 5),
-                status: 'Tersimpan Offline',
+                status: item.status === 'failed' ? 'Sinkronisasi Gagal' : 'Menunggu Sinkronisasi',
                 foto: item.foto_base64,
                 location: item.detail_lokasi || 'Offline',
-                keterangan: (item.keterangan ? item.keterangan + ' ' : '') + '[Menunggu Sinkronisasi Server]'
+                keterangan: (item.keterangan ? item.keterangan + ' ' : '') + (item.error_message ? `[Gagal: ${item.error_message}]` : '[Menunggu Sinkronisasi Server]')
               };
             });
           setHistoryData(prev => {

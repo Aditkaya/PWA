@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useOutletContext, useNavigate } from 'react-router-dom'
 import { Clock, Coffee, LogOut, LogIn, CalendarDays, Sun, Plane, AlertCircle, Info, XCircle, ScanFace, ClipboardCheck, CalendarClock, Shield, WifiOff, RefreshCw, Megaphone } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
@@ -86,6 +86,7 @@ export default function Dashboard() {
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0)
   const [pendingOfflineCount, setPendingOfflineCount] = useState(0)
   const [isSyncing, setIsSyncing] = useState(false)
+  const syncInProgress = useRef(false)
   const [announcementMarkup, setAnnouncementMarkup] = useState('')
   const [announcementDuration, setAnnouncementDuration] = useState(22)
   
@@ -192,7 +193,7 @@ export default function Dashboard() {
   const loadOfflinePendingToHistory = async () => {
     try {
       const offlineItems = await getOfflineAttendances();
-      setPendingOfflineCount(offlineItems.length);
+      setPendingOfflineCount(offlineItems.filter(item => item.user_id === user?.id).length);
       if (offlineItems.length > 0 && user?.id) {
         const offlineHistoryItems: HistoryItem[] = offlineItems
           .filter(item => item.user_id === user.id)
@@ -206,29 +207,32 @@ export default function Dashboard() {
               occurred_at: item.waktu_offline,
               type: item.tipe,
               time: timePart.slice(0, 5),
-              status: 'Tersimpan Offline',
+              status: item.status === 'failed' ? 'Sinkronisasi Gagal' : 'Menunggu Sinkronisasi',
               is_offline: true
             };
           });
 
         setHistoryData(prev => {
-          const existingIds = new Set(prev.map(h => String(h.id)));
-          const toAdd = offlineHistoryItems.filter(item => !existingIds.has(String(item.id)));
-          return [...toAdd, ...prev];
+          const serverHistory = prev.filter(item => !item.is_offline);
+          const existingIds = new Set(serverHistory.map(h => String(h.id)));
+          return [...offlineHistoryItems.filter(item => !existingIds.has(String(item.id))), ...serverHistory];
         });
+      } else {
+        setHistoryData(prev => prev.filter(item => !item.is_offline));
       }
     } catch (e) {
       console.warn('Gagal memuat pending offline ke history:', e);
     }
   };
 
-  const runAutoSync = async () => {
-    if (isSyncing) return;
-    const count = await getPendingOfflineCount();
-    if (count === 0) return;
+  const runAutoSync = async (retryFailed = false) => {
+    if (!user?.id || syncInProgress.current || !navigator.onLine) return;
+    syncInProgress.current = true;
+    const count = await getPendingOfflineCount(user.id);
+    if (count === 0) { syncInProgress.current = false; return; }
     setIsSyncing(true);
     try {
-      const res = await syncOfflineAttendances();
+      const res = await syncOfflineAttendances(user.id, undefined, retryFailed);
       if (res.success > 0) {
         showToast(`Berhasil menyinkronkan ${res.success} absensi offline ke server!`, 'success');
         fetchHistoryAndProfile();
@@ -240,8 +244,10 @@ export default function Dashboard() {
       console.warn('Auto-sync offline attendance error:', e);
     } finally {
       setIsSyncing(false);
-      const remaining = await getPendingOfflineCount();
+      const remaining = await getPendingOfflineCount(user.id);
       setPendingOfflineCount(remaining);
+      await loadOfflinePendingToHistory();
+      syncInProgress.current = false;
     }
   };
 
@@ -346,6 +352,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     fetchHistoryAndProfile()
+    if (navigator.onLine) runAutoSync()
 
     const handleOnline = () => {
       runAutoSync();
@@ -354,7 +361,7 @@ export default function Dashboard() {
 
     const interval = setInterval(() => {
       if (navigator.onLine) {
-        getPendingOfflineCount().then(c => {
+        getPendingOfflineCount(user?.id).then(c => {
           setPendingOfflineCount(c);
           if (c > 0) {
             runAutoSync();
@@ -372,11 +379,16 @@ export default function Dashboard() {
   const now = time
   const jakartaTime = now.toLocaleTimeString('en-GB', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
   const isBreakLockedByTime = jakartaTime >= '13:00'
-  const todayString = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  const jakartaDate = (date: Date) => {
+    const parts = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit'
+    }).formatToParts(date)
+    const part = (type: string) => parts.find(value => value.type === type)?.value || ''
+    return `${part('year')}-${part('month')}-${part('day')}`
+  }
+  const todayString = jakartaDate(now)
   // Tanggal kemarin untuk mendeteksi sesi lembur lintas malam
-  const yesterdayDate = new Date(now)
-  yesterdayDate.setDate(yesterdayDate.getDate() - 1)
-  const yesterdayString = `${yesterdayDate.getFullYear()}-${String(yesterdayDate.getMonth() + 1).padStart(2, '0')}-${String(yesterdayDate.getDate()).padStart(2, '0')}`
+  const yesterdayString = jakartaDate(new Date(now.getTime() - 24 * 60 * 60 * 1000))
 
   const todayCheckIn = historyData.find(h => h.date === todayString && (h.type.toLowerCase() === 'masuk' || h.type.toLowerCase() === 'check in' || (h.type.toLowerCase().includes('masuk') && !h.type.toLowerCase().includes('istirahat') && !h.type.toLowerCase().includes('izin') && !h.type.toLowerCase().includes('lembur'))))
   
@@ -445,13 +457,17 @@ export default function Dashboard() {
     detailLokasi?: string
   ) => {
     const now = new Date();
-    const pad = (n: number) => String(n).padStart(2, '0');
-    const waktuOffline = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
-    const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
-    const timeStr = `${pad(now.getHours())}:${pad(now.getMinutes())}`;
+    const parts = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'Asia/Jakarta', year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', second: '2-digit', hourCycle: 'h23'
+    }).formatToParts(now);
+    const part = (type: string) => parts.find(value => value.type === type)?.value || '';
+    const dateStr = `${part('year')}-${part('month')}-${part('day')}`;
+    const timeStr = `${part('hour')}:${part('minute')}`;
+    const waktuOffline = `${dateStr} ${timeStr}:${part('second')}`;
 
     const offlineItem: OfflineAttendanceItem = {
-      id: `offline_${Date.now()}_${Math.random().toString(36).substr(2, 5)}`,
+      id: `offline_${crypto.randomUUID()}`,
       user_id: user!.id,
       tipe: attendanceType,
       foto_base64: imageSrc,
@@ -467,7 +483,7 @@ export default function Dashboard() {
     };
 
     await saveOfflineAttendance(offlineItem);
-    const count = await getPendingOfflineCount();
+    const count = await getPendingOfflineCount(user!.id);
     setPendingOfflineCount(count);
 
     // Optimistically update history so UI updates immediately
@@ -486,13 +502,13 @@ export default function Dashboard() {
       const updated = [optimisticHistory, ...prev];
       if (user?.id) {
         try {
-          localStorage.setItem(`cached_history_${user.id}`, JSON.stringify(updated));
+          localStorage.setItem(`cached_history_${user.id}`, JSON.stringify(updated.filter(item => !item.is_offline)));
         } catch {}
       }
       return updated;
     });
 
-    showToast(`Mode Offline: Absen ${attendanceType} tersimpan di HP! Akan otomatis dikirim saat server aktif.`, 'info');
+    showToast(`Absen ${attendanceType} tersimpan di perangkat. Pengiriman dan verifikasi wajah dicoba saat koneksi kembali.`, 'info');
   };
 
   const handleCapture = async (imageSrc: string, locationData?: {address: string, lat: number, lng: number, accuracy: number, locationAgeMs: number, outOfRangeMessage?: string}) => {
@@ -629,13 +645,13 @@ export default function Dashboard() {
                 {pendingOfflineCount} Absen Offline Tersimpan di HP
               </div>
               <div className="offline-desc">
-                Data absensi aman di memori HP. Otomatis dikirim saat server aktif.
+                Absensi menunggu pengiriman. Jika ditolak server, periksa riwayat lalu coba sinkronkan lagi.
               </div>
             </div>
           </div>
           <button 
             className="btn-sync-offline" 
-            onClick={runAutoSync}
+            onClick={() => runAutoSync(true)}
             disabled={isSyncing}
             title="Kirim antrean ke server sekarang"
           >

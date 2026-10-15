@@ -11,17 +11,9 @@
     <title>AYPSIS Attendance</title>
     <script>
       (function() {
-        var APP_VER = '20261005_v6';
+        var APP_VER = '20261015_v7';
         try {
-          var cur = localStorage.getItem('__aypsis_ver');
-          if (cur !== APP_VER) {
-            localStorage.setItem('__aypsis_ver', APP_VER);
-            if ('caches' in window) {
-              caches.keys().then(function(names) {
-                names.forEach(function(n) { caches.delete(n); });
-              });
-            }
-          }
+          localStorage.setItem('__aypsis_ver', APP_VER);
         } catch(e) {}
 
         // Global error listener for failed modules/scripts
@@ -42,12 +34,12 @@
 
         function healOnce() {
           var k = '__healed_' + APP_VER;
-          if (!sessionStorage.getItem(k)) {
+          if (navigator.onLine && !sessionStorage.getItem(k)) {
             sessionStorage.setItem(k, '1');
-            if ('caches' in window) {
-              caches.keys().then(function(names) {
-                return Promise.all(names.map(function(n) { return caches.delete(n); }));
-              }).then(function() {
+            if ('serviceWorker' in navigator) {
+              navigator.serviceWorker.getRegistration().then(function(registration) {
+                return registration && registration.update();
+              }).finally(function() {
                 window.location.replace('/?r=' + Date.now());
               });
             } else {
@@ -57,8 +49,8 @@
         }
       })();
     </script>
-    <script type="module" crossorigin src="/assets/index-D4E-clGg.js"></script>
-    <link rel="stylesheet" crossorigin href="/assets/index-DXEfIy8l.css">
+    <script type="module" crossorigin src="/assets/index-DxCyLKF7.js"></script>
+    <link rel="stylesheet" crossorigin href="/assets/index-KRhKOLmF.css">
   <link rel="manifest" href="/manifest.webmanifest"></head>
   <body>
     <div id="root" style="min-height: 100dvh; display: flex; flex-direction: column;"></div>

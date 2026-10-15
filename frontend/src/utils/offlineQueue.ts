@@ -96,15 +96,16 @@ export async function syncOfflineAttendances(
   userId: number,
   onProgress?: (synced: number, total: number) => void,
   retryFailed = false
-): Promise<{ success: number; failed: number; errors: string[] }> {
+): Promise<{ success: number; approval: number; failed: number; errors: string[] }> {
   const items = (await getOfflineAttendances()).filter(item => item.user_id === userId && (
     retryFailed || item.status !== 'failed' || item.error_message?.includes('kedaluwarsa')
   ));
   if (items.length === 0) {
-    return { success: 0, failed: 0, errors: [] };
+    return { success: 0, approval: 0, failed: 0, errors: [] };
   }
 
   let successCount = 0;
+  let approvalCount = 0;
   let failedCount = 0;
   const errors: string[] = [];
 
@@ -147,9 +148,11 @@ export async function syncOfflineAttendances(
       }).finally(() => clearTimeout(timeout));
 
       if (response.ok) {
+        const result = await response.json().catch(() => ({}));
         // Hapus dari IndexedDB jika berhasil
         await removeOfflineAttendance(item.id);
         successCount++;
+        if (result.is_approval) approvalCount++;
       } else {
         const data = await response.json().catch(() => ({}));
         const errMsg = data.message || `Server error (${response.status})`;
@@ -176,5 +179,5 @@ export async function syncOfflineAttendances(
     }
   }
 
-  return { success: successCount, failed: failedCount, errors };
+  return { success: successCount, approval: approvalCount, failed: failedCount, errors };
 }

@@ -234,7 +234,9 @@ export default function Dashboard() {
     try {
       const res = await syncOfflineAttendances(user.id, undefined, retryFailed);
       if (res.success > 0) {
-        showToast(`Berhasil menyinkronkan ${res.success} absensi offline ke server!`, 'success');
+        showToast(res.approval > 0
+          ? `${res.success} absensi tersinkron; ${res.approval} menunggu pemeriksaan HRD.`
+          : `Berhasil menyinkronkan ${res.success} absensi offline ke server!`, res.approval > 0 ? 'info' : 'success');
         fetchHistoryAndProfile();
       }
       if (res.errors.length > 0 && res.failed > 0) {

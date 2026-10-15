@@ -156,8 +156,17 @@ class AttendanceController {
                 }
             }
 
-            // Verification is mandatory before any photo or attendance is saved.
-            (new \App\Services\FaceVerificationService())->verifyAttendance($pdo, $user_id, $foto_base64);
+            // Offline face checks run only after connectivity returns. If the offline
+            // photo has no detectable face, keep the attendance for HRD review.
+            $faceReviewRequired = false;
+            try {
+                (new \App\Services\FaceVerificationService())->verifyAttendance($pdo, $user_id, $foto_base64);
+            } catch (\App\Services\FaceVerificationException $e) {
+                if (!$isOffline || $e->getCode() !== 422 || stripos($e->getMessage(), 'wajah tidak terdeteksi') === false) {
+                    throw $e;
+                }
+                $faceReviewRequired = true;
+            }
 
             // Save image
             $tipe_folder = strtolower(str_replace([' ', '/'], '_', $tipe));
@@ -193,8 +202,12 @@ class AttendanceController {
             }
 
             // Validasi Lokasi Absensi Wajib & Radius Geofence (Opsi B: Status Persetujuan jika di luar radius)
-            $statusAbsensi = 'Selesai';
+            $statusAbsensi = $faceReviewRequired ? 'Persetujuan' : 'Selesai';
             $finalDetailLokasi = $detail_lokasi;
+            if ($faceReviewRequired) {
+                $faceReviewNote = 'Foto absensi offline memerlukan pemeriksaan wajah oleh HRD';
+                $finalDetailLokasi = $finalDetailLokasi ? ($finalDetailLokasi . ' | ' . $faceReviewNote) : $faceReviewNote;
+            }
 
             // 1. Ambil lokasi penugasan khusus karyawan
             $stmtSpecialLoc = $pdo->prepare("
@@ -262,14 +275,14 @@ class AttendanceController {
                 if ($nearestLoc) {
                     $distRound = round($nearestDistance);
                     if ($isInRadius) {
-                        $statusAbsensi = 'Selesai';
+                        $statusAbsensi = $faceReviewRequired ? 'Persetujuan' : 'Selesai';
                         $locNote = "{$nearestLoc['nama_lokasi']} (Jarak: {$distRound}m)";
-                        $finalDetailLokasi = $detail_lokasi ? ($detail_lokasi . " - " . $locNote) : $locNote;
+                        $finalDetailLokasi = $finalDetailLokasi ? ($finalDetailLokasi . " - " . $locNote) : $locNote;
                     } else {
                         // Di luar radius lokasi wajib -> Status Persetujuan
                         $statusAbsensi = 'Persetujuan';
                         $locNote = "Di luar radius {$nearestLoc['nama_lokasi']} (Jarak: {$distRound}m, Radius: {$nearestLoc['radius']}m)";
-                        $finalDetailLokasi = $detail_lokasi ? ($detail_lokasi . " | " . $locNote) : $locNote;
+                        $finalDetailLokasi = $finalDetailLokasi ? ($finalDetailLokasi . " | " . $locNote) : $locNote;
                     }
                 }
             } elseif ($hasSpecialAssignment && ($latitude === null || $longitude === null)) {
@@ -302,9 +315,11 @@ class AttendanceController {
                 \App\Helpers\OvertimeValidator::checkAndCreateApproval($karyawan_id, $tanggalSesiLembur);
             }
 
-            $successMsg = ($statusAbsensi === 'Persetujuan' && $nearestLoc)
-                ? "Absensi {$tipe} tercatat di luar radius lokasi wajib ({$nearestLoc['nama_lokasi']}) dan memerlukan persetujuan."
-                : 'Absensi berhasil';
+            $successMsg = $faceReviewRequired
+                ? "Absensi {$tipe} tersinkron dan menunggu pemeriksaan wajah oleh HRD."
+                : (($statusAbsensi === 'Persetujuan' && $nearestLoc)
+                    ? "Absensi {$tipe} tercatat di luar radius lokasi wajib ({$nearestLoc['nama_lokasi']}) dan memerlukan persetujuan."
+                    : 'Absensi berhasil');
 
             http_response_code(200);
             echo json_encode([

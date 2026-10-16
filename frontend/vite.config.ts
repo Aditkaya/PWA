@@ -18,6 +18,7 @@ export default defineConfig({
       },
       injectManifest: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg}'],
+        maximumFileSizeToCacheInBytes: 3 * 1024 * 1024,
         // Filesystem enumeration differs between Windows and Linux. Keep cache
         // entries deterministic so rebuilding does not dirty dist/sw.js.
         manifestTransforms: [entries => ({

@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <link rel="icon" type="image/png" href="/logo-kotak.png" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="stylesheet" href="/ayp-loader.css" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
     <meta http-equiv="Pragma" content="no-cache" />
@@ -51,7 +52,17 @@
     </script>
   </head>
   <body>
+    <div id="ayp-loader" class="ayp-loader" role="status" aria-label="Loading">
+      <div class="ayp-loader__box">
+        <div class="ayp-loader__visual">
+          <span class="ayp-loader__ring" aria-hidden="true"></span>
+          <img class="ayp-loader__logo" src="/ayp-logo-transparent.png" alt="AYP" />
+        </div>
+        <div class="ayp-loader__text">Loading<span class="ayp-loader__dots"></span></div>
+      </div>
+    </div>
     <div id="root" style="min-height: 100dvh; display: flex; flex-direction: column;"></div>
+    <script src="/ayp-loader.js" defer></script>
     <script type="module" src="/src/main.tsx"></script>
   </body>
 </html>

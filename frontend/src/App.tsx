@@ -1,6 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
 import DashboardLayout from './layouts/DashboardLayout'
-import Dashboard from './pages/Dashboard/Dashboard'
+import DashboardEntrance from './components/DashboardEntrance'
 import History from './pages/History/History'
 import Profile from './pages/Profile/Profile'
 import Login from './pages/Login/Login'
@@ -32,7 +32,7 @@ function App() {
         
         <Route element={<PrivateRoute />}>
           <Route path="/" element={<DashboardLayout />}>
-            <Route index element={<Dashboard />} />
+            <Route index element={<DashboardEntrance />} />
             <Route path="history" element={<History />} />
             <Route path="profile" element={<Profile />} />
             <Route path="stowage-plan" element={<StowagePlan />} />

@@ -1,0 +1,105 @@
+/* AYP Reusable Animated Loader */
+.ayp-loader{
+  position:fixed;
+  inset:0;
+  z-index:999999;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+
+  /* TRANSPARAN: halaman di belakang masih terlihat */
+  background:rgba(255,255,255,.38);
+  backdrop-filter:blur(2px);
+  -webkit-backdrop-filter:blur(2px);
+
+  opacity:1;
+  visibility:visible;
+  transition:opacity 260ms ease,visibility 260ms ease;
+}
+.ayp-loader.is-hidden{
+  opacity:0;
+  visibility:hidden;
+  pointer-events:none;
+}
+.ayp-loader__box{
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  gap:14px;
+}
+.ayp-loader__visual{
+  width:clamp(150px,22vw,230px);
+  aspect-ratio:1;
+  position:relative;
+  display:grid;
+  place-items:center;
+}
+.ayp-loader__logo{
+  width:72%;
+  height:72%;
+  object-fit:contain;
+  position:relative;
+  z-index:2;
+  animation:ayp-logo-pulse 1.6s ease-in-out infinite;
+  filter:drop-shadow(0 7px 9px rgba(0,0,0,.16));
+}
+.ayp-loader__ring{
+  position:absolute;
+  inset:0;
+  border-radius:50%;
+  box-sizing:border-box;
+  border:5px solid rgba(0,137,211,.13);
+  border-top-color:#008bd2;
+  border-right-color:#32b8f2;
+  border-bottom-color:#006ba9;
+  animation:ayp-ring-spin .9s linear infinite;
+  filter:drop-shadow(0 0 7px rgba(0,139,210,.25));
+}
+.ayp-loader__ring::after{
+  content:"";
+  position:absolute;
+  inset:8px;
+  border-radius:50%;
+  border:1px solid rgba(0,139,210,.14);
+}
+.ayp-loader__text{
+  font-family:inherit,Arial,sans-serif;
+  font-size:14px;
+  font-weight:600;
+  letter-spacing:.35px;
+  color:#087fb8;
+}
+.ayp-loader__dots::after{
+  content:"";
+  animation:ayp-dots 1.2s steps(4,end) infinite;
+}
+@keyframes ayp-ring-spin{to{transform:rotate(360deg)}}
+@keyframes ayp-logo-pulse{
+  0%,100%{transform:scale(1);opacity:1}
+  50%{transform:scale(.96);opacity:.86}
+}
+@keyframes ayp-dots{
+  0%{content:""}
+  25%{content:"."}
+  50%{content:".."}
+  75%,100%{content:"..."}
+}
+@media(max-width:600px){
+  .ayp-loader__visual{width:155px}
+  .ayp-loader__ring{border-width:4px}
+  .ayp-loader__text{font-size:13px}
+}
+@media(prefers-reduced-motion:reduce){
+  .ayp-loader__ring{animation-duration:1.8s}
+  .ayp-loader__logo{animation:none}
+}
+
+/* Hanya untuk halaman demo, bukan bagian loader */
+.demo{
+  min-height:100vh;
+  display:grid;
+  place-content:center;
+  text-align:center;
+  font-family:Arial,sans-serif;
+}
+.demo button{padding:10px 16px;cursor:pointer}

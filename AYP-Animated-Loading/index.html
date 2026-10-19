@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>AYP Animated Loader</title>
+<link rel="stylesheet" href="ayp-loader.css">
+</head>
+<body>
+
+<!-- Pasang blok ini tepat setelah tag <body> pada website -->
+<div id="ayp-loader" class="ayp-loader" role="status" aria-label="Loading">
+  <div class="ayp-loader__box">
+    <div class="ayp-loader__visual">
+      <span class="ayp-loader__ring"></span>
+      <img class="ayp-loader__logo" src="ayp-logo-transparent.png" alt="AYP">
+    </div>
+    <div class="ayp-loader__text">Loading<span class="ayp-loader__dots"></span></div>
+  </div>
+</div>
+
+<!-- Konten demo -->
+<main class="demo">
+  <h1>Website Siap</h1>
+  <p>Loader AYP sudah selesai.</p>
+  <button onclick="showAYPLoader(2500)">Lihat Animasi Lagi</button>
+</main>
+
+<script src="ayp-loader.js"></script>
+</body>
+</html>

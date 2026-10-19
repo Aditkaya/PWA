@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Demo Loading Animation</title>
+  <link rel="stylesheet" href="loading.css">
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: #f7f7f7;
+      color: #222;
+    }
+
+    main {
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      padding: 24px;
+      text-align: center;
+    }
+  </style>
+</head>
+<body>
+
+  <div id="page-loader" class="page-loader" role="status" aria-live="polite" aria-label="Loading">
+    <div class="page-loader__content">
+      <div class="page-loader__spinner" aria-hidden="true"></div>
+      <div class="page-loader__text">Loading...</div>
+    </div>
+  </div>
+
+  <main>
+    <div>
+      <h1>Website Siap</h1>
+      <p>Loading akan menghilang secara smooth setelah halaman selesai dimuat.</p>
+    </div>
+  </main>
+
+  <script src="loading.js"></script>
+</body>
+</html>

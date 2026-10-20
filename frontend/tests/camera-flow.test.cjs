@@ -7,7 +7,7 @@ const ts = require('typescript');
 
 // Small hook harness: exercise the real modal's effects with a controllable
 // camera, inference and GPS, without requiring physical camera permissions.
-function setup() {
+function setup(options = {}) {
   const hooks = [];
   let cursor = 0, dirty = true, timerId = 0;
   let effects = [];
@@ -59,19 +59,21 @@ function setup() {
   };
   const jsx = (type, props) => {
     if (type === 'button' && props['aria-label'] === 'Ambil foto untuk absen') shutter = props;
+    if (type === 'button' && props['aria-label'] === 'Ambil foto untuk registrasi wajah') shutter = props;
     if (type === 'button' && props['aria-label'] === 'Cari ulang GPS') retry = props;
+    if (type === 'button' && props.children === 'Coba lagi') retry = props;
     if (props?.ref && type === 'video') props.ref.current = video;
     if (props?.ref && type === 'canvas') props.ref.current ??= canvas();
     return { type, props };
   };
   const t = new Proxy({}, { get: (_target, key) => key });
   const module = { exports: {} };
-  const source = fs.readFileSync(path.join(__dirname, '../src/components/CameraModal.tsx'), 'utf8');
+  const source = fs.readFileSync(path.join(__dirname, `../src/components/${options.registration ? 'FaceRegistrationModal' : 'CameraModal'}.tsx`), 'utf8');
   vm.runInNewContext(ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, {
     exports: module.exports, console, AbortController, Error, Date: Clock,
-    window: { isSecureContext: true },
+    window: { isSecureContext: options.secure ?? true },
     require: name => {
       if (name === 'react') return react;
       if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx };
@@ -85,7 +87,7 @@ function setup() {
     },
     document: { body: {}, createElement: canvas },
     navigator: {
-      mediaDevices: { getUserMedia: async () => ({ getTracks: () => [{ stop() {} }] }) },
+      mediaDevices: options.unsupported ? undefined : { getUserMedia: options.getUserMedia ?? (async () => ({ getTracks: () => [{ stop() {} }] })) },
       geolocation: { watchPosition: (success, error) => { gpsSuccess = success; gpsError = error; return 1; }, clearWatch() {} },
     },
     fetch: async url => {
@@ -215,4 +217,58 @@ test('address follows corrected coordinates and ignores late lookup results', as
   camera.geocodes[0]('Alamat lama'); await camera.settle();
   assert.ok(camera.text.includes('Alamat terbaru'));
   assert.equal(camera.text.includes('Alamat lama'), false);
+});
+
+test('registration distinguishes camera failures and stops showing preparation', async () => {
+  for (const [name, message] of [
+    ['NotAllowedError', 'Izinkan kamera untuk alamat situs ini'],
+    ['NotReadableError', 'Tutup aplikasi atau tab lain'],
+    ['NotFoundError', 'Kamera tidak ditemukan'],
+    ['SecurityError', 'keamanan browser atau situs'],
+    ['OverconstrainedError', 'pengaturan video'],
+    ['AbortError', '(AbortError)'],
+  ]) {
+    const camera = setup({ registration: true, getUserMedia: async () => { throw { name }; } });
+    await camera.settle();
+    assert.ok(camera.text.includes(message), name);
+    assert.ok(camera.text.includes('Coba lagi'));
+    assert.equal(camera.text.includes('Menyiapkan kamera...'), false);
+    assert.equal(camera.shutterDisabled, true);
+  }
+});
+
+test('registration checks HTTPS and browser support before requesting camera', async () => {
+  for (const options of [{ secure: false }, { unsupported: true }]) {
+    let calls = 0;
+    const camera = setup({ registration: true, ...options, getUserMedia: async () => { calls++; } });
+    await camera.settle();
+    assert.equal(calls, 0);
+    assert.ok(camera.text.includes(options.secure === false ? 'HTTPS' : 'tidak mendukung akses kamera'));
+    assert.equal(camera.text.includes('Menyiapkan kamera...'), false);
+  }
+});
+
+test('registration retries a failed camera and enables capture after recovery', async () => {
+  let calls = 0, stopped = 0;
+  const camera = setup({ registration: true, getUserMedia: async () => {
+    if (++calls === 1) throw { name: 'NotReadableError' };
+    return { getTracks: () => [{ stop() { stopped++; } }] };
+  } });
+  await camera.settle();
+  camera.retry(); await camera.settle();
+  assert.equal(calls, 2);
+  assert.equal(camera.shutterDisabled, false);
+  assert.equal(camera.text.includes('Kamera gagal dibuka'), false);
+  camera.close(); await camera.settle();
+  assert.equal(stopped, 1);
+});
+
+test('registration stops a camera granted after closing the modal', async () => {
+  let grant, stopped = 0;
+  const camera = setup({ registration: true, getUserMedia: () => new Promise(resolve => { grant = resolve; }) });
+  await camera.settle();
+  camera.close(); await camera.settle();
+  grant({ getTracks: () => [{ stop() { stopped++; } }] });
+  await camera.settle();
+  assert.equal(stopped, 1);
 });

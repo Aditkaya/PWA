@@ -16,6 +16,7 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const overlayCanvasRef = useRef<HTMLCanvasElement>(null);
   const [isCameraReady, setIsCameraReady] = useState(false);
+  const [cameraAttempt, setCameraAttempt] = useState(0);
   const [isProcessing, setIsProcessing] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
   const [statusMsg, setStatusMsg] = useState('');
@@ -42,6 +43,16 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
     let stream: MediaStream | undefined;
     const video = videoRef.current;
     const start = async () => {
+      setErrorMsg('');
+      setIsCameraReady(false);
+      if (!window.isSecureContext) {
+        setErrorMsg('Kamera membutuhkan koneksi HTTPS. Buka alamat situs yang aman lalu coba lagi.');
+        return;
+      }
+      if (!navigator.mediaDevices?.getUserMedia) {
+        setErrorMsg('Browser ini tidak mendukung akses kamera. Buka situs melalui browser yang mendukung kamera.');
+        return;
+      }
       try {
         const result = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
@@ -50,8 +61,31 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
         if (cancelled || !video) { result.getTracks().forEach(track => track.stop()); return; }
         video.onloadeddata = () => { if (!cancelled) setIsCameraReady(true); };
         video.srcObject = result;
-      } catch {
-        if (!cancelled) setErrorMsg('Akses kamera ditolak.');
+      } catch (error: unknown) {
+        if (cancelled) return;
+        const name = error && typeof error === 'object' && 'name' in error ? String(error.name) : '';
+        switch (name) {
+          case 'NotAllowedError':
+          case 'PermissionDeniedError':
+            setErrorMsg('Akses kamera diblokir. Izinkan kamera untuk alamat situs ini melalui ikon di sebelah alamat, dan pastikan izin kamera untuk browser di pengaturan HP juga aktif. Setelah itu tekan Coba lagi.');
+            break;
+          case 'NotReadableError':
+          case 'TrackStartError':
+            setErrorMsg('Kamera gagal dibuka. Tutup aplikasi atau tab lain yang memakai kamera, lalu coba lagi. Jika tetap gagal, mulai ulang browser atau HP.');
+            break;
+          case 'NotFoundError':
+          case 'DevicesNotFoundError':
+            setErrorMsg('Kamera tidak ditemukan pada perangkat ini. Periksa apakah kamera HP dapat digunakan.');
+            break;
+          case 'SecurityError':
+            setErrorMsg('Akses kamera diblokir oleh keamanan browser atau situs. Buka situs langsung di browser; jika tetap gagal, hubungi admin.');
+            break;
+          case 'OverconstrainedError':
+            setErrorMsg('Kamera tidak mendukung pengaturan video yang diminta. Coba gunakan browser lain.');
+            break;
+          default:
+            setErrorMsg(`Kamera gagal dibuka${name ? ` (${name})` : ''}. Muat ulang halaman atau coba browser lain.`);
+        }
       }
     };
     void start();
@@ -61,7 +95,7 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
       stream?.getTracks().forEach(track => track.stop());
       if (video) { video.onloadeddata = null; video.srcObject = null; }
     };
-  }, [isOpen]);
+  }, [isOpen, cameraAttempt]);
 
   const stopCamera = () => {
     if (videoRef.current && videoRef.current.srcObject) {
@@ -197,7 +231,7 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
 
         {/* Status Overlay */}
         {(statusMsg || errorMsg) && (
-          <div className="camera-status">
+          <div className="camera-status" role={errorMsg ? 'alert' : 'status'} style={{ maxWidth: '90%', maxHeight: '45%', overflowY: 'auto' }}>
             {errorMsg ? (
               <AlertCircle size={32} color="#ef4444" />
             ) : (
@@ -236,6 +270,11 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
                   <span style={{ letterSpacing: '0.5px' }}>Menganalisis Biometrik...</span>
                   <div style={{ position: 'absolute', bottom: 0, left: 0, height: '3px', background: '#4ade80', width: '50%', animation: 'progress 1s infinite linear', boxShadow: '0 0 10px #4ade80' }} />
                 </>
+              ) : errorMsg ? (
+                <>
+                  <AlertCircle size={20} color="#ef4444" />
+                  <span>Kamera belum tersedia</span>
+                </>
               ) : isCameraReady ? (
                 <>
                   <div style={{ width: '10px', height: '10px', borderRadius: '50%', background: '#4ade80', boxShadow: '0 0 10px #4ade80', animation: 'pulse 2s infinite' }}></div>
@@ -251,7 +290,17 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
           </div>
 
           <div className="action-bar" style={{ justifyContent: 'center' }}>
+            {errorMsg ? (
+              <button
+                type="button"
+                onClick={() => setCameraAttempt(attempt => attempt + 1)}
+                style={{ padding: '14px 28px', borderRadius: '24px', border: '1px solid #94a3b8', background: '#1e293b', color: 'white', cursor: 'pointer' }}
+              >
+                Coba lagi
+              </button>
+            ) : (
             <button 
+              aria-label="Ambil foto untuk registrasi wajah"
               onClick={captureAndRegister} 
               disabled={isProcessing || !isCameraReady}
               className={`premium-capture-btn ${isCameraReady && !isProcessing ? 'ready' : ''}`}
@@ -260,6 +309,7 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
                 <Camera size={26} fill={isCameraReady ? "#1e293b" : "white"} stroke={isCameraReady ? "#1e293b" : "white"} />
               </div>
             </button>
+            )}
           </div>
         </div>
 

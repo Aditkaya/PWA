@@ -46,7 +46,7 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
       setErrorMsg('');
       setIsCameraReady(false);
       if (!window.isSecureContext) {
-        setErrorMsg('Kamera membutuhkan koneksi HTTPS. Buka alamat situs yang aman lalu coba lagi.');
+        setErrorMsg('Kamera membutuhkan koneksi HTTPS yang aman. Tekan Izinkan akses kamera untuk membuka situs melalui HTTPS. Jika tetap gagal, hubungi admin untuk memeriksa sertifikat HTTPS situs.');
         return;
       }
       if (!navigator.mediaDevices?.getUserMedia) {
@@ -67,7 +67,7 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
         switch (name) {
           case 'NotAllowedError':
           case 'PermissionDeniedError':
-            setErrorMsg('Akses kamera diblokir. Izinkan kamera untuk alamat situs ini melalui ikon di sebelah alamat, dan pastikan izin kamera untuk browser di pengaturan HP juga aktif. Setelah itu tekan Coba lagi.');
+            setErrorMsg('Akses kamera diblokir. Tekan Izinkan akses kamera, lalu pilih Izinkan pada permintaan browser. Jika permintaan tidak muncul, izinkan kamera untuk alamat situs ini melalui ikon di sebelah alamat dan periksa izin kamera browser di pengaturan HP.');
             break;
           case 'NotReadableError':
           case 'TrackStartError':
@@ -96,6 +96,20 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
       if (video) { video.onloadeddata = null; video.srcObject = null; }
     };
   }, [isOpen, cameraAttempt]);
+
+  const requestCameraAccess = () => {
+    if (!window.isSecureContext) {
+      const secureUrl = new URL(window.location.href);
+      if (secureUrl.protocol === 'http:') {
+        secureUrl.protocol = 'https:';
+        window.location.assign(secureUrl.href);
+      } else {
+        setErrorMsg('Koneksi situs belum dianggap aman oleh browser. Hubungi admin untuk memeriksa sertifikat HTTPS dan buka situs langsung di browser.');
+      }
+      return;
+    }
+    setCameraAttempt(attempt => attempt + 1);
+  };
 
   const stopCamera = () => {
     if (videoRef.current && videoRef.current.srcObject) {
@@ -231,7 +245,7 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
 
         {/* Status Overlay */}
         {(statusMsg || errorMsg) && (
-          <div className="camera-status" role={errorMsg ? 'alert' : 'status'} style={{ maxWidth: '90%', maxHeight: '45%', overflowY: 'auto' }}>
+          <div className="camera-status" role={errorMsg ? 'alert' : 'status'} style={{ width: 'min(400px, 90%)', maxHeight: '45%', overflowY: 'auto' }}>
             {errorMsg ? (
               <AlertCircle size={32} color="#ef4444" />
             ) : (
@@ -293,10 +307,11 @@ export default function FaceRegistrationModal({ isOpen, onSuccess, onClose }: Fa
             {errorMsg ? (
               <button
                 type="button"
-                onClick={() => setCameraAttempt(attempt => attempt + 1)}
+                aria-label="Izinkan akses kamera"
+                onClick={requestCameraAccess}
                 style={{ padding: '14px 28px', borderRadius: '24px', border: '1px solid #94a3b8', background: '#1e293b', color: 'white', cursor: 'pointer' }}
               >
-                Coba lagi
+                Izinkan akses kamera
               </button>
             ) : (
             <button 

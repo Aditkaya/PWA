@@ -28,6 +28,7 @@ function setup(options = {}) {
   }
   const requests = [];
   const geocodes = [];
+  const navigations = [];
   const context = new Proxy({}, { get: () => () => {} });
   const canvas = () => ({ width: 640, height: 480, getContext: () => context, toDataURL: () => 'verified-photo' });
   const video = {
@@ -61,7 +62,7 @@ function setup(options = {}) {
     if (type === 'button' && props['aria-label'] === 'Ambil foto untuk absen') shutter = props;
     if (type === 'button' && props['aria-label'] === 'Ambil foto untuk registrasi wajah') shutter = props;
     if (type === 'button' && props['aria-label'] === 'Cari ulang GPS') retry = props;
-    if (type === 'button' && props.children === 'Coba lagi') retry = props;
+    if (type === 'button' && props['aria-label'] === 'Izinkan akses kamera') retry = props;
     if (props?.ref && type === 'video') props.ref.current = video;
     if (props?.ref && type === 'canvas') props.ref.current ??= canvas();
     return { type, props };
@@ -72,8 +73,11 @@ function setup(options = {}) {
   vm.runInNewContext(ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, {
-    exports: module.exports, console, AbortController, Error, Date: Clock,
-    window: { isSecureContext: options.secure ?? true },
+    exports: module.exports, console, AbortController, Error, Date: Clock, URL,
+    window: { isSecureContext: options.secure ?? true, location: {
+      href: options.url ?? 'https://attendance.example.com/registration',
+      assign: url => navigations.push(url),
+    } },
     require: name => {
       if (name === 'react') return react;
       if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx };
@@ -111,7 +115,7 @@ function setup(options = {}) {
     }
   }
   return {
-    captures, toasts, settle, requests, geocodes,
+    captures, toasts, settle, requests, geocodes, navigations,
     get text() { return JSON.stringify(tree); },
     get shutterDisabled() { return shutter.disabled; },
     click: () => { if (!shutter.disabled) void shutter.onClick(); },
@@ -221,7 +225,7 @@ test('address follows corrected coordinates and ignores late lookup results', as
 
 test('registration distinguishes camera failures and stops showing preparation', async () => {
   for (const [name, message] of [
-    ['NotAllowedError', 'Izinkan kamera untuk alamat situs ini'],
+    ['NotAllowedError', 'pilih Izinkan pada permintaan browser'],
     ['NotReadableError', 'Tutup aplikasi atau tab lain'],
     ['NotFoundError', 'Kamera tidak ditemukan'],
     ['SecurityError', 'keamanan browser atau situs'],
@@ -231,7 +235,7 @@ test('registration distinguishes camera failures and stops showing preparation',
     const camera = setup({ registration: true, getUserMedia: async () => { throw { name }; } });
     await camera.settle();
     assert.ok(camera.text.includes(message), name);
-    assert.ok(camera.text.includes('Coba lagi'));
+    assert.ok(camera.text.includes('Izinkan akses kamera'));
     assert.equal(camera.text.includes('Menyiapkan kamera...'), false);
     assert.equal(camera.shutterDisabled, true);
   }
@@ -271,4 +275,37 @@ test('registration stops a camera granted after closing the modal', async () => 
   grant({ getTracks: () => [{ stop() { stopped++; } }] });
   await camera.settle();
   assert.equal(stopped, 1);
+});
+
+test('camera permission button upgrades HTTP while preserving the current route', async () => {
+  let calls = 0;
+  const camera = setup({ registration: true, secure: false,
+    url: 'http://attendance.example.com/registration?next=profile#face',
+    getUserMedia: async () => { calls++; },
+  });
+  await camera.settle();
+  camera.retry(); await camera.settle();
+  assert.deepEqual(camera.navigations, ['https://attendance.example.com/registration?next=profile#face']);
+  assert.equal(calls, 0);
+});
+
+test('camera permission button requests camera again after a browser denial', async () => {
+  let calls = 0;
+  const camera = setup({ registration: true, getUserMedia: async () => {
+    if (++calls === 1) throw { name: 'NotAllowedError' };
+    return { getTracks: () => [{ stop() {} }] };
+  } });
+  await camera.settle();
+  camera.retry(); await camera.settle();
+  assert.equal(calls, 2);
+  assert.equal(camera.shutterDisabled, false);
+  assert.deepEqual(camera.navigations, []);
+});
+
+test('insecure HTTPS explains certificate issue without a redirect loop', async () => {
+  const camera = setup({ registration: true, secure: false });
+  await camera.settle();
+  camera.retry(); await camera.settle();
+  assert.deepEqual(camera.navigations, []);
+  assert.ok(camera.text.includes('Hubungi admin untuk memeriksa sertifikat HTTPS'));
 });

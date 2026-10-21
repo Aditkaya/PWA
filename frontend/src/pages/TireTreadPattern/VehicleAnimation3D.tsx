@@ -4,6 +4,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildTractorModel } from './tractorModel';
 import { buildForkliftModel, FORKLIFT_MAX_LIFT } from './forkliftModel';
+import { buildChassisModel } from './chassisModel';
 import { fitVehicleCamera } from './vehicleCamera';
 import { globalActiveDraggedBanId, setGlobalActiveDraggedBanId, TireDetailModal, type StockBanItem, type WheelMeta } from './VehicleSchematic3D';
 
@@ -71,8 +72,8 @@ const getVehicleCameraPreset = (count: number) => {
   }
   if (count === 8) {
     return {
-      target: new THREE.Vector3(0, 0.75, -0.6),
-      perspective: new THREE.Vector3(-8.8, 4.5, 7.2),
+      target: new THREE.Vector3(0, 0.78, 0),
+      perspective: new THREE.Vector3(-8.8, 5.3, 6.5),
       top: new THREE.Vector3(0.001, 7.8, -0.6),
       side: new THREE.Vector3(-7.2, 0.95, -0.6),
       dualFocus: new THREE.Vector3(-4.6, 2.3, -1.0),
@@ -81,8 +82,8 @@ const getVehicleCameraPreset = (count: number) => {
   }
   // 12 Roda
   return {
-    target: new THREE.Vector3(0, 0.75, -1.0),
-    perspective: new THREE.Vector3(-10.8, 5.5, 8.8),
+    target: new THREE.Vector3(0, 0.78, 0),
+    perspective: new THREE.Vector3(-10.8, 6.4, 8.0),
     top: new THREE.Vector3(0.001, 8.8, -1.0),
     side: new THREE.Vector3(-8.8, 0.95, -1.0),
     dualFocus: new THREE.Vector3(-5.2, 2.4, -1.8),
@@ -739,18 +740,6 @@ export default function VehicleAnimation3D({
     scene.add(vehicleGroup);
 
     const frameMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.75, roughness: 0.3 });
-    const crossmemberMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.82, roughness: 0.35 });
-    const twistlockMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.7, roughness: 0.28 });
-    const hazardMat = new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.5, roughness: 0.3 });
-
-    const createBox = (w: number, h: number, d: number, mat: THREE.Material, x: number, y: number, z: number, castShadow = true) => {
-      const mesh = new THREE.Mesh(new THREE.BoxGeometry(w, h, d), mat);
-      mesh.position.set(x, y, z);
-      mesh.castShadow = castShadow;
-      mesh.receiveShadow = true;
-      vehicleGroup.add(mesh);
-      return mesh;
-    };
 
     const createCylinder = (rt: number, rb: number, h: number, seg: number, mat: THREE.Material, x: number, y: number, z: number, rx = 0, rz = 0) => {
       const mesh = new THREE.Mesh(new THREE.CylinderGeometry(rt, rb, h, seg), mat);
@@ -775,30 +764,10 @@ export default function VehicleAnimation3D({
       driveshaftMesh = tractor.driveshaft;
       mudflapLeft = tractor.mudflapLeft;
       mudflapRight = tractor.mudflapRight;
-    } else if (wheelCount === 8) {
-      // 8 Roda
-      createBox(0.18, 0.36, 7.8, frameMat, -0.65, 0.82, 0);
-      createBox(0.18, 0.36, 7.8, frameMat, 0.65, 0.82, 0);
-      for (let z = -3.2; z <= 3.2; z += 1.4) {
-        createBox(1.4, 0.16, 0.16, crossmemberMat, 0, 0.82, z);
-      }
-      createBox(0.26, 0.22, 0.26, twistlockMat, -1.15, 0.98, 3.7);
-      createBox(0.26, 0.22, 0.26, twistlockMat, 1.15, 0.98, 3.7);
-      createBox(0.26, 0.22, 0.26, twistlockMat, -1.15, 0.98, -3.7);
-      createBox(0.26, 0.22, 0.26, twistlockMat, 1.15, 0.98, -3.7);
-      createBox(2.2, 0.22, 0.12, hazardMat, 0, 0.65, -3.85);
-    } else if (wheelCount === 12) {
-      // 12 Roda
-      createBox(0.18, 0.36, 11.2, frameMat, -0.65, 0.82, 0);
-      createBox(0.18, 0.36, 11.2, frameMat, 0.65, 0.82, 0);
-      for (let z = -4.8; z <= 4.8; z += 1.5) {
-        createBox(1.4, 0.16, 0.16, crossmemberMat, 0, 0.82, z);
-      }
-      createBox(0.26, 0.22, 0.26, twistlockMat, -1.15, 0.98, 5.4);
-      createBox(0.26, 0.22, 0.26, twistlockMat, 1.15, 0.98, 5.4);
-      createBox(0.26, 0.22, 0.26, twistlockMat, -1.15, 0.98, -5.4);
-      createBox(0.26, 0.22, 0.26, twistlockMat, 1.15, 0.98, -5.4);
-      createBox(2.2, 0.22, 0.12, hazardMat, 0, 0.65, -5.55);
+    } else if (wheelCount === 8 || wheelCount === 12) {
+      const chassis = buildChassisModel(vehicleGroup, wheelCount);
+      mudflapLeft = chassis.mudflapLeft;
+      mudflapRight = chassis.mudflapRight;
     }
 
     // ── SIMULASI ASAP KNALPOT DIESEL REALISTIS (EXHAUST SMOKE SYSTEM) ──
@@ -1384,8 +1353,8 @@ export default function VehicleAnimation3D({
         vehicleGroup.rotation.z = (currentSpeed / 4.2) * 0.001 + Math.sin(time * 20.0) * 0.0005;
       } else {
         // Idling Mesin Diesel Halus (Realistic Heavy Diesel Rumble Idle)
-        vehicleGroup.position.y = reducedMotion ? 0 : Math.sin(time * 12.0) * 0.0006;
-        vehicleGroup.rotation.z = reducedMotion ? 0 : Math.sin(time * 14.0) * 0.0003;
+        vehicleGroup.position.y = reducedMotion || wheelCount >= 8 ? 0 : Math.sin(time * 12.0) * 0.0006;
+        vehicleGroup.rotation.z = reducedMotion || wheelCount >= 8 ? 0 : Math.sin(time * 14.0) * 0.0003;
       }
 
       // Ayunan mudflap

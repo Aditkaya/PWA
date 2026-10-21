@@ -4,6 +4,48 @@ import * as THREE from 'three';
 import { buildTractorModel } from '../src/pages/TireTreadPattern/tractorModel.ts';
 import { fitVehicleCamera } from '../src/pages/TireTreadPattern/vehicleCamera.ts';
 import { buildForkliftModel, FORKLIFT_MAX_LIFT } from '../src/pages/TireTreadPattern/forkliftModel.ts';
+import { buildChassisModel } from '../src/pages/TireTreadPattern/chassisModel.ts';
+
+for (const wheelCount of [8, 12]) {
+  test(`${wheelCount}-wheel trailer has grounded supports and clear tyre faces`, () => {
+    const vehicle = new THREE.Group();
+    const chassis = buildChassisModel(vehicle, wheelCount);
+    vehicle.updateMatrixWorld(true);
+    const surfaces = [];
+    let triangles = 0;
+    vehicle.traverse(object => {
+      if (!(object instanceof THREE.Mesh)) return;
+      surfaces.push(object);
+      for (const attribute of Object.values(object.geometry.attributes)) {
+        assert.ok(Array.from(attribute.array).every(Number.isFinite));
+      }
+      triangles += (object.geometry.index?.count ?? object.geometry.attributes.position.count) / 3;
+    });
+    assert.ok(surfaces.length < 20, 'Chassis details must be batched for mobile');
+    assert.ok(triangles < 180_000, 'Trailer exceeds the geometry budget');
+    const bounds = new THREE.Box3().setFromObject(vehicle);
+    assert.ok(bounds.min.y >= 0 && bounds.min.y < 0.015, 'Landing feet should rest at floor level');
+    for (const z of chassis.axlePositions) {
+      for (const side of [-1, 1]) {
+        const ray = new THREE.Raycaster(new THREE.Vector3(side * 2, 0.52, z), new THREE.Vector3(-side, 0, 0), 0, 0.95);
+        assert.equal(ray.intersectObjects(surfaces, false).length, 0, 'Body panels obstruct the outer tyre face');
+      }
+    }
+    for (const aspect of [0.64, 0.86, 1.78]) {
+      for (const position of [new THREE.Vector3(-9, 5.3, 6.5), new THREE.Vector3(-8, 0.95, 0), new THREE.Vector3(0.001, 9, 0)]) {
+        const camera = new THREE.PerspectiveCamera(48, aspect, 0.1, 100);
+        const target = new THREE.Vector3(0, 0.78, 0);
+        camera.position.copy(fitVehicleCamera(position, target, camera, bounds));
+        camera.lookAt(target);
+        camera.updateMatrixWorld(true);
+        for (const x of [bounds.min.x, bounds.max.x]) for (const y of [bounds.min.y, bounds.max.y]) for (const z of [bounds.min.z, bounds.max.z]) {
+          const point = new THREE.Vector3(x, y, z).project(camera);
+          assert.ok(Math.abs(point.x) < 0.9 && Math.abs(point.y) < 0.9, 'Trailer cropped by camera');
+        }
+      }
+    }
+  });
+}
 
 test('forklift has an open operator space and mobile-sized geometry', () => {
   const vehicle = new THREE.Group();

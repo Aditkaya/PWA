@@ -1541,7 +1541,7 @@ export default function VehicleSchematic3D({
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
   // Pilihan Tampilan: 3D Animasi Interaktif (Three.js WebGL) vs Denah Blueprint 2D
-  const [viewMode, setViewMode] = useState<'3d-anim' | 'blueprint'>('3d-anim');
+  const [viewMode, setViewMode] = useState<'3d-anim' | 'blueprint'>('blueprint');
 
   // Toggle tabel dropdown seluruh roda
 

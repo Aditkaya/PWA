@@ -908,6 +908,37 @@
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
+.vs-3d-unit-plate {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  z-index: 2;
+  max-width: calc(100% - 24px);
+  box-sizing: border-box;
+  padding: 7px 12px;
+  border: 1px solid #94a3b8;
+  border-radius: 6px;
+  background: rgba(10, 17, 27, 0.92);
+  box-shadow: 0 3px 12px rgba(0, 0, 0, 0.25);
+  color: #f8fafc;
+  pointer-events: none;
+}
+
+.vs-3d-unit-plate span {
+  display: block;
+  color: #b4c3d5;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+
+.vs-3d-unit-plate strong {
+  display: block;
+  margin-top: 3px;
+  font: 700 16px/1.25 monospace;
+  overflow-wrap: anywhere;
+}
+
 .vs-3d-canvas-wrapper--dragover {
   border-color: #10b981;
   box-shadow:

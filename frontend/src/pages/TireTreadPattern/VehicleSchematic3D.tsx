@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useMemo, useRef } from 
 import { createPortal } from 'react-dom';
 import './VehicleSchematic3D.css';
 import VehicleAnimation3D from './VehicleAnimation3D';
+import type { VehiclePlateIdentity } from './vehiclePlate';
 import { useToast } from '../../contexts/ToastContext';
 
 /* ─────────────────────────────────────────────────────────────
@@ -53,6 +54,7 @@ const RecentlySwappedWheelContext = createContext<ReadonlySet<string>>(new Set()
 const BlueprintClickSelectContext = createContext(false);
 
 export interface VehicleSchematicProps {
+  plateIdentity?: VehiclePlateIdentity;
   wheelCount: 6 | 8 | 12 | 4;
   selectedWheelId?: string | null;
   onWheelClick?: (wheelId: string, tireData?: StockBanItem | null) => void;
@@ -1528,6 +1530,7 @@ export default function VehicleSchematic3D({
   alat_berat_id,
   alatBeratId,
   unitName: currentUnitName,
+  plateIdentity,
   category,
   wheelConfig
 }: VehicleSchematicProps) {
@@ -2512,6 +2515,7 @@ export default function VehicleSchematic3D({
           <div className="vs-stage-canvas-wrap">
             {viewMode === '3d-anim' ? (
               <VehicleAnimation3D
+                plateIdentity={plateIdentity}
                 wheelCount={wheelCount}
                 selectedWheelId={activeWheelId}
                 onWheelClick={handleSelectWheel}

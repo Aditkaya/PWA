@@ -25,6 +25,7 @@ import {
 } from 'lucide-react';
 import './TireTreadPattern.css';
 import VehicleSchematic3D from './VehicleSchematic3D';
+import { getVehiclePlateIdentity } from './vehiclePlate';
 
 export function formatDateIndo(dateStr?: string | null): string {
   if (!dateStr) return '-';
@@ -667,6 +668,7 @@ export default function TireTreadPattern() {
               mobil_id={selectedCategory?.id === 'forklift' ? undefined : selectedUnit.id}
               alat_berat_id={selectedCategory?.id === 'forklift' ? selectedUnit.id : undefined}
               unitName={selectedUnit.nama || selectedUnit.nickname || selectedUnit.nomor_polisi || selectedUnit.kode_alat || selectedUnit.kode_no || selectedUnit.jenis}
+              plateIdentity={getVehiclePlateIdentity(selectedUnit.nomor_polisi, selectedUnit.kode_alat || selectedUnit.kode_no, selectedUnit.no_kir || selectedUnit.nomor_kir)}
               category={selectedCategory?.id}
               wheelConfig={selectedWheelConfig}
             />

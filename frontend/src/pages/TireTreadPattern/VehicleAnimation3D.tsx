@@ -6,6 +6,7 @@ import { buildTractorModel } from './tractorModel';
 import { buildForkliftModel, FORKLIFT_MAX_LIFT } from './forkliftModel';
 import { buildChassisModel } from './chassisModel';
 import { fitVehicleCamera } from './vehicleCamera';
+import { addVehiclePlates, type VehiclePlateIdentity } from './vehiclePlate';
 import { globalActiveDraggedBanId, setGlobalActiveDraggedBanId, TireDetailModal, type StockBanItem, type WheelMeta } from './VehicleSchematic3D';
 
 export interface VehicleWheelConfig {
@@ -19,6 +20,7 @@ export interface VehicleWheelConfig {
 }
 
 interface VehicleAnimation3DProps {
+  plateIdentity?: VehiclePlateIdentity;
   wheelCount: number;
   selectedWheelId: string | null;
   onWheelClick?: (wheelId: string, tire?: StockBanItem | null) => void;
@@ -273,6 +275,7 @@ const createTireTreadTexture = (industrial = false) => {
 };
 
 export default function VehicleAnimation3D({
+  plateIdentity,
   wheelCount,
   selectedWheelId,
   onWheelClick,
@@ -289,6 +292,8 @@ export default function VehicleAnimation3D({
   onTargetWheelChange
 }: VehicleAnimation3DProps) {
   const containerRef = useRef<HTMLDivElement>(null);
+  const plateLabel = plateIdentity?.label || 'Nomor plat';
+  const plateValue = plateIdentity?.value || '';
   const rendererRef = useRef<THREE.WebGLRenderer | null>(null);
   const controlsRef = useRef<OrbitControls | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
@@ -769,6 +774,8 @@ export default function VehicleAnimation3D({
       mudflapLeft = chassis.mudflapLeft;
       mudflapRight = chassis.mudflapRight;
     }
+
+    addVehiclePlates(vehicleGroup, wheelCount, { label: plateLabel, value: plateValue });
 
     // ── SIMULASI ASAP KNALPOT DIESEL REALISTIS (EXHAUST SMOKE SYSTEM) ──
     const smokeParticles: Array<{
@@ -1592,7 +1599,7 @@ export default function VehicleAnimation3D({
       renderer.dispose();
       renderer.domElement.remove();
     };
-  }, [wheelCount, category, wheelCoords]);
+  }, [wheelCount, category, wheelCoords, plateLabel, plateValue]);
 
   // Sync auto-rotate
   useEffect(() => {
@@ -1859,6 +1866,10 @@ export default function VehicleAnimation3D({
         onDrop={handleCanvasDrop}
       >
         <div ref={containerRef} className="vs-3d-viewport" />
+        <div className="vs-3d-unit-plate" aria-label={`${plateLabel}: ${plateValue || 'Belum tersedia'}`}>
+          <span>{plateLabel}</span>
+          <strong>{plateValue || 'Belum tersedia'}</strong>
+        </div>
 
         {/* Live Drag Floater saat Drag Langsung di Kanvas 3D */}
         {liveDragState && (

@@ -97,7 +97,7 @@ function setup(options = {}) {
     fetch: async url => {
       requests.push(url);
       if (url.includes('/reverse?')) return new Promise(resolve => geocodes.push(name => resolve({ ok: true, json: async () => ({ display_name: name }) })));
-      return { json: async () => ({ data: [{ latitude: -6.2, longitude: 106.8, radius: 50, nama_lokasi: 'Kantor' }] }) };
+      return { json: async () => ({ data: options.locations ?? [{ latitude: -6.2, longitude: 106.8, radius: 50, nama_lokasi: 'Kantor' }] }) };
     },
     Image: class { set src(_value) { queueMicrotask(() => this.onload?.()); } },
     setTimeout: (fn, delay) => { timers.set(++timerId, { fn, delay }); return timerId; },
@@ -179,6 +179,44 @@ test('coarse or unknown accuracy cannot submit or report outside the radius', as
   camera.gps(50, -6.21); await camera.settle();
   assert.equal(camera.shutterDisabled, false);
   assert.ok(camera.text.includes('outOfRange Kantor'));
+});
+
+test('photo gate follows location max_accuracy below and above the old 50m limit', async () => {
+  for (const limit of [10, 100]) {
+    const camera = setup({ locations: [{ latitude: -6.2, longitude: 106.8, radius: 50, max_accuracy: String(limit) }] });
+    await camera.settle();
+    camera.gps(limit + 1); await camera.settle();
+    assert.equal(camera.shutterDisabled, true);
+    assert.ok(camera.text.includes(`maks ${limit}m`));
+    await camera.forceClick();
+    assert.equal(camera.captures.length, 0);
+    camera.gps(limit); await camera.settle();
+    assert.equal(camera.shutterDisabled, false);
+  }
+});
+
+test('accuracy uses containing location then nearest when outside all radii', async () => {
+  const camera = setup({ locations: [
+    { latitude: -6.2, longitude: 106.8, radius: 10, max_accuracy: 10 },
+    { latitude: -6.201, longitude: 106.8, radius: 200, max_accuracy: 100 },
+  ] });
+  await camera.settle();
+  camera.gps(80, -6.2002); await camera.settle();
+  assert.equal(camera.shutterDisabled, false);
+  camera.gps(80, -6.19); await camera.settle();
+  assert.equal(camera.shutterDisabled, true);
+  assert.ok(camera.text.includes('maks 10m'));
+});
+
+test('unset or invalid location limits preserve the 50m default', async () => {
+  for (const max_accuracy of [null, 0, -5, 'invalid']) {
+    const camera = setup({ locations: [{ latitude: -6.2, longitude: 106.8, radius: 50, max_accuracy }] });
+    await camera.settle();
+    camera.gps(51); await camera.settle();
+    assert.equal(camera.shutterDisabled, true);
+    camera.gps(50); await camera.settle();
+    assert.equal(camera.shutterDisabled, false);
+  }
 });
 
 test('expired location is blocked even before rerender and recovers on a fresh fix', async () => {

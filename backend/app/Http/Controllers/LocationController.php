@@ -28,7 +28,7 @@ class LocationController {
             if ($karyawan_id) {
                 // 1. Cek lokasi khusus yang ditugaskan khusus untuk karyawan ini
                 $stmtSpecial = $pdo->prepare("
-                    SELECT la.id, la.latitude, la.longitude, la.radius, la.nama_lokasi, la.tipe_penugasan
+                    SELECT la.id, la.latitude, la.longitude, la.radius, la.max_accuracy, la.nama_lokasi, la.tipe_penugasan
                     FROM lokasi_absensis la
                     INNER JOIN lokasi_absensi_karyawan lak ON la.id = lak.lokasi_absensi_id
                     WHERE lak.karyawan_id = ? AND la.is_active = 1
@@ -45,7 +45,7 @@ class LocationController {
             // 2. Jika tidak ada penugasan khusus, ambil lokasi yang berlaku untuk 'semua'
             if (empty($lokasi)) {
                 $stmtSemua = $pdo->query("
-                    SELECT id, latitude, longitude, radius, nama_lokasi, tipe_penugasan
+                    SELECT id, latitude, longitude, radius, max_accuracy, nama_lokasi, tipe_penugasan
                     FROM lokasi_absensis
                     WHERE is_active = 1 AND (tipe_penugasan = 'semua' OR tipe_penugasan IS NULL)
                 ");
@@ -55,7 +55,7 @@ class LocationController {
             // 3. Fallback jika masih kosong
             if (empty($lokasi)) {
                 $stmtFallback = $pdo->query("
-                    SELECT id, latitude, longitude, radius, nama_lokasi, tipe_penugasan
+                    SELECT id, latitude, longitude, radius, max_accuracy, nama_lokasi, tipe_penugasan
                     FROM lokasi_absensis
                     WHERE is_active = 1
                 ");

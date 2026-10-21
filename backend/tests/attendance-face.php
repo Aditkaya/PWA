@@ -13,6 +13,8 @@ $pdo->exec('CREATE TABLE karyawans (id INTEGER, nik TEXT)');
 $pdo->exec('CREATE TABLE permohonan_izins (id INTEGER, karyawan_id INTEGER, jenis_izin TEXT, status TEXT, tanggal_mulai TEXT, tanggal_selesai TEXT)');
 $pdo->exec('CREATE TABLE cutis (id INTEGER, karyawan_id INTEGER, status TEXT, tanggal_mulai TEXT, tanggal_selesai TEXT)');
 $pdo->exec('CREATE TABLE absensis (karyawan_id INTEGER, nik TEXT, waktu TEXT, tipe TEXT, status TEXT, foto TEXT, latitude TEXT, longitude TEXT, detail_lokasi TEXT, keterangan TEXT)');
+$pdo->exec('CREATE TABLE lokasi_absensis (id INTEGER, latitude REAL, longitude REAL, radius REAL, max_accuracy REAL, nama_lokasi TEXT, tipe_penugasan TEXT, is_active INTEGER)');
+$pdo->exec('CREATE TABLE lokasi_absensi_karyawan (karyawan_id INTEGER, lokasi_absensi_id INTEGER)');
 $pdo->exec("INSERT INTO users VALUES (1,1,'uploads/face_verifications/reference.jpg','2026-09-11')");
 $pdo->exec("INSERT INTO karyawans VALUES (1,'TEST')");
 $property = new ReflectionProperty(Database::class, 'pdo');

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 require_once __DIR__ . '/../../../config/database.php';
 require_once __DIR__ . '/../../Services/FaceVerificationService.php';
+require_once __DIR__ . '/../../Services/LocationAccuracy.php';
 
 use Database;
 use PDO;
@@ -87,11 +88,11 @@ class AttendanceController {
             || !is_finite((float)$latitude) || !is_finite((float)$longitude)
             || abs((float)$latitude) > 90 || abs((float)$longitude) > 180
             || !is_numeric($accuracy) || !is_finite((float)$accuracy)
-            || (float)$accuracy <= 0 || (float)$accuracy > 50
+            || (float)$accuracy <= 0
             || !is_numeric($locationAge) || !is_finite((float)$locationAge)
             || (float)$locationAge < 0 || (float)$locationAge > $maxLocationAge) {
             http_response_code(422);
-            echo json_encode(['message' => 'Lokasi belum valid. Cari ulang GPS dengan akurasi maksimal 50 meter, lalu ambil foto kembali.']);
+            echo json_encode(['message' => 'Lokasi belum valid. Cari ulang GPS dengan koordinat, akurasi, dan waktu lokasi yang valid, lalu ambil foto kembali.']);
             return;
         }
         try {
@@ -108,6 +109,77 @@ class AttendanceController {
             }
             $karyawan_id = $userData['karyawan_id'];
             $nik = $userData['nik'] ?? $user_id; // Fallback if missing
+
+            // 1. Ambil lokasi penugasan khusus karyawan
+            $stmtSpecialLoc = $pdo->prepare("
+                SELECT la.id, la.latitude, la.longitude, la.radius, la.max_accuracy, la.nama_lokasi, la.tipe_penugasan
+                FROM lokasi_absensis la
+                INNER JOIN lokasi_absensi_karyawan lak ON la.id = lak.lokasi_absensi_id
+                WHERE lak.karyawan_id = ? AND la.is_active = 1
+            ");
+            $stmtSpecialLoc->execute([$karyawan_id]);
+            $assignedLocations = $stmtSpecialLoc->fetchAll();
+
+            // 2. Jika tidak ada penugasan khusus, ambil lokasi bertipe 'semua'
+            if (empty($assignedLocations)) {
+                $stmtSemuaLoc = $pdo->query("
+                    SELECT id, latitude, longitude, radius, max_accuracy, nama_lokasi, tipe_penugasan
+                    FROM lokasi_absensis
+                    WHERE is_active = 1 AND (tipe_penugasan = 'semua' OR tipe_penugasan IS NULL)
+                ");
+                $assignedLocations = $stmtSemuaLoc->fetchAll();
+            }
+
+            // 3. Fallback jika masih kosong
+            if (empty($assignedLocations)) {
+                $stmtFallbackLoc = $pdo->query("
+                    SELECT id, latitude, longitude, radius, max_accuracy, nama_lokasi, tipe_penugasan
+                    FROM lokasi_absensis
+                    WHERE is_active = 1
+                ");
+                $assignedLocations = $stmtFallbackLoc->fetchAll();
+            }
+
+            $nearestLoc = null;
+            $nearestDistance = null;
+            $isInRadius = false;
+
+            if ($latitude !== null && $longitude !== null && !empty($assignedLocations)) {
+                $lat1 = deg2rad((float)$latitude);
+                $lon1 = deg2rad((float)$longitude);
+
+                foreach ($assignedLocations as $loc) {
+                    if (!is_numeric($loc['latitude']) || !is_numeric($loc['longitude'])) {
+                        continue;
+                    }
+                    $lat2 = deg2rad((float)$loc['latitude']);
+                    $lon2 = deg2rad((float)$loc['longitude']);
+                    $dLat = $lat2 - $lat1;
+                    $dLon = $lon2 - $lon1;
+                    $a = min(1, max(0, sin($dLat / 2) ** 2 + cos($lat1) * cos($lat2) * sin($dLon / 2) ** 2));
+                    $dist = 6371000 * 2 * atan2(sqrt($a), sqrt(1 - $a));
+
+                    if ($nearestDistance === null || $dist < $nearestDistance) {
+                        $nearestDistance = $dist;
+                        $nearestLoc = $loc;
+                    }
+
+                    if ($dist <= (float)$loc['radius']) {
+                        $isInRadius = true;
+                        $nearestDistance = $dist;
+                        $nearestLoc = $loc;
+                        break;
+                    }
+                }
+
+            }
+
+            $maxAccuracy = \App\Services\LocationAccuracy::limit($nearestLoc);
+            if ((float)$accuracy > $maxAccuracy) {
+                http_response_code(422);
+                echo json_encode(['message' => "Akurasi GPS belum memadai. Maksimal {$maxAccuracy} meter. Cari ulang GPS, lalu ambil foto kembali."]);
+                return;
+            }
 
             // Cegah duplikasi pengiriman offline sync
             if ($waktuAbsenParam) {
@@ -209,86 +281,18 @@ class AttendanceController {
                 $finalDetailLokasi = $finalDetailLokasi ? ($finalDetailLokasi . ' | ' . $faceReviewNote) : $faceReviewNote;
             }
 
-            // 1. Ambil lokasi penugasan khusus karyawan
-            $stmtSpecialLoc = $pdo->prepare("
-                SELECT la.id, la.latitude, la.longitude, la.radius, la.nama_lokasi, la.tipe_penugasan
-                FROM lokasi_absensis la
-                INNER JOIN lokasi_absensi_karyawan lak ON la.id = lak.lokasi_absensi_id
-                WHERE lak.karyawan_id = ? AND la.is_active = 1
-            ");
-            $stmtSpecialLoc->execute([$karyawan_id]);
-            $assignedLocations = $stmtSpecialLoc->fetchAll();
-            $hasSpecialAssignment = !empty($assignedLocations);
-
-            // 2. Jika tidak ada penugasan khusus, ambil lokasi bertipe 'semua'
-            if (empty($assignedLocations)) {
-                $stmtSemuaLoc = $pdo->query("
-                    SELECT id, latitude, longitude, radius, nama_lokasi, tipe_penugasan
-                    FROM lokasi_absensis
-                    WHERE is_active = 1 AND (tipe_penugasan = 'semua' OR tipe_penugasan IS NULL)
-                ");
-                $assignedLocations = $stmtSemuaLoc->fetchAll();
-            }
-
-            // 3. Fallback jika masih kosong
-            if (empty($assignedLocations)) {
-                $stmtFallbackLoc = $pdo->query("
-                    SELECT id, latitude, longitude, radius, nama_lokasi, tipe_penugasan
-                    FROM lokasi_absensis
-                    WHERE is_active = 1
-                ");
-                $assignedLocations = $stmtFallbackLoc->fetchAll();
-            }
-
-            $nearestLoc = null;
-            $nearestDistance = null;
-            $isInRadius = false;
-
-            if ($latitude !== null && $longitude !== null && !empty($assignedLocations)) {
-                $lat1 = deg2rad((float)$latitude);
-                $lon1 = deg2rad((float)$longitude);
-
-                foreach ($assignedLocations as $loc) {
-                    if (!is_numeric($loc['latitude']) || !is_numeric($loc['longitude'])) {
-                        continue;
-                    }
-                    $lat2 = deg2rad((float)$loc['latitude']);
-                    $lon2 = deg2rad((float)$loc['longitude']);
-                    $dLat = $lat2 - $lat1;
-                    $dLon = $lon2 - $lon1;
-                    $a = sin($dLat / 2) ** 2 + cos($lat1) * cos($lat2) * sin($dLon / 2) ** 2;
-                    $dist = 6371000 * 2 * atan2(sqrt($a), sqrt(1 - $a));
-
-                    if ($nearestDistance === null || $dist < $nearestDistance) {
-                        $nearestDistance = $dist;
-                        $nearestLoc = $loc;
-                    }
-
-                    if ($dist <= (int)$loc['radius']) {
-                        $isInRadius = true;
-                        $nearestDistance = $dist;
-                        $nearestLoc = $loc;
-                        break;
-                    }
+            if ($nearestLoc) {
+                $distRound = round($nearestDistance);
+                if ($isInRadius) {
+                    $statusAbsensi = $faceReviewRequired ? 'Persetujuan' : 'Selesai';
+                    $locNote = "{$nearestLoc['nama_lokasi']} (Jarak: {$distRound}m)";
+                    $finalDetailLokasi = $finalDetailLokasi ? ($finalDetailLokasi . " - " . $locNote) : $locNote;
+                } else {
+                    // Di luar radius lokasi wajib -> Status Persetujuan
+                    $statusAbsensi = 'Persetujuan';
+                    $locNote = "Di luar radius {$nearestLoc['nama_lokasi']} (Jarak: {$distRound}m, Radius: {$nearestLoc['radius']}m)";
+                    $finalDetailLokasi = $finalDetailLokasi ? ($finalDetailLokasi . " | " . $locNote) : $locNote;
                 }
-
-                if ($nearestLoc) {
-                    $distRound = round($nearestDistance);
-                    if ($isInRadius) {
-                        $statusAbsensi = $faceReviewRequired ? 'Persetujuan' : 'Selesai';
-                        $locNote = "{$nearestLoc['nama_lokasi']} (Jarak: {$distRound}m)";
-                        $finalDetailLokasi = $finalDetailLokasi ? ($finalDetailLokasi . " - " . $locNote) : $locNote;
-                    } else {
-                        // Di luar radius lokasi wajib -> Status Persetujuan
-                        $statusAbsensi = 'Persetujuan';
-                        $locNote = "Di luar radius {$nearestLoc['nama_lokasi']} (Jarak: {$distRound}m, Radius: {$nearestLoc['radius']}m)";
-                        $finalDetailLokasi = $finalDetailLokasi ? ($finalDetailLokasi . " | " . $locNote) : $locNote;
-                    }
-                }
-            } elseif ($hasSpecialAssignment && ($latitude === null || $longitude === null)) {
-                // Karyawan punya lokasi khusus tetapi tidak ada koordinat GPS
-                $statusAbsensi = 'Persetujuan';
-                $finalDetailLokasi = ($detail_lokasi ? $detail_lokasi . " | " : "") . "Koordinat GPS tidak terdeteksi pada lokasi wajib";
             }
 
             // Insert into absensis

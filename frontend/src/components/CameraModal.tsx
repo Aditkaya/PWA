@@ -8,7 +8,7 @@ import '../styles/cameramodal.css';
 
 const activeAiModel = 'Server';
 const MAX_GPS_AGE_MS = 30000;
-const MAX_GPS_ACCURACY = 50;
+const DEFAULT_MAX_GPS_ACCURACY = 50;
 
 interface CameraModalProps {
   isOpen: boolean;
@@ -25,8 +25,9 @@ function getDistanceFromLatLonInM(lat1: number, lon1: number, lat2: number, lon2
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos(lat1 * (Math.PI / 180)) * Math.cos(lat2 * (Math.PI / 180)) * 
     Math.sin(dLon / 2) * Math.sin(dLon / 2); 
-  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a)); 
-  return Math.round(R * c * 1000); // Distance in meters
+  const clamped = Math.min(1, Math.max(0, a));
+  const c = 2 * Math.atan2(Math.sqrt(clamped), Math.sqrt(1 - clamped));
+  return R * c * 1000; // Keep full precision for radius validation.
 }
 
 export default function CameraModal({ isOpen, onClose, onCapture, attendanceType: _attendanceType }: CameraModalProps) {
@@ -61,6 +62,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   const [address, setAddress] = useState(t.findingLocation);
 
   const [allowedLocations, setAllowedLocations] = useState<any[]>([]);
+  const [locationsLoaded, setLocationsLoaded] = useState(false);
 
   useEffect(() => {
     sessionRef.current += 1;
@@ -87,19 +89,24 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
 
   // Fetch Allowed Locations once & preload logo
   useEffect(() => {
+    let cancelled = false;
     if (isOpen) {
+      setAllowedLocations([]);
+      setLocationsLoaded(false);
       const url = user?.id ? `/api/lokasi?user_id=${user.id}` : '/api/lokasi';
       fetch(url)
         .then(res => res.json())
         .then(data => {
-          if (data.data) setAllowedLocations(data.data);
+          if (!cancelled && Array.isArray(data.data)) setAllowedLocations(data.data);
         })
-        .catch(err => console.error('Failed to fetch lokasi:', err));
+        .catch(err => console.error('Failed to fetch lokasi:', err))
+        .finally(() => { if (!cancelled) setLocationsLoaded(true); });
 
       const img = new Image();
       img.src = '/logo.png';
       img.onload = () => setLogoImage(img);
     }
+    return () => { cancelled = true; };
   }, [isOpen, user?.id]);
 
   useEffect(() => {
@@ -175,9 +182,32 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     };
   }, [isOpen, gpsRetry, t.gpsFailed, t.gpsNotSupported]);
 
-  const isAccuracyAcceptable = gpsAccuracy !== null && gpsAccuracy > 0 && gpsAccuracy <= MAX_GPS_ACCURACY;
+  // Match the server: first containing location, otherwise nearest assigned location.
+  const accuracyLocation = useMemo(() => {
+    if (!locationCoords) return null;
+    let nearest = null;
+    let nearestDistance = Infinity;
+    for (const loc of allowedLocations) {
+      if (!loc || loc.latitude === null || loc.longitude === null ||
+          String(loc.latitude).trim() === '' || String(loc.longitude).trim() === '') continue;
+      const lat = Number(loc.latitude);
+      const lng = Number(loc.longitude);
+      if (!Number.isFinite(lat) || !Number.isFinite(lng)) continue;
+      const distance = getDistanceFromLatLonInM(locationCoords.lat, locationCoords.lng, lat, lng);
+      if (distance < nearestDistance) {
+        nearest = loc;
+        nearestDistance = distance;
+      }
+      if (distance <= Number(loc.radius)) return loc;
+    }
+    return nearest;
+  }, [locationCoords, allowedLocations]);
+  const configuredAccuracy = Number(accuracyLocation?.max_accuracy);
+  const maxGpsAccuracy = Number.isFinite(configuredAccuracy) && configuredAccuracy > 0
+    ? configuredAccuracy : DEFAULT_MAX_GPS_ACCURACY;
+  const isAccuracyAcceptable = gpsAccuracy !== null && gpsAccuracy > 0 && gpsAccuracy <= maxGpsAccuracy;
   const gpsAge = gpsTimestamp === null ? Infinity : Math.max(Date.now(), currentTime.getTime()) - gpsTimestamp;
-  const isLocationReady = !!locationCoords && isAccuracyAcceptable && gpsAge >= 0 && gpsAge <= MAX_GPS_AGE_MS && !gpsError;
+  const isLocationReady = locationsLoaded && !!locationCoords && isAccuracyAcceptable && gpsAge >= 0 && gpsAge <= MAX_GPS_AGE_MS && !gpsError;
 
   // Round only the address lookup (~11 m), never the attendance coordinates.
   const addressLat = isLocationReady ? locationCoords!.lat.toFixed(4) : null;
@@ -479,27 +509,29 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     stopCamera();
   };
 
-  // Quality gate: jika akurasi GPS > 50 meter, tombol absensi tidak bisa digunakan
+  // Gate foto mengikuti max_accuracy titik lokasi.
   const errorMsg = cameraError || gpsError;
-  const canTakePhoto = isCameraReady && isLocationReady && !errorMsg && !isProcessing && !validationError;
+  const canTakePhoto = isCameraReady && isLocationReady && !errorMsg && !isProcessing;
 
   // Label kualitas sinyal GPS untuk ditampilkan di UI
   const gpsQualityLabel = gpsAccuracy === null
     ? null
+    : !isAccuracyAcceptable
+      ? { label: `GPS Kurang Akurat (±${Math.round(gpsAccuracy)}m) — Maks ${maxGpsAccuracy}m`, color: '#ef4444' }
     : isAccuracyAcceptable && !isLocationReady
       ? { label: 'Lokasi GPS perlu diperbarui', color: '#ef4444' }
     : gpsAccuracy <= 15
       ? { label: `GPS Sangat Akurat (±${Math.round(gpsAccuracy)}m)`, color: '#4ade80' }   // hijau (<= 15m)
-      : gpsAccuracy <= 50
-        ? { label: `GPS Cukup Akurat (±${Math.round(gpsAccuracy)}m)`, color: '#facc15' }  // kuning (16m - 50m)
-        : { label: `GPS Kurang Akurat (±${Math.round(gpsAccuracy)}m) — Tunggu GPS lebih presisi`, color: '#ef4444' }; // merah (> 50m)
+      : { label: `GPS Cukup Akurat (±${Math.round(gpsAccuracy)}m)`, color: '#facc15' };
 
   const faceMatchMsg = !isCameraReady ? 'Menyiapkan kamera...' : !locationCoords
     ? 'Menunggu koordinat GPS...'
+    : !locationsLoaded
+      ? 'Memuat batas akurasi lokasi...'
     : gpsAccuracy === null
       ? 'Akurasi GPS belum tersedia. Aktifkan lokasi presisi atau cari ulang GPS.'
     : !isAccuracyAcceptable
-      ? `Akurasi GPS belum memadai (±${Math.round(gpsAccuracy)}m). Mohon tunggu GPS lebih akurat (maks 50m)...`
+      ? `Akurasi GPS belum memadai (±${Math.round(gpsAccuracy)}m). Mohon tunggu GPS lebih akurat (maks ${maxGpsAccuracy}m)...`
       : !isLocationReady
         ? 'Lokasi GPS sudah kedaluwarsa atau tidak tersedia. Silakan cari ulang GPS.'
       : 'Posisikan wajah, lalu klik foto. Wajah diperiksa di server.';

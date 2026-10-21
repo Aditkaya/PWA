@@ -16,26 +16,26 @@
 .pwa-snowflake {
   position: absolute;
   top: -12px;
-  width: var(--snow-size);
-  height: var(--snow-size);
-  border-radius: 50%;
-  background: #f1f8ff;
-  box-shadow: 0 0 3px rgba(191, 224, 255, 0.5);
+  color: #f1f8ff;
+  font-family: 'Segoe UI Symbol', 'Noto Sans Symbols 2', sans-serif;
+  font-size: var(--snow-size);
+  line-height: 1;
+  text-shadow: 0 0 4px rgba(191, 224, 255, 0.65);
   opacity: 0;
   animation: pwa-snow-fall linear infinite;
 }
 
 @keyframes pwa-snow-fall {
-  0% { transform: translate3d(0, -12px, 0); opacity: 0; }
+  0% { transform: translate3d(0, -12px, 0) rotate(0deg); opacity: 0; }
   8% { opacity: var(--snow-opacity); }
-  50% { transform: translate3d(var(--snow-drift), 50vh, 0); }
+  50% { transform: translate3d(var(--snow-drift), 50vh, 0) rotate(180deg); }
   88% { opacity: var(--snow-opacity); }
-  100% { transform: translate3d(0, calc(100vh + 24px), 0); opacity: 0; }
+  100% { transform: translate3d(0, calc(100vh + 24px), 0) rotate(360deg); opacity: 0; }
 }
 
 :root[data-theme="light"] .pwa-snowflake {
-  background: #c3dded;
-  box-shadow: 0 0 2px rgba(97, 154, 189, 0.3);
+  color: #c3dded;
+  text-shadow: 0 0 2px rgba(97, 154, 189, 0.3);
 }
 
 .pwa-snow-toggle {

@@ -5,7 +5,7 @@ import '../styles/snowfall.css'
 // Fixed variation keeps the decoration stable across navigation and renders.
 const flakes = Array.from({ length: 36 }, (_, index) => ({
   left: `${((index * 37) % 100) + 0.5}%`,
-  '--snow-size': `${2 + (index % 4)}px`,
+  '--snow-size': `${10 + (index % 5) * 2}px`,
   '--snow-drift': `${((index * 13) % 65) - 32}px`,
   '--snow-opacity': 0.22 + (index % 5) * 0.09,
   animationDuration: `${11 + (index % 9)}s`,
@@ -33,7 +33,7 @@ export default function Snowfall({ fullWidth = false }: { fullWidth?: boolean })
 
   return (
     <div className={`pwa-snowfall${fullWidth ? ' pwa-snowfall--full' : ''}`} aria-hidden="true">
-      {flakes.map((style, index) => <span className="pwa-snowflake" style={style} key={index} />)}
+      {flakes.map((style, index) => <span className="pwa-snowflake" style={style} key={index}>{['❄', '❅', '❆'][index % 3]}</span>)}
     </div>
   )
 }

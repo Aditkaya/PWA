@@ -3,6 +3,55 @@ import assert from 'node:assert/strict';
 import * as THREE from 'three';
 import { buildTractorModel } from '../src/pages/TireTreadPattern/tractorModel.ts';
 import { fitVehicleCamera } from '../src/pages/TireTreadPattern/vehicleCamera.ts';
+import { buildForkliftModel, FORKLIFT_MAX_LIFT } from '../src/pages/TireTreadPattern/forkliftModel.ts';
+
+test('forklift has an open operator space and mobile-sized geometry', () => {
+  const vehicle = new THREE.Group();
+  buildForkliftModel(vehicle);
+  vehicle.updateMatrixWorld(true);
+  const surfaces = [];
+  let triangles = 0;
+  vehicle.traverse(object => {
+    if (!(object instanceof THREE.Mesh)) return;
+    surfaces.push(object);
+    for (const attribute of Object.values(object.geometry.attributes)) {
+      assert.ok(Array.from(attribute.array).every(Number.isFinite));
+    }
+    triangles += (object.geometry.index?.count ?? object.geometry.attributes.position.count) / 3;
+  });
+  assert.ok(surfaces.length < 25, 'Forklift details must be batched');
+  assert.ok(triangles < 150_000, 'Forklift exceeds the geometry budget');
+  const ray = new THREE.Raycaster(new THREE.Vector3(-2, 2.05, 0), new THREE.Vector3(1, 0, 0), 0, 4);
+  assert.equal(ray.intersectObjects(surfaces, false).length, 0, 'Operator space must be open');
+  ray.set(new THREE.Vector3(-2, 2.54, -0.95), new THREE.Vector3(1, 0, 0));
+  assert.ok(ray.intersectObjects(surfaces, false).length > 0, 'Overhead guard must remain present');
+});
+
+test('forklift forks lift together, stay above ground and fit the camera at both limits', () => {
+  const vehicle = new THREE.Group();
+  const forklift = buildForkliftModel(vehicle);
+  const lowered = new THREE.Box3().setFromObject(forklift.carriage);
+  for (const height of [0, 0.5, FORKLIFT_MAX_LIFT, 100, -100, NaN]) {
+    forklift.setLift(height);
+    vehicle.updateMatrixWorld(true);
+    const expected = Number.isFinite(height) ? Math.max(0, Math.min(FORKLIFT_MAX_LIFT, height)) : 0;
+    const raised = new THREE.Box3().setFromObject(forklift.carriage);
+    assert.ok(Math.abs(raised.min.y - lowered.min.y - expected) < 1e-6);
+    assert.ok(raised.min.y > 0, 'Forks penetrate the floor');
+    assert.ok(Math.abs(raised.max.x - lowered.max.x) < 1e-6, 'Fork spacing changed during lift');
+    assert.ok(forklift.piston.scale.y > 0);
+    const bounds = new THREE.Box3().setFromObject(vehicle);
+    const target = new THREE.Vector3(0, 1.3, 0.65);
+    const camera = new THREE.PerspectiveCamera(48, 0.64, 0.1, 100);
+    camera.position.copy(fitVehicleCamera(new THREE.Vector3(-4.8, 3.2, 5.5), target, camera, bounds));
+    camera.lookAt(target);
+    camera.updateMatrixWorld(true);
+    for (const x of [bounds.min.x, bounds.max.x]) for (const y of [bounds.min.y, bounds.max.y]) for (const z of [bounds.min.z, bounds.max.z]) {
+      const projected = new THREE.Vector3(x, y, z).project(camera);
+      assert.ok(Math.abs(projected.x) < 0.9 && Math.abs(projected.y) < 0.9);
+    }
+  }
+});
 
 test('tractor has clear steer-wheel arches and valid batched surfaces', () => {
   const vehicle = new THREE.Group();

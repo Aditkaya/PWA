@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import { buildTractorModel } from './tractorModel';
+import { buildForkliftModel, FORKLIFT_MAX_LIFT } from './forkliftModel';
 import { fitVehicleCamera } from './vehicleCamera';
 import { globalActiveDraggedBanId, setGlobalActiveDraggedBanId, TireDetailModal, type StockBanItem, type WheelMeta } from './VehicleSchematic3D';
 
@@ -50,10 +51,10 @@ export type WheelCoord = {
 const getVehicleCameraPreset = (count: number) => {
   if (count === 4) {
     return {
-      target: new THREE.Vector3(0, 0.8, 0.1),
-      perspective: new THREE.Vector3(-4.8, 2.8, 4.2),
-      top: new THREE.Vector3(0.001, 5.5, 0.1),
-      side: new THREE.Vector3(-4.2, 0.9, 0.1),
+      target: new THREE.Vector3(0, 1.3, 0.65),
+      perspective: new THREE.Vector3(-4.8, 3.2, 5.5),
+      top: new THREE.Vector3(0.001, 5.5, 0.65),
+      side: new THREE.Vector3(-4.2, 1.3, 0.65),
       dualFocus: new THREE.Vector3(-3.4, 2.0, 1.6),
       dualTarget: new THREE.Vector3(-0.4, 0.6, 0.1)
     };
@@ -220,7 +221,7 @@ const createWorkshopFloorTexture = () => {
 };
 
 // Generator Tekstur Alur Tapak Ban Realistis (Commercial Truck Radial Tread Pattern)
-const createTireTreadTexture = () => {
+const createTireTreadTexture = (industrial = false) => {
   const canvas = document.createElement('canvas');
   canvas.width = 512;
   canvas.height = 128;
@@ -243,6 +244,23 @@ const createTireTreadTexture = () => {
     ctx.fillRect(x + 8, 38, 3, 19);
     ctx.fillRect(x, 71, 3, 19);
     ctx.fillRect(x + 8, 104, 3, 20);
+  }
+
+  if (industrial) {
+    // Deep interlocking blocks on industrial tyres instead of highway rib tread.
+    ctx.fillStyle = '#25272a';
+    ctx.fillRect(0, 0, 512, 128);
+    ctx.strokeStyle = '#080a0c';
+    ctx.lineWidth = 10;
+    for (let x = -48; x < 560; x += 48) {
+      ctx.beginPath();
+      ctx.moveTo(x, 0);
+      ctx.lineTo(x + 28, 64);
+      ctx.lineTo(x, 128);
+      ctx.stroke();
+    }
+    ctx.fillStyle = '#0b0d0f';
+    ctx.fillRect(0, 60, 512, 8);
   }
 
   const texture = new THREE.CanvasTexture(canvas);
@@ -314,6 +332,10 @@ export default function VehicleAnimation3D({
   useEffect(() => {
     isRollingRef.current = isRolling;
   }, [isRolling]);
+
+  const [isForkRaised, setIsForkRaised] = useState(false);
+  const isForkRaisedRef = useRef(false);
+  useEffect(() => { isForkRaisedRef.current = isForkRaised; }, [isForkRaised]);
 
   // Mode Pisahkan Roda Ganda (Exploded Dual Wheels View)
   const [isDualSeparated, setIsDualSeparated] = useState<boolean>(false);
@@ -657,7 +679,7 @@ export default function VehicleAnimation3D({
     const dynoRollers: THREE.Mesh[] = [];
 
     const rollerZPositions = wheelCount === 4
-      ? [1.05, -0.95]
+      ? [1.1, -1.0]
       : wheelCount === 6
         ? [2.1, -1.7]
         : wheelCount === 8
@@ -665,16 +687,20 @@ export default function VehicleAnimation3D({
           : [-1.9, -3.3, -4.7];
 
     rollerZPositions.forEach((rz) => {
-      [-1.25, 1.25].forEach((rx) => {
-        const housing = new THREE.Mesh(new THREE.BoxGeometry(0.9, 0.06, 0.85), rollerHousingMat);
+      const trackWidth = wheelCount === 4 ? (rz > 0 ? 0.9 : 0.85) : 1.25;
+      const rollerLength = wheelCount === 4 ? 0.48 : 0.78;
+      const wheelRadius = rz > 0 ? 0.45 : 0.4;
+      const rollerHeight = wheelCount === 4 ? wheelRadius - Math.sqrt((wheelRadius + 0.12) ** 2 - 0.24 ** 2) : 0.04;
+      [-trackWidth, trackWidth].forEach((rx) => {
+        const housing = new THREE.Mesh(new THREE.BoxGeometry(rollerLength + 0.12, 0.06, 0.85), rollerHousingMat);
         housing.position.set(rx, 0.01, rz);
         scene.add(housing);
 
         [-0.24, 0.24].forEach((offsetZ) => {
-          const rollerGeo = new THREE.CylinderGeometry(0.12, 0.12, 0.78, 20);
+          const rollerGeo = new THREE.CylinderGeometry(0.12, 0.12, rollerLength, 20);
           rollerGeo.rotateZ(Math.PI / 2);
           const rollerMesh = new THREE.Mesh(rollerGeo, rollerMat);
-          rollerMesh.position.set(rx, 0.04, rz + offsetZ);
+          rollerMesh.position.set(rx, rollerHeight, rz + offsetZ);
           rollerMesh.castShadow = true;
           scene.add(rollerMesh);
           dynoRollers.push(rollerMesh);
@@ -714,7 +740,6 @@ export default function VehicleAnimation3D({
 
     const frameMat = new THREE.MeshStandardMaterial({ color: 0x475569, metalness: 0.75, roughness: 0.3 });
     const crossmemberMat = new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.82, roughness: 0.35 });
-    const chromeMat = new THREE.MeshStandardMaterial({ color: 0xf1f5f9, metalness: 0.95, roughness: 0.1 });
     const twistlockMat = new THREE.MeshStandardMaterial({ color: 0xf59e0b, metalness: 0.7, roughness: 0.28 });
     const hazardMat = new THREE.MeshStandardMaterial({ color: 0xef4444, metalness: 0.5, roughness: 0.3 });
 
@@ -741,17 +766,10 @@ export default function VehicleAnimation3D({
     let driveshaftMesh: THREE.Mesh | null = null;
     let mudflapLeft: THREE.Mesh | null = null;
     let mudflapRight: THREE.Mesh | null = null;
+    let forkliftModel: ReturnType<typeof buildForkliftModel> | null = null;
 
     if (wheelCount === 4) {
-      // Forklift
-      const forkliftBodyMat = new THREE.MeshStandardMaterial({ color: 0xf97316, metalness: 0.5, roughness: 0.3 });
-      createBox(1.5, 0.9, 2.2, forkliftBodyMat, 0, 0.8, 0);
-      createBox(1.5, 0.8, 0.7, new THREE.MeshStandardMaterial({ color: 0x1e293b, metalness: 0.8 }), 0, 0.75, -1.2);
-      createBox(1.3, 1.4, 1.3, frameMat, 0, 1.9, -0.2);
-      createBox(0.12, 2.6, 0.12, chromeMat, -0.55, 1.5, 1.25);
-      createBox(0.12, 2.6, 0.12, chromeMat, 0.55, 1.5, 1.25);
-      createBox(0.14, 0.05, 1.4, chromeMat, -0.35, 0.2, 1.9);
-      createBox(0.14, 0.05, 1.4, chromeMat, 0.35, 0.2, 1.9);
+      forkliftModel = buildForkliftModel(vehicleGroup);
     } else if (wheelCount === 6) {
       const tractor = buildTractorModel(vehicleGroup);
       driveshaftMesh = tractor.driveshaft;
@@ -834,7 +852,7 @@ export default function VehicleAnimation3D({
     const tireRadius = 0.52;
     const tireWidth = 0.26;
 
-    const treadTexture = createTireTreadTexture();
+    const treadTexture = createTireTreadTexture(wheelCount === 4);
     const tireRubberMat = new THREE.MeshStandardMaterial({
       // A lighter base lets the procedural tread map remain visible instead
       // of multiplying it into an almost uniform black surface.
@@ -846,16 +864,18 @@ export default function VehicleAnimation3D({
       metalness: 0.02
     });
 
+    const rimBaseColor = wheelCount === 4 ? 0xb4b7b5 : 0xe2e8f0;
     const rimAlloyMat = new THREE.MeshStandardMaterial({
-      color: 0xe2e8f0,
-      metalness: 0.92,
-      roughness: 0.3
+      color: rimBaseColor,
+      metalness: wheelCount === 4 ? 0.6 : 0.92,
+      roughness: wheelCount === 4 ? 0.48 : 0.3
     });
 
     // Poros Gandar (Axles)
     const distinctAxleZ = Array.from(new Set(wheelCoords.map((c) => c.z)));
     distinctAxleZ.forEach((zVal) => {
-      createCylinder(0.08, 0.08, 2.6, 16, frameMat, 0, 0.52, zVal, 0, Math.PI / 2);
+      const axle = wheelCoords.find(coord => coord.z === zVal)!;
+      createCylinder(0.08, 0.08, wheelCount === 4 ? Math.abs(axle.x) * 2 : 2.6, 16, frameMat, 0, axle.y, zVal, 0, Math.PI / 2);
       if (wheelCount === 6 && zVal < 0) {
         createCylinder(0.24, 0.24, 0.35, 16, new THREE.MeshStandardMaterial({ color: 0x334155, metalness: 0.8 }), 0, 0.52, zVal, Math.PI / 2);
       }
@@ -865,6 +885,8 @@ export default function VehicleAnimation3D({
     wheelCoords.forEach((coord) => {
       const wheelGroup = new THREE.Group();
       wheelGroup.position.set(coord.x, coord.y, coord.z);
+      // Forklift front/rear tyres have different radii and both rest on the floor.
+      if (wheelCount === 4) wheelGroup.scale.setScalar(coord.y / tireRadius);
       wheelGroup.userData = { wheelId: coord.id, baseCoord: coord };
 
       // 1. Karet Ban
@@ -920,12 +942,13 @@ export default function VehicleAnimation3D({
       boltGeometry.rotateZ(Math.PI / 2);
       const ventGeometry = new THREE.CircleGeometry(0.039, 12);
       ventGeometry.rotateY(Math.PI / 2);
-      const bolts = new THREE.InstancedMesh(boltGeometry, rimAlloyMat, 20);
-      const vents = new THREE.InstancedMesh(ventGeometry, new THREE.MeshStandardMaterial({ color: 0x080d11, roughness: 0.8, side: THREE.DoubleSide }), 20);
+      const lugCount = wheelCount === 4 ? 6 : 10;
+      const bolts = new THREE.InstancedMesh(boltGeometry, rimAlloyMat, lugCount * 2);
+      const vents = new THREE.InstancedMesh(ventGeometry, new THREE.MeshStandardMaterial({ color: 0x080d11, roughness: 0.8, side: THREE.DoubleSide }), lugCount * 2);
       const transform = new THREE.Object3D();
-      for (let b = 0; b < 20; b++) {
-        const side = b < 10 ? -1 : 1;
-        const angle = (b % 10) / 10 * Math.PI * 2;
+      for (let b = 0; b < lugCount * 2; b++) {
+        const side = b < lugCount ? -1 : 1;
+        const angle = (b % lugCount) / lugCount * Math.PI * 2;
         transform.position.set(side * 0.121, Math.sin(angle) * 0.17, Math.cos(angle) * 0.17);
         transform.scale.set(1, 1, 1);
         transform.updateMatrix();
@@ -1263,11 +1286,19 @@ export default function VehicleAnimation3D({
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     let time = 0;
     let currentSpeed = 0;
+    let forkHeight = 0;
 
     const animate = () => {
       animationFrameId.current = requestAnimationFrame(animate);
       const delta = Math.min(clock.getDelta(), 0.1);
       time += delta;
+
+      if (forkliftModel) {
+        const targetHeight = isForkRaisedRef.current ? FORKLIFT_MAX_LIFT : 0;
+        forkHeight = reducedMotion ? targetHeight : THREE.MathUtils.damp(forkHeight, targetHeight, 3, delta);
+        if (Math.abs(forkHeight - targetHeight) < 0.0001) forkHeight = targetHeight;
+        forkliftModel.setLift(forkHeight);
+      }
 
       // 1. Controls Update
       controls.update();
@@ -1332,7 +1363,8 @@ export default function VehicleAnimation3D({
               child.name === 'brakeDrum' ||
               child.name === 'studsMesh'
             ) {
-              child.rotation.x += rollSpeed;
+              const radius = wheelCount === 4 ? (wheelGroup.userData.baseCoord as WheelCoord).y : tireRadius;
+              child.rotation.x += (currentSpeed / radius) * delta;
             }
           });
         });
@@ -1453,11 +1485,11 @@ export default function VehicleAnimation3D({
             mat.emissiveIntensity = 0.85;
           } else if (hasTire) {
             if (isSelected) {
-              mat.color.setHex(0xe2e8f0);
+              mat.color.setHex(rimBaseColor);
               mat.emissive.setHex(coord?.isInner ? 0x7e22ce : 0x075985);
               mat.emissiveIntensity = 0.12;
             } else {
-              mat.color.setHex(0xe2e8f0);
+              mat.color.setHex(rimBaseColor);
               mat.emissive.setHex(0x000000);
               mat.emissiveIntensity = 0;
             }
@@ -1623,6 +1655,7 @@ export default function VehicleAnimation3D({
     handleSetCameraView('perspective');
     setIsAutoRotate(false);
     setIsRolling(false);
+    setIsForkRaised(false);
     setIsDualSeparated(false);
   };
 
@@ -1716,14 +1749,22 @@ export default function VehicleAnimation3D({
               📐 3D
             </button>
 
-            <button
+            {wheelCount === 4 ? <button
+              type="button"
+              className={`vs-3d-tool-btn ${isForkRaised ? 'active' : ''}`}
+              onClick={() => setIsForkRaised(value => !value)}
+              aria-pressed={isForkRaised}
+              title={isForkRaised ? 'Turunkan garpu forklift' : 'Angkat garpu forklift'}
+            >
+              {isForkRaised ? '↓ Turunkan garpu' : '↑ Angkat garpu'}
+            </button> : <button
               type="button"
               className={`vs-3d-tool-btn ${cameraView === 'dualFocus' ? 'active' : ''}`}
               onClick={() => handleSetCameraView('dualFocus')}
               title="Fokus Roda Ganda"
             >
               👁️ Ganda
-            </button>
+            </button>}
 
             <button
               type="button"
@@ -1743,14 +1784,14 @@ export default function VehicleAnimation3D({
               ↔️ Samping
             </button>
 
-            <button
+            {wheelCount !== 4 && <button
               type="button"
               className={`vs-3d-tool-btn ${isDualSeparated ? 'explode-active' : ''}`}
               onClick={() => setIsDualSeparated(!isDualSeparated)}
               title={isDualSeparated ? 'Rapatkan Roda' : 'Buka Roda Ganda (Akses Roda Dalam)'}
             >
               💥 {isDualSeparated ? 'Rapat' : 'Pisah'}
-            </button>
+            </button>}
 
             <button
               type="button"

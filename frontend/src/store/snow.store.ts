@@ -6,7 +6,7 @@ const readPreference = () => {
     const saved = localStorage.getItem(STORAGE_KEY)
     if (saved !== null) return saved !== 'false'
   } catch { /* The effect can still be toggled when storage is unavailable. */ }
-  return !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+  return false
 }
 
 export const useSnowStore = create<{ enabled: boolean; toggle: () => void }>((set) => ({

@@ -9,6 +9,8 @@ import { translations } from '../utils/translations'
 import { useToast } from '../contexts/ToastContext'
 import FaceRegistrationModal from '../components/FaceRegistrationModal'
 import LocationStatus from '../components/LocationStatus'
+import Snowfall from '../components/Snowfall'
+import SnowToggle from '../components/SnowToggle'
 
 export default function DashboardLayout() {
   const { logout } = useAuthStore()
@@ -124,6 +126,7 @@ export default function DashboardLayout() {
   
   return (
     <div className="layout-container">
+      <Snowfall />
       <header className="navbar" style={{ position: 'sticky', top: 0, zIndex: 10 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <img src="/logo.png" alt="Logo" style={{ height: '42px', objectFit: 'contain' }} />
@@ -198,6 +201,7 @@ export default function DashboardLayout() {
                   {theme === 'dark' ? <Sun size={18} /> : <Moon size={18} />}
                   <span>{theme === 'dark' ? 'Tema Terang' : 'Tema Gelap'}</span>
                 </button>
+                <SnowToggle inMenu />
                 <button 
                   onClick={() => { 
                     setIsMenuOpen(false);

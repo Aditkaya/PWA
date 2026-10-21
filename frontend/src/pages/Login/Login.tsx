@@ -4,6 +4,8 @@ import { Eye, EyeOff, Ship, Truck, Send, Anchor, UserPlus, ArrowLeft, Search, Ch
 import { useAuthStore } from '../../store/auth.store'
 import api from '../../services/axios'
 import './Login.css'
+import Snowfall from '../../components/Snowfall'
+import SnowToggle from '../../components/SnowToggle'
 
 type View = 'login' | 'register'
 type RegStep = 'search' | 'form'
@@ -198,6 +200,7 @@ export default function Login() {
 
   return (
     <div className="login-page">
+      <Snowfall fullWidth />
       <div className={`login-container ${view === 'register' ? 'register-mode' : ''}`}>
 
         {/* ── Left Branding ── */}
@@ -493,6 +496,7 @@ export default function Login() {
             </>
           )}
 
+          <div className="login-snow-control"><SnowToggle /></div>
         </div>
       </div>
     </div>

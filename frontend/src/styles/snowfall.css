@@ -1,0 +1,83 @@
+.pwa-snowfall {
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  max-width: 480px;
+  margin-inline: auto;
+  z-index: 8;
+  overflow: hidden;
+  pointer-events: none;
+  user-select: none;
+  contain: strict;
+}
+
+.pwa-snowfall--full { max-width: none; }
+
+.pwa-snowflake {
+  position: absolute;
+  top: -12px;
+  width: var(--snow-size);
+  height: var(--snow-size);
+  border-radius: 50%;
+  background: #f1f8ff;
+  box-shadow: 0 0 3px rgba(191, 224, 255, 0.5);
+  opacity: 0;
+  animation: pwa-snow-fall linear infinite;
+}
+
+@keyframes pwa-snow-fall {
+  0% { transform: translate3d(0, -12px, 0); opacity: 0; }
+  8% { opacity: var(--snow-opacity); }
+  50% { transform: translate3d(var(--snow-drift), 50vh, 0); }
+  88% { opacity: var(--snow-opacity); }
+  100% { transform: translate3d(0, calc(100vh + 24px), 0); opacity: 0; }
+}
+
+:root[data-theme="light"] .pwa-snowflake {
+  background: #c3dded;
+  box-shadow: 0 0 2px rgba(97, 154, 189, 0.3);
+}
+
+.pwa-snow-toggle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid rgba(148, 163, 184, 0.3);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-primary);
+  font-family: inherit;
+  font-size: 0.85rem;
+  font-weight: 500;
+  line-height: 1.4;
+  cursor: pointer;
+  min-height: 44px;
+}
+
+.pwa-snow-toggle--menu {
+  width: 100%;
+  justify-content: flex-start;
+  text-align: left;
+  border: none;
+}
+
+.pwa-snow-toggle[aria-pressed="true"] svg { color: #38bdf8; }
+.pwa-snow-toggle:hover { background: var(--glass-bg); }
+.pwa-snow-toggle:focus-visible { outline: 2px solid #38bdf8; outline-offset: 2px; }
+.login-snow-control { margin-top: 16px; text-align: center; }
+.login-snow-control .pwa-snow-toggle { color: #e2e8f0; }
+
+@media (max-width: 600px) {
+  .pwa-snowflake:nth-child(n + 23) { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce), print {
+  .pwa-snowfall { display: none; }
+  .pwa-snowflake { animation: none; }
+}
+
+@media print {
+  .pwa-snow-toggle { display: none; }
+}

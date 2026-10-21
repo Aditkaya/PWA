@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState, useMemo } from 'react';
 import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
+import { buildTractorModel } from './tractorModel';
+import { fitVehicleCamera } from './vehicleCamera';
 import { globalActiveDraggedBanId, setGlobalActiveDraggedBanId, TireDetailModal, type StockBanItem, type WheelMeta } from './VehicleSchematic3D';
 
 export interface VehicleWheelConfig {
@@ -57,8 +60,8 @@ const getVehicleCameraPreset = (count: number) => {
   }
   if (count === 6) {
     return {
-      target: new THREE.Vector3(0, 1.15, 0.1),
-      perspective: new THREE.Vector3(-7.2, 3.6, 6.2),
+      target: new THREE.Vector3(0, 1.35, 0.05),
+      perspective: new THREE.Vector3(-7.6, 3.9, 7.6),
       top: new THREE.Vector3(0.001, 7.0, 0.1),
       side: new THREE.Vector3(-5.8, 1.15, 0.1),
       dualFocus: new THREE.Vector3(-4.2, 2.2, -0.2), // Elevated 45° angle clearly exposing inner & outer dual rear wheels
@@ -209,6 +212,7 @@ const createWorkshopFloorTexture = () => {
   ctx.fillText('TIRE & BRAKE INSPECTION AREA', 512, bayY + bayH - 50);
 
   const texture = new THREE.CanvasTexture(canvas);
+  texture.colorSpace = THREE.SRGBColorSpace;
   texture.wrapS = THREE.ClampToEdgeWrapping;
   texture.wrapT = THREE.ClampToEdgeWrapping;
   texture.needsUpdate = true;
@@ -270,6 +274,7 @@ export default function VehicleAnimation3D({
   const controlsRef = useRef<OrbitControls | null>(null);
   const cameraRef = useRef<THREE.PerspectiveCamera | null>(null);
   const sceneRef = useRef<THREE.Scene | null>(null);
+  const vehicleBoundsRef = useRef<THREE.Box3 | null>(null);
   const wheelsMeshMap = useRef<Map<string, THREE.Group>>(new Map());
   const animationFrameId = useRef<number | null>(null);
 
@@ -441,7 +446,9 @@ export default function VehicleAnimation3D({
     cameraTransitionRef.current = {
       active: true,
       startPos: cameraRef.current.position.clone(),
-      targetPos: targetPos.clone(),
+      targetPos: vehicleBoundsRef.current
+        ? fitVehicleCamera(targetPos, targetLookAt, cameraRef.current, vehicleBoundsRef.current)
+        : targetPos.clone(),
       startTarget: controlsRef.current.target.clone(),
       targetTarget: targetLookAt.clone(),
       progress: 0
@@ -533,19 +540,28 @@ export default function VehicleAnimation3D({
 
     // 1. Renderer (High Fidelity, Vivid Lighting)
     const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true, powerPreference: 'high-performance' });
-    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, 2));
+    renderer.setPixelRatio(Math.min(window.devicePixelRatio || 1, width < 500 ? 1.5 : 2));
     renderer.setSize(width, height);
     renderer.shadowMap.enabled = true;
     renderer.shadowMap.type = THREE.PCFSoftShadowMap;
     renderer.toneMapping = THREE.ACESFilmicToneMapping;
-    renderer.toneMappingExposure = 1.3;
+    renderer.toneMappingExposure = 1.05;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
     container.appendChild(renderer.domElement);
     rendererRef.current = renderer;
 
     // 2. Scene
     const scene = new THREE.Scene();
-    scene.background = new THREE.Color(0x0a0f1d);
-    scene.fog = new THREE.Fog(0x0a0f1d, 22, 45);
+    scene.background = new THREE.Color(0x1a2430);
+    scene.fog = new THREE.Fog(0x1a2430, 18, 42);
+    // A local studio environment provides real reflections on glass, paint and metal.
+    const environmentScene = new RoomEnvironment();
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    const environment = pmrem.fromScene(environmentScene, 0.04);
+    scene.environment = environment.texture;
+    scene.environmentIntensity = 0.8;
+    environmentScene.dispose();
+    pmrem.dispose();
     sceneRef.current = scene;
 
     // 3. Camera
@@ -557,7 +573,7 @@ export default function VehicleAnimation3D({
     // readable on phones while the full vehicle still fits in frame.
     camera.position.copy(presets.perspective);
     if (isMobile) {
-      camera.position.lerp(presets.target, 0.2);
+      camera.position.lerp(presets.target, 0.08);
     }
     camera.lookAt(presets.target);
     cameraRef.current = camera;
@@ -577,33 +593,41 @@ export default function VehicleAnimation3D({
     controlsRef.current = controls;
 
     // 5. Pencahayaan Studio Automotive
-    const ambientLight = new THREE.AmbientLight(0xffffff, 1.35);
+    const ambientLight = new THREE.AmbientLight(0xffffff, 0.15);
     scene.add(ambientLight);
 
-    const hemiLight = new THREE.HemisphereLight(0xf8fafc, 0x0f172a, 1.2);
+    const hemiLight = new THREE.HemisphereLight(0xdbe7f2, 0x4a4440, 0.6);
     hemiLight.position.set(0, 24, 0);
     scene.add(hemiLight);
 
-    const mainSun = new THREE.DirectionalLight(0xffffff, 2.5);
-    mainSun.position.set(9, 18, 11);
+    const mainSun = new THREE.DirectionalLight(0xfff2df, 3.1);
+    mainSun.position.set(-5, 9, 7);
     mainSun.castShadow = true;
     mainSun.shadow.mapSize.width = 2048;
     mainSun.shadow.mapSize.height = 2048;
     mainSun.shadow.bias = -0.0003;
+    mainSun.shadow.normalBias = 0.025;
+    mainSun.shadow.camera.left = -9;
+    mainSun.shadow.camera.right = 9;
+    mainSun.shadow.camera.top = 9;
+    mainSun.shadow.camera.bottom = -9;
+    mainSun.shadow.camera.near = 0.5;
+    mainSun.shadow.camera.far = 35;
+    mainSun.shadow.radius = 3;
     scene.add(mainSun);
 
-    const rimLight = new THREE.DirectionalLight(0x93c5fd, 1.5);
+    const rimLight = new THREE.DirectionalLight(0xb5d2eb, 1.6);
     rimLight.position.set(-11, 9, -7);
     scene.add(rimLight);
 
-    const frontFillLight = new THREE.DirectionalLight(0xffffff, 1.1);
+    const frontFillLight = new THREE.DirectionalLight(0xe5efff, 0.5);
     frontFillLight.position.set(0, 5, 12);
     scene.add(frontFillLight);
 
     // 6. LINGKUNGAN BENGKEL
     const baseFloorGeo = new THREE.PlaneGeometry(120, 120);
     const baseFloorMat = new THREE.MeshStandardMaterial({
-      color: 0x0f172a,
+      color: 0x3e454b,
       roughness: 0.92,
       metalness: 0.08,
     });
@@ -614,12 +638,12 @@ export default function VehicleAnimation3D({
     scene.add(baseFloorMesh);
 
     const floorTexture = createWorkshopFloorTexture();
-    floorTexture.anisotropy = renderer.capabilities.getMaxAnisotropy();
-    const floorGeo = new THREE.PlaneGeometry(36, 46);
+    floorTexture.anisotropy = Math.min(8, renderer.capabilities.getMaxAnisotropy());
+    const floorGeo = new THREE.PlaneGeometry(wheelCount <= 6 ? 14 : 18, wheelCount <= 6 ? 18 : 26);
     const floorMat = new THREE.MeshStandardMaterial({
       map: floorTexture,
-      roughness: 0.36,
-      metalness: 0.24,
+      roughness: 0.83,
+      metalness: 0.06,
     });
     const floorMesh = new THREE.Mesh(floorGeo, floorMat);
     floorMesh.rotation.x = -Math.PI / 2;
@@ -635,7 +659,7 @@ export default function VehicleAnimation3D({
     const rollerZPositions = wheelCount === 4
       ? [1.05, -0.95]
       : wheelCount === 6
-        ? [1.6, -1.7]
+        ? [2.1, -1.7]
         : wheelCount === 8
           ? [-1.4, -2.8]
           : [-1.9, -3.3, -4.7];
@@ -729,118 +753,10 @@ export default function VehicleAnimation3D({
       createBox(0.14, 0.05, 1.4, chromeMat, -0.35, 0.2, 1.9);
       createBox(0.14, 0.05, 1.4, chromeMat, 0.35, 0.2, 1.9);
     } else if (wheelCount === 6) {
-      // TRACTOR HEAD PRIME MOVER
-      const thCabWhiteMat = new THREE.MeshStandardMaterial({ color: 0xffffff, metalness: 0.18, roughness: 0.2 });
-      const thCabBlueMat = new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.35, roughness: 0.22 });
-      const thNavyStripeMat = new THREE.MeshStandardMaterial({ color: 0x1d4ed8, metalness: 0.45, roughness: 0.18 });
-      const thTrimMat = new THREE.MeshStandardMaterial({ color: 0x0f172a, metalness: 0.6, roughness: 0.4 });
-      const thGrilleMat = new THREE.MeshStandardMaterial({ color: 0x0b0f19, metalness: 0.9, roughness: 0.2 });
-      const thGlassMat = new THREE.MeshStandardMaterial({ color: 0x1e3a5f, metalness: 0.92, roughness: 0.06, transparent: true, opacity: 0.82 });
-      const thFifthWheelMat = new THREE.MeshStandardMaterial({ color: 0x111827, metalness: 0.94, roughness: 0.2 });
-      const thDeckMat = new THREE.MeshStandardMaterial({ color: 0x94a3b8, metalness: 0.9, roughness: 0.25 });
-
-      // Sasis Utama
-      createBox(0.18, 0.34, 6.2, frameMat, -0.48, 0.75, 0);
-      createBox(0.18, 0.34, 6.2, frameMat, 0.48, 0.75, 0);
-      createBox(1.72, 0.04, 1.25, thDeckMat, 0, 0.93, 0.25);
-      for (let z = -2.4; z <= 2.4; z += 1.2) {
-        createBox(0.9, 0.14, 0.14, crossmemberMat, 0, 0.75, z);
-      }
-      createBox(2.14, 0.18, 0.12, thCabBlueMat, 0, 0.65, -2.95);
-      createBox(0.44, 0.12, 0.04, new THREE.MeshBasicMaterial({ color: 0xef4444 }), -0.76, 0.66, -3.02);
-      createBox(0.44, 0.12, 0.04, new THREE.MeshBasicMaterial({ color: 0xef4444 }), 0.76, 0.66, -3.02);
-      createBox(0.12, 0.12, 0.04, new THREE.MeshBasicMaterial({ color: 0xf59e0b }), -0.46, 0.66, -3.02);
-      createBox(0.12, 0.12, 0.04, new THREE.MeshBasicMaterial({ color: 0xf59e0b }), 0.46, 0.66, -3.02);
-
-      // Kabin Depan
-      createBox(2.26, 0.42, 2.15, thCabBlueMat, 0, 1.12, 1.78);
-      createBox(2.24, 0.62, 2.05, thCabBlueMat, 0, 1.58, 1.74);
-      createBox(2.18, 0.88, 1.95, thCabWhiteMat, 0, 2.18, 1.68);
-      createBox(2.20, 0.08, 1.96, thNavyStripeMat, 0, 1.88, 1.68);
-      createBox(2.20, 0.04, 1.82, thCabBlueMat, 0, 1.98, 1.68);
-
-      const roofFairing = createBox(2.12, 0.52, 1.84, thCabWhiteMat, 0, 2.76, 1.62);
-      roofFairing.rotation.x = -0.07;
-      createBox(0.05, 0.64, 0.68, thCabWhiteMat, -1.07, 2.72, 0.95);
-      createBox(0.05, 0.64, 0.68, thCabWhiteMat, 1.07, 2.72, 0.95);
-
-      for (let lx = -0.75; lx <= 0.75; lx += 0.38) {
-        createBox(0.08, 0.03, 0.06, new THREE.MeshBasicMaterial({ color: 0xfbbf24 }), lx, 3.02, 2.38);
-      }
-
-      const leftVane = createBox(0.06, 1.12, 0.28, thCabBlueMat, -1.14, 1.72, 2.65);
-      leftVane.rotation.y = 0.18;
-      const rightVane = createBox(0.06, 1.12, 0.28, thCabBlueMat, 1.14, 1.72, 2.65);
-      rightVane.rotation.y = -0.18;
-
-      createBox(0.05, 1.75, 0.48, thCabBlueMat, -1.10, 2.12, 0.64);
-      createBox(0.05, 1.75, 0.48, thCabBlueMat, 1.10, 2.12, 0.64);
-
-      const windshield = createBox(2.04, 0.98, 0.08, thGlassMat, 0, 2.26, 2.68);
-      windshield.rotation.x = -0.18;
-      const windshieldFrame = createBox(2.08, 0.04, 0.10, thTrimMat, 0, 1.78, 2.78);
-      windshieldFrame.rotation.x = -0.18;
-
-      const sunvisor = createBox(2.16, 0.18, 0.32, thCabBlueMat, 0, 2.74, 2.74);
-      sunvisor.rotation.x = -0.22;
-      createBox(1.65, 0.02, 0.04, new THREE.MeshBasicMaterial({ color: 0xe0f2fe }), 0, 2.76, 2.88);
-
-      createBox(0.62, 0.03, 0.02, thTrimMat, -0.42, 1.84, 2.72);
-      createBox(0.62, 0.03, 0.02, thTrimMat, 0.42, 1.84, 2.72);
-
-      createBox(0.06, 0.68, 1.05, thGlassMat, -1.10, 2.22, 1.86);
-      createBox(0.06, 0.68, 1.05, thGlassMat, 1.10, 2.22, 1.86);
-
-      // Spion West-Coast
-      createBox(0.10, 0.58, 0.16, thCabBlueMat, -1.32, 2.22, 2.48);
-      createBox(0.02, 0.52, 0.12, chromeMat, -1.27, 2.22, 2.46);
-      createBox(0.10, 0.58, 0.16, thCabBlueMat, 1.32, 2.22, 2.48);
-      createBox(0.02, 0.52, 0.12, chromeMat, 1.27, 2.22, 2.46);
-
-      // Grille Radiator Chrome Bertingkat
-      createBox(1.72, 0.74, 0.08, thGrilleMat, 0, 1.48, 2.76);
-      createBox(1.52, 0.09, 0.05, chromeMat, 0, 1.72, 2.80);
-      createBox(1.62, 0.09, 0.05, chromeMat, 0, 1.52, 2.81);
-      createBox(1.68, 0.09, 0.05, chromeMat, 0, 1.32, 2.82);
-      createBox(0.24, 0.20, 0.07, chromeMat, 0, 1.52, 2.84);
-
-      // Bumper Depan & Headlights
-      createBox(2.34, 0.44, 0.34, thCabBlueMat, 0, 0.72, 2.86);
-      createBox(1.62, 0.11, 0.26, chromeMat, 0, 0.46, 2.88);
-
-      [-0.92, 0.92].forEach((lx) => {
-        createBox(0.36, 0.20, 0.08, chromeMat, lx, 0.74, 3.02);
-        createBox(0.30, 0.04, 0.02, new THREE.MeshBasicMaterial({ color: 0x38bdf8 }), lx, 0.81, 3.07);
-        createBox(0.12, 0.12, 0.02, new THREE.MeshBasicMaterial({ color: 0xffffff }), lx > 0 ? lx + 0.04 : lx - 0.04, 0.72, 3.07);
-        createBox(0.08, 0.08, 0.02, new THREE.MeshBasicMaterial({ color: 0xf59e0b }), lx > 0 ? lx - 0.1 : lx + 0.1, 0.72, 3.07);
-      });
-
-      // Twin Chrome Vertical Exhaust Stacks
-      createCylinder(0.065, 0.065, 2.5, 16, chromeMat, 0.84, 2.45, 0.58);
-      createCylinder(0.11, 0.11, 1.2, 16, chromeMat, 0.84, 1.85, 0.58);
-      createCylinder(0.065, 0.065, 2.5, 16, chromeMat, -0.84, 2.45, 0.58);
-      createCylinder(0.11, 0.11, 1.2, 16, chromeMat, -0.84, 1.85, 0.58);
-
-      // Driveshaft Berputar (Mechanical Driveshaft)
-      driveshaftMesh = createCylinder(0.045, 0.045, 2.3, 12, chromeMat, 0, 0.52, -0.55, Math.PI / 2);
-
-      // Fifth Wheel
-      createBox(1.20, 0.16, 0.62, thTrimMat, 0, 0.93, -1.6);
-      const fifthWheelPlate = createCylinder(0.58, 0.58, 0.10, 28, thFifthWheelMat, 0, 1.05, -1.6);
-      fifthWheelPlate.rotation.x = 0.08;
-
-      // Tangki Solar Aluminium Kiri & Kanan
-      createCylinder(0.36, 0.36, 1.75, 24, chromeMat, -0.98, 0.68, 0.25, Math.PI / 2);
-      createCylinder(0.36, 0.36, 1.75, 24, chromeMat, 0.98, 0.68, 0.25, Math.PI / 2);
-
-      // Spakbor & Mudflaps Belakang
-      createBox(0.74, 0.06, 1.35, thCabBlueMat, -1.36, 1.14, -1.7);
-      mudflapLeft = createBox(0.70, 0.36, 0.04, new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.9 }), -1.36, 0.78, -2.35);
-      mudflapLeft.rotation.x = -0.15;
-
-      createBox(0.74, 0.06, 1.35, thCabBlueMat, 1.36, 1.14, -1.7);
-      mudflapRight = createBox(0.70, 0.36, 0.04, new THREE.MeshStandardMaterial({ color: 0x0f172a, roughness: 0.9 }), 1.36, 0.78, -2.35);
-      mudflapRight.rotation.x = -0.15;
+      const tractor = buildTractorModel(vehicleGroup);
+      driveshaftMesh = tractor.driveshaft;
+      mudflapLeft = tractor.mudflapLeft;
+      mudflapRight = tractor.mudflapRight;
     } else if (wheelCount === 8) {
       // 8 Roda
       createBox(0.18, 0.36, 7.8, frameMat, -0.65, 0.82, 0);
@@ -869,7 +785,7 @@ export default function VehicleAnimation3D({
 
     // ── SIMULASI ASAP KNALPOT DIESEL REALISTIS (EXHAUST SMOKE SYSTEM) ──
     const smokeParticles: Array<{
-      mesh: THREE.Mesh;
+      mesh: THREE.Sprite;
       vx: number;
       vy: number;
       vz: number;
@@ -881,18 +797,21 @@ export default function VehicleAnimation3D({
     }> = [];
 
     if (wheelCount === 6) {
-      const smokeGeo = new THREE.SphereGeometry(0.08, 8, 8);
-      const smokeBaseMat = new THREE.MeshBasicMaterial({
-        color: 0x94a3b8,
-        transparent: true,
-        opacity: 0.2,
-        depthWrite: false
-      });
-
-      [-0.84, 0.84].forEach((exX) => {
+      const smokeCanvas = document.createElement('canvas');
+      smokeCanvas.width = smokeCanvas.height = 64;
+      const smokeContext = smokeCanvas.getContext('2d')!;
+      const gradient = smokeContext.createRadialGradient(32, 32, 0, 32, 32, 32);
+      gradient.addColorStop(0, 'rgba(188,198,205,0.55)');
+      gradient.addColorStop(0.35, 'rgba(188,198,205,0.22)');
+      gradient.addColorStop(1, 'rgba(188,198,205,0)');
+      smokeContext.fillStyle = gradient;
+      smokeContext.fillRect(0, 0, 64, 64);
+      const smokeTexture = new THREE.CanvasTexture(smokeCanvas);
+      smokeTexture.colorSpace = THREE.SRGBColorSpace;
+      [0.88].forEach((exX) => {
         for (let i = 0; i < 12; i++) {
-          const sMesh = new THREE.Mesh(smokeGeo, smokeBaseMat.clone());
-          sMesh.position.set(exX, 3.2, 0.58);
+          const sMesh = new THREE.Sprite(new THREE.SpriteMaterial({ map: smokeTexture, transparent: true, opacity: 0, depthWrite: false }));
+          sMesh.position.set(exX, 3.16, 0.51);
           scene.add(sMesh);
           smokeParticles.push({
             mesh: sMesh,
@@ -900,8 +819,8 @@ export default function VehicleAnimation3D({
             vy: 0.35 + Math.random() * 0.25,
             vz: -0.2 - Math.random() * 0.15,
             baseX: exX,
-            baseY: 3.2,
-            baseZ: 0.58,
+            baseY: 3.16,
+            baseZ: 0.51,
             life: Math.random() * 1.5,
             maxLife: 1.4 + Math.random() * 0.8
           });
@@ -930,7 +849,7 @@ export default function VehicleAnimation3D({
     const rimAlloyMat = new THREE.MeshStandardMaterial({
       color: 0xe2e8f0,
       metalness: 0.92,
-      roughness: 0.18
+      roughness: 0.3
     });
 
     // Poros Gandar (Axles)
@@ -949,7 +868,13 @@ export default function VehicleAnimation3D({
       wheelGroup.userData = { wheelId: coord.id, baseCoord: coord };
 
       // 1. Karet Ban
-      const tireGeo = new THREE.CylinderGeometry(tireRadius, tireRadius, tireWidth, 80, 12);
+      const tireProfile = [
+        [0.315, -0.105], [0.34, -0.131], [0.405, -0.144], [0.47, -0.137],
+        [0.505, -0.113], [0.519, -0.08], [0.52, 0.08], [0.505, 0.113],
+        [0.47, 0.137], [0.405, 0.144], [0.34, 0.131], [0.315, 0.105],
+        [0.315, -0.105],
+      ].map(([radius, offset]) => new THREE.Vector2(radius, offset));
+      const tireGeo = new THREE.LatheGeometry(tireProfile, 64);
       tireGeo.rotateZ(Math.PI / 2);
       const tireMesh = new THREE.Mesh(tireGeo, tireRubberMat.clone());
       tireMesh.name = 'tireMesh';
@@ -964,7 +889,7 @@ export default function VehicleAnimation3D({
       // at the small wheel size used by the mobile 3D viewport.
       const treadGrooveMat = new THREE.MeshStandardMaterial({ color: 0x08090b, roughness: 1, metalness: 0 });
       for (let groove = 0; groove < 5; groove++) {
-        const grooveGeo = new THREE.TorusGeometry(tireRadius + 0.004, 0.012, 6, 80);
+        const grooveGeo = new THREE.TorusGeometry(tireRadius - 0.001, 0.004, 4, 64);
         grooveGeo.rotateY(Math.PI / 2);
         const grooveMesh = new THREE.Mesh(grooveGeo, treadGrooveMat);
         grooveMesh.position.x = (groove - 2) * (tireWidth * 0.17);
@@ -974,34 +899,55 @@ export default function VehicleAnimation3D({
       wheelGroup.add(treadMesh);
 
       // Velg Alloy Perak
-      const rimGeo = new THREE.CylinderGeometry(tireRadius * 0.62, tireRadius * 0.62, tireWidth + 0.012, 24);
+      const rimProfile = [
+        [0.10, -0.098], [0.21, -0.098], [0.26, -0.135], [0.30, -0.151],
+        [0.326, -0.15], [0.329, -0.13], [0.311, -0.115], [0.311, 0.115],
+        [0.329, 0.13], [0.326, 0.15], [0.30, 0.151], [0.26, 0.135],
+        [0.21, 0.098], [0.10, 0.098], [0.10, -0.098],
+      ].map(([radius, offset]) => new THREE.Vector2(radius, offset));
+      const rimGeo = new THREE.LatheGeometry(rimProfile, 48);
       rimGeo.rotateZ(Math.PI / 2);
       const rimMesh = new THREE.Mesh(rimGeo, rimAlloyMat.clone());
       rimMesh.name = 'rimMesh';
+      rimMesh.castShadow = true;
+      rimMesh.receiveShadow = true;
       rimMesh.userData = { wheelId: coord.id, isRim: true };
       wheelGroup.add(rimMesh);
 
-      // Mur Roda Chrome 10-Lug
       const lugGroup = new THREE.Group();
       lugGroup.name = 'lugGroup';
-      for (let b = 0; b < 10; b++) {
-        const ang = (b / 10) * Math.PI * 2;
-        const by = Math.sin(ang) * (tireRadius * 0.35);
-        const bz = Math.cos(ang) * (tireRadius * 0.35);
-        const lug = new THREE.Mesh(
-          new THREE.CylinderGeometry(0.018, 0.018, tireWidth + 0.035, 8),
-          new THREE.MeshStandardMaterial({ color: 0xf8fafc, metalness: 0.95, roughness: 0.1 })
-        );
-        lug.rotateZ(Math.PI / 2);
-        lug.position.set(0, by, bz);
-        lugGroup.add(lug);
+      const boltGeometry = new THREE.CylinderGeometry(0.019, 0.019, 0.035, 6);
+      boltGeometry.rotateZ(Math.PI / 2);
+      const ventGeometry = new THREE.CircleGeometry(0.039, 12);
+      ventGeometry.rotateY(Math.PI / 2);
+      const bolts = new THREE.InstancedMesh(boltGeometry, rimAlloyMat, 20);
+      const vents = new THREE.InstancedMesh(ventGeometry, new THREE.MeshStandardMaterial({ color: 0x080d11, roughness: 0.8, side: THREE.DoubleSide }), 20);
+      const transform = new THREE.Object3D();
+      for (let b = 0; b < 20; b++) {
+        const side = b < 10 ? -1 : 1;
+        const angle = (b % 10) / 10 * Math.PI * 2;
+        transform.position.set(side * 0.121, Math.sin(angle) * 0.17, Math.cos(angle) * 0.17);
+        transform.scale.set(1, 1, 1);
+        transform.updateMatrix();
+        bolts.setMatrixAt(b, transform.matrix);
+        transform.position.set(side * 0.132, Math.sin(angle + 0.14) * 0.252, Math.cos(angle + 0.14) * 0.252);
+        transform.scale.set(1, 1.12, 0.83);
+        transform.updateMatrix();
+        vents.setMatrixAt(b, transform.matrix);
+      }
+      lugGroup.add(bolts, vents);
+      // Moulded sidewall rings catch grazing light without looking like neon outlines.
+      for (const side of [-1, 1]) {
+        const bead = new THREE.Mesh(new THREE.TorusGeometry(0.405, 0.003, 4, 64), new THREE.MeshStandardMaterial({ color: 0x24272b, roughness: 0.86 }));
+        bead.rotation.y = Math.PI / 2;
+        bead.position.x = side * 0.145;
+        lugGroup.add(bead);
       }
       wheelGroup.add(lugGroup);
 
-      // Center Planetary Hubcap
-      const hubGeo = new THREE.CylinderGeometry(0.14, 0.14, tireWidth + 0.038, 18);
+      const hubGeo = new THREE.CylinderGeometry(0.105, 0.105, tireWidth + 0.025, 24);
       hubGeo.rotateZ(Math.PI / 2);
-      const hubMesh = new THREE.Mesh(hubGeo, new THREE.MeshStandardMaterial({ color: 0x0284c7, metalness: 0.9, roughness: 0.2 }));
+      const hubMesh = new THREE.Mesh(hubGeo, new THREE.MeshStandardMaterial({ color: 0x727c82, metalness: 0.85, roughness: 0.32 }));
       hubMesh.name = 'hubMesh';
       wheelGroup.add(hubMesh);
 
@@ -1132,6 +1078,11 @@ export default function VehicleAnimation3D({
       vehicleGroup.add(wheelGroup);
       wheelsMeshMap.current.set(coord.id, wheelGroup);
     });
+
+    vehicleBoundsRef.current = new THREE.Box3().setFromObject(vehicleGroup);
+    camera.position.copy(fitVehicleCamera(camera.position, controls.target, camera, vehicleBoundsRef.current));
+    controls.maxDistance = Math.max(getMaxCameraDistance(wheelCount), camera.position.distanceTo(controls.target) * 1.5);
+    controls.update();
 
     // ── RAYCASTER UNTUK INTERAKSI KLIK & DRAG BAN ──
     const raycaster = new THREE.Raycaster();
@@ -1308,18 +1259,19 @@ export default function VehicleAnimation3D({
     renderer.domElement.addEventListener('pointermove', handlePointerMove);
 
     // ── ANIMATION LOOP 60FPS ──
-    let clock = new THREE.Clock();
+    const clock = new THREE.Clock();
+    const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    let time = 0;
     let currentSpeed = 0;
 
     const animate = () => {
       animationFrameId.current = requestAnimationFrame(animate);
       const delta = Math.min(clock.getDelta(), 0.1);
-      const time = clock.getElapsedTime();
+      time += delta;
 
       // 1. Controls Update
       controls.update();
 
-      if (camera.position.y > 10.2) camera.position.y = 10.2;
       if (camera.position.y < 0.25) camera.position.y = 0.25;
 
       const isViewingFromTop = camera.position.y > 4.5 && Math.abs(camera.position.x) < 2.5;
@@ -1387,44 +1339,45 @@ export default function VehicleAnimation3D({
 
         // Putar dyno rollers
         dynoRollers.forEach((roller) => {
-          roller.rotation.x += rollSpeed * 1.4;
+          roller.rotation.x -= (currentSpeed / 0.12) * delta;
         });
 
         // Putar driveshaft
         if (driveshaftMesh) {
-          driveshaftMesh.rotation.z += rollSpeed * 2.2;
+          driveshaftMesh.rotateY(rollSpeed * 2.2);
         }
 
         // Getaran dyno test & torsi mesin miring
-        vehicleGroup.position.y = Math.sin(time * 18.0) * 0.008 + Math.cos(time * 26.0) * 0.004 - (currentSpeed / 4.2) * 0.006;
-        vehicleGroup.rotation.z = (currentSpeed / 4.2) * 0.006 + Math.sin(time * 20.0) * 0.002;
+        vehicleGroup.position.y = Math.sin(time * 18.0) * 0.002 + Math.cos(time * 26.0) * 0.001;
+        vehicleGroup.rotation.z = (currentSpeed / 4.2) * 0.001 + Math.sin(time * 20.0) * 0.0005;
       } else {
         // Idling Mesin Diesel Halus (Realistic Heavy Diesel Rumble Idle)
-        vehicleGroup.position.y = Math.sin(time * 12.0) * 0.0022 + Math.cos(time * 6.0) * 0.0012;
-        vehicleGroup.rotation.z = Math.sin(time * 14.0) * 0.0012;
+        vehicleGroup.position.y = reducedMotion ? 0 : Math.sin(time * 12.0) * 0.0006;
+        vehicleGroup.rotation.z = reducedMotion ? 0 : Math.sin(time * 14.0) * 0.0003;
       }
 
       // Ayunan mudflap
-      if (mudflapLeft) mudflapLeft.rotation.x = -0.15 + Math.sin(time * 4.0) * 0.02;
-      if (mudflapRight) mudflapRight.rotation.x = -0.15 + Math.sin(time * 4.0 + 1.0) * 0.02;
+      if (mudflapLeft) mudflapLeft.rotation.x = Math.sin(time * 4.0) * currentSpeed * 0.004;
+      if (mudflapRight) mudflapRight.rotation.x = Math.sin(time * 4.0 + 1.0) * currentSpeed * 0.004;
 
       // 5. Partikel Asap Knalpot Diesel (Rising Exhaust Smoke Puffs)
       const smokeSpeedMult = currentSpeed > 0.1 ? 1.8 + currentSpeed * 0.3 : 1.0;
       smokeParticles.forEach((p) => {
+        p.mesh.visible = !reducedMotion || currentSpeed > 0.1;
         p.life += delta * smokeSpeedMult;
         if (p.life >= p.maxLife) {
           p.life = 0;
           p.mesh.position.set(p.baseX, p.baseY, p.baseZ);
-          p.mesh.scale.set(0.6, 0.6, 0.6);
+          p.mesh.scale.setScalar(0.1);
         } else {
           const t = p.life / p.maxLife;
           p.mesh.position.x += p.vx * delta * smokeSpeedMult;
           p.mesh.position.y += p.vy * delta * smokeSpeedMult;
           p.mesh.position.z += p.vz * delta * smokeSpeedMult;
-          const s = 0.6 + t * 2.2;
+          const s = 0.1 + t * 0.6;
           p.mesh.scale.set(s, s, s);
-          const pMat = p.mesh.material as THREE.MeshBasicMaterial;
-          pMat.opacity = Math.sin(t * Math.PI) * (currentSpeed > 0.1 ? 0.35 : 0.16);
+          const pMat = p.mesh.material;
+          pMat.opacity = Math.sin(t * Math.PI) * (currentSpeed > 0.1 ? 0.2 : 0.045);
         }
       });
 
@@ -1500,9 +1453,9 @@ export default function VehicleAnimation3D({
             mat.emissiveIntensity = 0.85;
           } else if (hasTire) {
             if (isSelected) {
-              mat.color.setHex(coord?.isInner ? 0xa855f7 : 0x38bdf8);
+              mat.color.setHex(0xe2e8f0);
               mat.emissive.setHex(coord?.isInner ? 0x7e22ce : 0x075985);
-              mat.emissiveIntensity = 0.6;
+              mat.emissiveIntensity = 0.12;
             } else {
               mat.color.setHex(0xe2e8f0);
               mat.emissive.setHex(0x000000);
@@ -1511,7 +1464,7 @@ export default function VehicleAnimation3D({
           }
         }
 
-        if (lugGroup) lugGroup.position.x = slideOffset;
+        if (lugGroup) { lugGroup.position.x = slideOffset; lugGroup.visible = showPhysicalTire; }
         if (hubMesh) {
           hubMesh.visible = showPhysicalTire;
           hubMesh.position.x = slideOffset;
@@ -1599,6 +1552,10 @@ export default function VehicleAnimation3D({
       cameraRef.current.fov = isMob ? 48 : 40;
       cameraRef.current.aspect = w / h;
       cameraRef.current.updateProjectionMatrix();
+      if (vehicleBoundsRef.current) {
+        cameraRef.current.position.copy(fitVehicleCamera(cameraRef.current.position, controls.target, cameraRef.current, vehicleBoundsRef.current));
+        controls.maxDistance = Math.max(getMaxCameraDistance(wheelCount), cameraRef.current.position.distanceTo(controls.target) * 1.5);
+      }
       rendererRef.current.setSize(w, h);
     };
 
@@ -1611,10 +1568,28 @@ export default function VehicleAnimation3D({
       renderer.domElement.removeEventListener('pointercancel', handlePointerCancel);
       renderer.domElement.removeEventListener('pointermove', handlePointerMove);
       if (animationFrameId.current) cancelAnimationFrame(animationFrameId.current);
-      floorTexture.dispose();
-      if (treadTexture) treadTexture.dispose();
-      renderer.dispose();
       controls.dispose();
+      // Shared/merged meshes and environment textures must be released on unit changes.
+      const geometries = new Set<THREE.BufferGeometry>();
+      const materials = new Set<THREE.Material>();
+      const textures = new Set<THREE.Texture>();
+      scene.traverse(object => {
+        if (object instanceof THREE.InstancedMesh) object.dispose();
+        if (object instanceof THREE.Mesh || object instanceof THREE.LineSegments) geometries.add(object.geometry);
+        if (object instanceof THREE.Mesh || object instanceof THREE.Sprite || object instanceof THREE.LineSegments) {
+          for (const material of Array.isArray(object.material) ? object.material : [object.material]) {
+            materials.add(material);
+            for (const value of Object.values(material)) if (value instanceof THREE.Texture) textures.add(value);
+          }
+        }
+      });
+      geometries.forEach(geometry => geometry.dispose());
+      materials.forEach(material => material.dispose());
+      textures.forEach(texture => texture.dispose());
+      environment.dispose();
+      mainSun.shadow.dispose();
+      renderer.dispose();
+      renderer.domElement.remove();
     };
   }, [wheelCount, category, wheelCoords]);
 

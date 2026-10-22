@@ -43,6 +43,7 @@ type FeatureKey =
   | "stowage_plan"
   | "denah_gudang"
   | "amprahan"
+  | "tanda_terima_asset"
   | "gerak_voyage"
   | "perbarui_wajah"
   | "berita"
@@ -83,6 +84,7 @@ const FEATURES: {
   { key: "stowage_plan",       label: "Stowage Plan",         desc: "Akses modul perencanaan muat kapal",       icon: <Anchor size={18} />,         color: "#14b8a6" },
   { key: "denah_gudang",       label: "Denah Gudang",         desc: "Akses tata letak & kapasitas gudang",      icon: <Map size={18} />,            color: "#3b82f6" },
   { key: "amprahan",           label: "Amprahan",             desc: "Pengajuan & penerimaan barang amprahan",   icon: <Package size={18} />,        color: "#d946ef" },
+  { key: "tanda_terima_asset", label: "Tanda Terima Asset", desc: "Akses menu tanda terima asset", icon: <ClipboardCheck size={18} />, color: "#14b8a6" },
   { key: "gerak_voyage",       label: "Tanggal Gerak Voyage", desc: "Akses tanggal pergerakan kapal & voyage",  icon: <Navigation size={18} />,     color: "#38bdf8" },
   { key: "perbarui_wajah",     label: "Perbarui Wajah Ulang", desc: "Izin memindai ulang biometrik wajah",      icon: <ScanFace size={18} />,       color: "#10b981" },
   { key: "berita",             label: "Menu Berita",          desc: "Akses membaca berita internal & pamflet",  icon: <Newspaper size={18} />,      color: "#0ea5e9" },

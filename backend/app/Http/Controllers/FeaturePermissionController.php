@@ -20,6 +20,7 @@ class FeaturePermissionController
         'stowage_plan',
         'denah_gudang',
         'amprahan',
+        'tanda_terima_asset',
         'gerak_voyage',
         'perbarui_wajah',
         'berita',

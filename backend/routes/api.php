@@ -611,6 +611,23 @@ if ($uri === '/api/kapal/voyages' && $method === 'GET') {
     exit();
 }
 
+if (preg_match('#^/api/tanda-terima-asset/([1-9][0-9]*)/(foto|surat)$#D', $uri, $assetReceiptMatch)) {
+    require_once __DIR__ . '/../app/Http/Controllers/TandaTerimaAssetController.php';
+    $controller = new \App\Http\Controllers\TandaTerimaAssetController();
+    $id = (int) $assetReceiptMatch[1];
+    if ($assetReceiptMatch[2] === 'foto' && $method === 'POST') $controller->uploadPhoto($id, $_FILES);
+    elseif ($assetReceiptMatch[2] === 'foto' && $method === 'GET') $controller->showPhoto($id);
+    elseif ($assetReceiptMatch[2] === 'surat' && $method === 'GET') $controller->letter($id);
+    else { http_response_code(405); echo json_encode(['message' => 'Metode tidak diizinkan.']); }
+    exit();
+}
+
+if ($uri === '/api/tanda-terima-asset' && $method === 'GET') {
+    require_once __DIR__ . '/../app/Http/Controllers/TandaTerimaAssetController.php';
+    (new \App\Http\Controllers\TandaTerimaAssetController())->index($_GET);
+    exit();
+}
+
 if ($uri === '/api/amprahan/request' && $method === 'POST') {
     require_once __DIR__ . '/../app/Http/Controllers/AmprahanController.php';
     $controller = new \App\Http\Controllers\AmprahanController();

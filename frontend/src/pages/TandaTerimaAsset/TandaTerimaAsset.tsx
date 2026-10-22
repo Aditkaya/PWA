@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Camera, CheckCircle2, ChevronDown, ChevronUp, ClipboardCheck, FileText, Image, RefreshCw, Search } from 'lucide-react'
+import { ArrowLeft, Camera, CheckCircle2, ChevronDown, ChevronUp, ClipboardCheck, Image, RefreshCw, Search } from 'lucide-react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
 import { useAuthStore } from '../../store/auth.store'
 import { useToast } from '../../contexts/ToastContext'
@@ -37,7 +37,7 @@ export default function TandaTerimaAsset() {
   const token = useAuthStore(state => state.token)
   const { showToast } = useToast()
   const [cameraAsset, setCameraAsset] = useState<AssetReceipt | null>(null)
-  const [viewer, setViewer] = useState<{ id: number; kind: 'foto' | 'surat' } | null>(null)
+  const [viewer, setViewer] = useState<{ id: number } | null>(null)
   const { featurePermissions } = useOutletContext<{
     featurePermissions: Record<string, boolean> | null
   }>()
@@ -112,7 +112,7 @@ export default function TandaTerimaAsset() {
           <div className="asset-receipt-guide">
             <span><span className="asset-receipt-step">1</span> Pilih asset Anda</span>
             <span><span className="asset-receipt-step">2</span> Ambil &amp; simpan foto</span>
-            <span><span className="asset-receipt-step">3</span> Buka surat tanda terima</span>
+            <span><span className="asset-receipt-step">3</span> Lihat foto bukti serah terima</span>
           </div>
           <form className="asset-receipt-toolbar" onSubmit={event => { event.preventDefault(); setPage(1); setQuery(search.trim()); setRefresh(value => value + 1) }}>
             <label className="asset-receipt-search">
@@ -147,9 +147,7 @@ export default function TandaTerimaAsset() {
                     <td data-label="Aksi" className="asset-receipt-actions-cell" role="cell"><div className="asset-receipt-row-actions">
                       <span className={`asset-receipt-photo-status ${row.has_foto ? 'is-complete' : 'is-pending'}`}>{row.has_foto ? <CheckCircle2 size={16} /> : <Camera size={16} />}{row.has_foto ? 'Foto Bukti Serah Terima' : 'Belum ada foto'}</span>
                       {!row.has_foto && <button className="asset-receipt-primary" onClick={() => setCameraAsset(row)} aria-label={`Ambil foto ${row.nama_asset}`}><Camera size={16} /> Ambil Foto Asset</button>}
-                      {!!row.has_foto && <button onClick={() => setViewer({ id: row.id, kind: 'foto' })}><Image size={16} /> Lihat Foto</button>}
-                      <button className={row.has_foto ? 'asset-receipt-primary' : ''} disabled={!row.has_foto} title={!row.has_foto ? 'Ambil dan simpan foto asset terlebih dahulu' : 'Buka surat tanda terima asset'} onClick={() => setViewer({ id: row.id, kind: 'surat' })}><FileText size={16} /> Lihat Surat</button>
-                      {!row.has_foto && <small className="asset-receipt-action-hint">Simpan foto terlebih dahulu untuk membuka surat.</small>}
+                      {!!row.has_foto && <button onClick={() => setViewer({ id: row.id })}><Image size={16} /> Lihat Foto</button>}
                     </div></td>
                   </tr>)}</tbody>
                 </table>

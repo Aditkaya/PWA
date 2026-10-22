@@ -198,7 +198,7 @@ export default function StowagePlan() {
           </div>
           <p className="sp-legend"><span>🟧 20 ft / lainnya</span><span>🟦 40 ft (2 bay)</span><span>Abu-abu: slot nonaktif</span></p>
           {mode === '3d' ? <Suspense fallback={<p role="status">Memuat kapal 3D...</p>}>
-            <Ship3D layout={layout!} containers={containers} onSelect={c => { if (!saving) { selectContainer(c); showEditor() } }} />
+            <Ship3D layout={layout!} containers={containers} shipName={activeShip} onSelect={c => { if (!saving) { selectContainer(c); showEditor() } }} />
           </Suspense> : <FitLayout ocean={mode === 'deck'}>
             <div className={mode === 'deck' ? 'sp-ship-deck' : 'sp-cross-section'}>
             {mode === 'deck' && <>

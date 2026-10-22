@@ -64,10 +64,14 @@
 .sp-bow-label { position: absolute; top: 65px; left: 0; width: 100%; text-align: center; font-size: .8rem; font-weight: 700; letter-spacing: 2px; }
 .sp-stern { position: absolute; bottom: 25px; left: 15%; width: 70%; text-align: center; font-size: .75rem; letter-spacing: 2px; }
 .sp-bridge { margin-bottom: 12px; border: 3px solid #94a3b8; border-radius: 8px; padding: 8px; background: #e2e8f0; color: #0c4a6e; line-height: 1.5; }
-.sp-three-stage { height: clamp(300px, 55dvh, 560px); width: 100%; overflow: hidden; border-radius: 16px; background: #0b172b; margin-bottom: 12px; }
+.sp-three-stage { aspect-ratio: 4 / 3; min-height: 260px; max-height: 520px; width: 100%; overflow: hidden; border: 1px solid #8ca9b733; border-radius: 16px; background: #a9bfca; margin-bottom: 12px; box-sizing: border-box; }
 .sp-three-stage canvas { display: block; touch-action: none; }
 .sp-three .sp-current { margin-top: 12px; }
 .sp-three-caption { font-size: .75rem !important; }
+.sp-three-controls { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px; }
+.sp-three-views, .sp-three-options { display: flex; flex-wrap: wrap; gap: 6px; }
+.sp-three-controls button { min-height: 42px; padding: 9px 12px; border: 1px solid var(--glass-border); border-radius: 9px; background: var(--sp-select-bg); color: var(--sp-select-text); font-size: .78rem; }
+.sp-three-controls button[aria-pressed="true"] { background: #0c4a6e; border-color: #38bdf8; color: #e0f2fe; }
 .sp-grid thead th { position: sticky; top: 0; background: var(--sp-select-bg); z-index: 2; }
 .sp-grid tr > th:first-child { position: sticky; left: 0; background: var(--sp-select-bg); z-index: 1; min-width: 50px; }
 .sp-grid thead tr > th:first-child { z-index: 3; }

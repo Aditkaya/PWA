@@ -29,7 +29,7 @@ with tempfile.TemporaryDirectory(prefix='asset-upload-', dir=root / 'scratch') a
             CREATE TABLE tanda_terima_asset (id INTEGER PRIMARY KEY, asset_id INTEGER, karyawan_id INTEGER,
                 kode_asset TEXT, nama_asset TEXT, nama_merk TEXT, kategori TEXT, nomor_seri TEXT, kondisi TEXT,
                 status TEXT, lokasi TEXT, nama_pemegang TEXT, nik_pemegang TEXT, departemen_pemegang TEXT,
-                tanggal_tanda_terima TEXT, keterangan TEXT);
+                tanggal_tanda_terima TEXT, keterangan TEXT, foto TEXT, updated_at TEXT);
             INSERT INTO tanda_terima_asset (id,asset_id,karyawan_id,kode_asset,nama_asset,nik_pemegang,nama_pemegang)
                 VALUES (1,1,1752,'AST-1','Laptop','1595','ADIT'),(2,2,1753,'AST-2','Monitor','1596','BUDI');
             CREATE TABLE tanda_terima_asset_fotos (id INTEGER PRIMARY KEY, tanda_terima_asset_id INTEGER,
@@ -86,15 +86,53 @@ with tempfile.TemporaryDirectory(prefix='asset-upload-', dir=root / 'scratch') a
         request('/1/surat', expected=409)
         request('/1/foto', photo=b'not an image', expected=422)
         request('/1/foto', photo=image + bytes(5 * 1024 * 1024), expected=422)
+        # A filesystem failure must not mark the receipt as complete.
+        (work / 'photos').write_text('blocked directory')
+        request('/1/foto', photo=image, expected=500)
+        (work / 'photos').unlink()
+        # A database failure after the file move must clean up the new file.
+        with closing(sqlite3.connect(database)) as db:
+            db.execute("CREATE TRIGGER reject_photo BEFORE UPDATE OF foto ON tanda_terima_asset BEGIN SELECT RAISE(ABORT, 'simulated write failure'); END")
+            db.commit()
+        request('/1/foto', photo=image, expected=500)
+        assert not list((work / 'photos').iterdir())
+        with closing(sqlite3.connect(database)) as db:
+            assert db.execute('SELECT COUNT(*) FROM tanda_terima_asset_fotos').fetchone()[0] == 0
+            assert db.execute('SELECT foto FROM tanda_terima_asset WHERE id=1').fetchone()[0] is None
+            db.execute('DROP TRIGGER reject_photo')
+            db.commit()
         request('/1/foto', photo=image)
         with closing(sqlite3.connect(database)) as db:
-            stored_path, updated_by = db.execute('SELECT foto,updated_by FROM assets WHERE id=1').fetchone()
-            assert stored_path.startswith('uploads/assets/photos/') and updated_by == 1
-            assert (work / 'photos' / Path(stored_path).name).read_bytes() == image
+            stored_path = db.execute('SELECT foto FROM tanda_terima_asset WHERE id=1').fetchone()[0]
+            assert '/' not in stored_path and stored_path.endswith('.png')
+            assert (work / 'photos' / stored_path).read_bytes() == image
+            assert db.execute('SELECT file_name FROM tanda_terima_asset_fotos').fetchone()[0] == stored_path
+            assert db.execute('SELECT foto FROM assets WHERE id=1').fetchone()[0] is None
             assert db.execute('SELECT foto FROM assets WHERE id=2').fetchone()[0] is None
         assert request('/1/foto') == image
         assert json.loads(request(''))['data'][0]['has_foto'] is True
         assert b'SURAT PERNYATAAN' in request('/1/surat')
+        # Backfill links historical uploads to the receipt and preserves existing photos.
+        sync_code = (
+            "require " + repr((root / 'backend/config/database.php').as_posix()) + ";"
+            "$pdo = new PDO('sqlite:' . " + repr(database.as_posix()) + ", null, null, [PDO::ATTR_ERRMODE => PDO::ERRMODE_EXCEPTION]);"
+            "$property = new ReflectionProperty(Database::class, 'pdo'); $property->setValue(null, $pdo);"
+            "define('ASSET_RECEIPT_PHOTO_DIR', " + repr((work / 'photos').as_posix()) + ");"
+            "require " + repr((root / 'backend/sync_asset_receipt_photos.php').as_posix()) + ";"
+        )
+        with closing(sqlite3.connect(database)) as db:
+            db.execute('UPDATE tanda_terima_asset SET foto=NULL WHERE id=1')
+            db.commit()
+        subprocess.run([php, '-r', sync_code], check=True, capture_output=True)
+        with closing(sqlite3.connect(database)) as db:
+            assert db.execute('SELECT foto FROM tanda_terima_asset WHERE id=1').fetchone()[0] == stored_path
+            db.execute("UPDATE tanda_terima_asset SET foto='existing.jpg' WHERE id=1")
+            db.commit()
+        subprocess.run([php, '-r', sync_code], check=True, capture_output=True)
+        with closing(sqlite3.connect(database)) as db:
+            assert db.execute('SELECT foto FROM tanda_terima_asset WHERE id=1').fetchone()[0] == 'existing.jpg'
+            db.execute('UPDATE tanda_terima_asset SET foto=? WHERE id=1', (stored_path,))
+            db.commit()
         request('/1/foto', token=tokens[1], expected=404)
         request('/1/surat', token=tokens[1], expected=404)
         # A new holder cannot inherit the previous holder's photo or completion status.
@@ -107,10 +145,10 @@ with tempfile.TemporaryDirectory(prefix='asset-upload-', dir=root / 'scratch') a
         assert not any(row['has_foto'] for row in json.loads(request('', token=tokens[1]))['data'])
         request('/1/foto', token=tokens[1], photo=image, expected=409)
         with closing(sqlite3.connect(database)) as db:
-            assert db.execute('SELECT foto FROM assets WHERE id=1').fetchone()[0] == stored_path
+            assert db.execute('SELECT foto FROM tanda_terima_asset WHERE id=1').fetchone()[0] == stored_path
             assert db.execute('SELECT COUNT(*) FROM tanda_terima_asset_fotos').fetchone()[0] == 1
     finally:
         server.terminate()
         server.wait(timeout=10)
         log.close()
-print('21 multipart upload, asset photo synchronization, and ownership checks passed.')
+print('Multipart upload, receipt persistence, filesystem/database rollback, and ownership checks passed.')

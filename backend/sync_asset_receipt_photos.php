@@ -1,5 +1,5 @@
 <?php
-// Backfill existing PWA photos into assets.foto without replacing existing asset photos.
+// Backfill existing PWA photos into tanda_terima_asset.foto without replacing receipt photos.
 require_once __DIR__ . '/config/database.php';
 require_once __DIR__ . '/app/Services/AssetPhotoStorage.php';
 use App\Services\AssetPhotoStorage;
@@ -19,7 +19,7 @@ try {
         k.nik, k.nama_lengkap FROM tanda_terima_asset t
         JOIN assets a ON a.id = t.asset_id AND a.karyawan_id = t.karyawan_id
         JOIN karyawans k ON k.id = t.karyawan_id
-        WHERE a.deleted_at IS NULL AND (a.foto IS NULL OR a.foto = '')")->fetchAll(PDO::FETCH_ASSOC);
+        WHERE a.deleted_at IS NULL AND (t.foto IS NULL OR t.foto = '')")->fetchAll(PDO::FETCH_ASSOC);
     $synced = 0;
     $skipped = 0;
     $normalize = static fn ($value) => function_exists('mb_strtolower')
@@ -40,19 +40,20 @@ try {
         if (!$source) { $skipped++; continue; }
         $directory = AssetPhotoStorage::directory();
         if (!is_dir($directory) && !mkdir($directory, 0755, true) && !is_dir($directory)) {
-            throw new RuntimeException('Folder foto Master Asset tidak dapat dibuat.');
+            throw new RuntimeException('Folder foto tanda terima asset tidak dapat dibuat.');
         }
         $destination = $directory . '/' . $photo['file_name'];
         if (!is_file($destination) && !copy($source, $destination)) throw new RuntimeException('Foto lama gagal disalin.');
-        $update = $pdo->prepare("UPDATE assets SET foto = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP
-            WHERE id = ? AND karyawan_id = ? AND deleted_at IS NULL AND (foto IS NULL OR foto = '')
-            AND EXISTS (SELECT 1 FROM tanda_terima_asset t WHERE t.id = ? AND t.asset_id = assets.id
-                AND t.karyawan_id = assets.karyawan_id AND TRIM(t.nik_pemegang) = ? AND LOWER(TRIM(t.nama_pemegang)) = LOWER(?))");
-        $update->execute([AssetPhotoStorage::RELATIVE_DIRECTORY . '/' . $photo['file_name'], $photo['uploaded_by'],
-            $row['asset_id'], $row['karyawan_id'], $row['id'], trim($row['nik']), trim($row['nama_lengkap'])]);
+        $update = $pdo->prepare("UPDATE tanda_terima_asset SET foto = ?, updated_at = CURRENT_TIMESTAMP
+            WHERE id = ? AND asset_id = ? AND karyawan_id = ? AND (foto IS NULL OR foto = '')
+            AND TRIM(nik_pemegang) = ? AND LOWER(TRIM(nama_pemegang)) = LOWER(?)
+            AND EXISTS (SELECT 1 FROM assets a WHERE a.id = tanda_terima_asset.asset_id
+                AND a.karyawan_id = tanda_terima_asset.karyawan_id AND a.deleted_at IS NULL)");
+        $update->execute([$photo['file_name'], $row['id'], $row['asset_id'], $row['karyawan_id'],
+            trim($row['nik']), trim($row['nama_lengkap'])]);
         $synced += $update->rowCount();
     }
-    echo "Foto dihubungkan ke assets.foto: $synced. Dilewati: $skipped.\n";
+    echo "Foto dihubungkan ke tanda_terima_asset.foto: $synced. Dilewati: $skipped.\n";
 } catch (Throwable $e) {
     fwrite(STDERR, 'Sinkronisasi foto asset gagal: ' . $e->getMessage() . "\n");
     exit(1);

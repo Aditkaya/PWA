@@ -6,19 +6,21 @@ Untuk fitur foto Tanda Terima Asset, jalankan sekali setelah menerima perubahan:
 php backend/create_asset_receipt_photos_table.php
 ```
 
-Foto baru disimpan ke `AYPSIS_PUBLIC_DIR/uploads/assets/photos` dan lokasi file
-dicatat di `assets.foto`, agar foto juga tampil di Master Asset AYPSIS. Pastikan
+Foto baru disimpan ke `AYPSIS_PUBLIC_DIR/uploads/tanda-terima-assets/photos` dan nama file
+dicatat di `tanda_terima_asset.foto`, sesuai disk `tanda_terima_asset` AYPSIS.
+Riwayat upload tetap dicatat di `tanda_terima_asset_fotos`. Skrip persiapan di atas
+juga menambahkan kolom `foto` jika belum tersedia. Pastikan
 proses PHP PWA dapat menulis ke folder tersebut. Foto di folder ini mengikuti akses
-file foto Master Asset AYPSIS. Kamera memerlukan HTTPS atau localhost.
+file foto Tanda Terima Asset AYPSIS. Kamera memerlukan HTTPS atau localhost.
 
-Untuk menghubungkan foto PWA lama ke `assets.foto`, jalankan sekali:
+Untuk menghubungkan foto PWA lama ke `tanda_terima_asset.foto`, jalankan sekali:
 
 ```bash
 php backend/sync_asset_receipt_photos.php
 ```
 
-Proses ini menyalin foto lama yang pemegangnya masih cocok dan kolom `assets.foto`
-masih kosong. Foto lama di `backend/private/asset-receipts` tetap dipertahankan
+Proses ini menyalin foto lama yang pemegangnya masih cocok dan kolom `tanda_terima_asset.foto`
+masih kosong. Foto lama di `uploads/assets/photos` dan `backend/private/asset-receipts` tetap dipertahankan
 dan dapat dibuka oleh pemegangnya melalui API PWA.
 
 Repository menyertakan hasil build `frontend/dist`. Build dan commit dilakukan

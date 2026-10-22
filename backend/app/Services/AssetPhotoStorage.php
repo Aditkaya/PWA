@@ -3,7 +3,7 @@ namespace App\Services;
 
 class AssetPhotoStorage
 {
-    public const RELATIVE_DIRECTORY = 'uploads/assets/photos';
+    public const RELATIVE_DIRECTORY = 'uploads/tanda-terima-assets/photos';
 
     public static function directory(): string
     {
@@ -13,7 +13,7 @@ class AssetPhotoStorage
             $local = 'C:/kerjaan/aypsis/aypsis/aypsis/public';
             $public = PHP_OS_FAMILY === 'Windows' ? $local : '/var/www/aypsis/public';
         }
-        return rtrim($public, '/\\') . '/' . self::RELATIVE_DIRECTORY;
+        return rtrim(trim($public, " \t\n\r\0\x0B\"'"), '/\\') . '/' . self::RELATIVE_DIRECTORY;
     }
 
     public static function legacyDirectory(): string
@@ -29,7 +29,8 @@ class AssetPhotoStorage
     public static function path(string $name): ?string
     {
         if (!self::validName($name)) return null;
-        foreach ([self::directory(), self::legacyDirectory()] as $directory) {
+        $oldPublicDirectory = dirname(dirname(self::directory())) . '/assets/photos';
+        foreach ([self::directory(), $oldPublicDirectory, self::legacyDirectory()] as $directory) {
             $path = $directory . '/' . $name;
             if (is_file($path)) return $path;
         }

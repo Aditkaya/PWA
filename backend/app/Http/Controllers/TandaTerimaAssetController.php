@@ -131,6 +131,7 @@ class TandaTerimaAssetController
     {
         $destination = null;
         $pdo = null;
+        $storageFailure = false;
         try {
             $pdo = Database::getConnection();
             $identity = $this->identity($pdo);
@@ -162,18 +163,28 @@ class TandaTerimaAssetController
                 throw new \InvalidArgumentException('Gunakan foto JPEG, PNG, atau WebP yang valid.');
             }
             $directory = AssetPhotoStorage::directory();
-            if (!is_dir($directory) && !mkdir($directory, 0700, true) && !is_dir($directory)) {
-                throw new \RuntimeException('Folder foto tidak dapat dibuat.');
+            $storageFailure = true;
+            if (!is_dir($directory) && !@mkdir($directory, 0755, true) && !is_dir($directory)) {
+                throw new \RuntimeException('Folder foto tidak dapat dibuat: ' . $directory);
+            }
+            if (!is_writable($directory)) {
+                throw new \RuntimeException('Folder foto tidak dapat ditulis: ' . $directory);
             }
             $fileName = bin2hex(random_bytes(24)) . '.' . $extensions[$mime];
             $destination = $directory . '/' . $fileName;
             if (!move_uploaded_file($temporary, $destination)) throw new \RuntimeException('Foto gagal disimpan.');
+            if (PHP_OS_FAMILY !== 'Windows' && !chmod($destination, 0644)) {
+                throw new \RuntimeException('Izin baca foto tidak dapat diatur.');
+            }
+            $storageFailure = false;
             $statement = $pdo->prepare('INSERT INTO tanda_terima_asset_fotos
                 (tanda_terima_asset_id, karyawan_id, nik_pemegang, nama_pemegang, uploaded_by, file_name)
                 VALUES (?, ?, ?, ?, ?, ?)');
             $statement->execute([$id, $row['karyawan_id'], $row['nik_pemegang'], $row['nama_pemegang'], $identity['id'], $fileName]);
-            $update = $pdo->prepare('UPDATE assets SET foto = ?, updated_by = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ? AND karyawan_id = ? AND deleted_at IS NULL');
-            $update->execute([AssetPhotoStorage::RELATIVE_DIRECTORY . '/' . $fileName, $identity['id'], $row['asset_id'], $identity['karyawan_id']]);
+            // AYPSIS resolves this filename relative to its tanda_terima_asset disk.
+            // Save on the receipt itself; assets.foto belongs to the master asset.
+            $update = $pdo->prepare('UPDATE tanda_terima_asset SET foto = ?, updated_at = CURRENT_TIMESTAMP WHERE id = ?');
+            $update->execute([$fileName, $id]);
             $pdo->commit();
             header('Cache-Control: no-store');
             echo json_encode(['message' => 'Foto asset berhasil disimpan.']);
@@ -183,7 +194,10 @@ class TandaTerimaAssetController
             $invalid = $e instanceof \InvalidArgumentException;
             http_response_code($invalid ? 422 : 500);
             if (!$invalid) error_log('Asset receipt photo upload: ' . $e->getMessage());
-            echo json_encode(['message' => $invalid ? $e->getMessage() : 'Gagal menyimpan foto asset. Silakan coba lagi.']);
+            $message = $storageFailure
+                ? 'Folder foto asset tidak dapat ditulis. Hubungi admin untuk memeriksa AYPSIS_PUBLIC_DIR dan izin folder uploads/tanda-terima-assets/photos.'
+                : 'Gagal menyimpan foto asset. Silakan coba lagi.';
+            echo json_encode(['message' => $invalid ? $e->getMessage() : $message]);
         }
     }
 

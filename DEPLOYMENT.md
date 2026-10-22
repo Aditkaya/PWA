@@ -13,6 +13,12 @@ juga menambahkan kolom `foto` jika belum tersedia. Pastikan
 proses PHP PWA dapat menulis ke folder tersebut. Foto di folder ini mengikuti akses
 file foto Tanda Terima Asset AYPSIS. Kamera memerlukan HTTPS atau localhost.
 
+PWA membaca `tanda_terima_asset.foto` terlebih dahulu, sehingga foto yang diunggah
+melalui AYPSIS juga dapat dibuka tanpa riwayat upload PWA. Kedua project harus
+menggunakan database dan folder fisik foto yang sama; atur `AYPSIS_PUBLIC_DIR`
+ke direktori `public` project AYPSIS. Jika kolom foto kosong, PWA memakai riwayat
+foto lama yang cocok dengan pemegang. Nama file Laravel dan PWA didukung.
+
 Untuk menghubungkan foto PWA lama ke `tanda_terima_asset.foto`, jalankan sekali:
 
 ```bash

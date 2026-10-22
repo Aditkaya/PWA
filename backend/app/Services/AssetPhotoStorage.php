@@ -23,7 +23,9 @@ class AssetPhotoStorage
 
     public static function validName(string $name): bool
     {
-        return (bool) preg_match('/^[a-f0-9]{48}\.(jpg|png|webp)$/D', $name);
+        // Laravel uses 40 mixed-case characters; PWA uses 48 hexadecimal characters.
+        return strlen($name) <= 255 && strpos($name, '..') === false &&
+            (bool) preg_match('/^[a-z0-9][a-z0-9._-]*\.(jpe?g|png|webp)$/iD', $name);
     }
 
     public static function path(string $name): ?string
@@ -31,8 +33,10 @@ class AssetPhotoStorage
         if (!self::validName($name)) return null;
         $oldPublicDirectory = dirname(dirname(self::directory())) . '/assets/photos';
         foreach ([self::directory(), $oldPublicDirectory, self::legacyDirectory()] as $directory) {
-            $path = $directory . '/' . $name;
-            if (is_file($path)) return $path;
+            $root = realpath($directory);
+            $path = realpath($directory . '/' . $name);
+            if ($root !== false && $path !== false && dirname($path) === $root &&
+                is_file($path) && is_readable($path)) return $path;
         }
         return null;
     }

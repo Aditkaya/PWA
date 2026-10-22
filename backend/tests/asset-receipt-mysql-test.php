@@ -14,7 +14,7 @@ $pdo->exec('CREATE TEMPORARY TABLE tanda_terima_asset (
     id BIGINT PRIMARY KEY, asset_id BIGINT, karyawan_id BIGINT, kode_asset VARCHAR(255), nama_asset VARCHAR(255),
     nama_merk VARCHAR(255), kategori VARCHAR(255), nomor_seri VARCHAR(255), kondisi VARCHAR(255), status VARCHAR(255),
     lokasi VARCHAR(255), nama_pemegang VARCHAR(255), nik_pemegang VARCHAR(255), departemen_pemegang VARCHAR(255),
-    tanggal_tanda_terima DATE, keterangan TEXT) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
+    tanggal_tanda_terima DATE, keterangan TEXT, foto VARCHAR(255)) DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci');
 // Reproduce tables with different collations (works on MySQL and MariaDB).
 $pdo->exec('CREATE TEMPORARY TABLE tanda_terima_asset_fotos (
     id BIGINT PRIMARY KEY, tanda_terima_asset_id BIGINT, karyawan_id BIGINT, nik_pemegang VARCHAR(255),
@@ -40,6 +40,8 @@ try {
     $pdo->exec("INSERT INTO tanda_terima_asset_fotos VALUES (2,1,1752,'1595','ADIT','own.jpg')");
     checkMysqlAssets([], true);
     checkMysqlAssets(['search' => 'Laptop'], true);
+    $pdo->exec("UPDATE tanda_terima_asset SET foto='AypsisExternalPhoto.jpeg' WHERE id=1");
+    checkMysqlAssets([], true);
 } finally {
     if ($token) {
         $path = (session_save_path() ?: sys_get_temp_dir()) . DIRECTORY_SEPARATOR . 'sess_' . $token;

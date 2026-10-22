@@ -14,7 +14,7 @@ $pdo->exec('CREATE TABLE user_feature_permissions (user_id INTEGER, feature_key 
 $pdo->exec('CREATE TABLE assets (id INTEGER PRIMARY KEY, karyawan_id INTEGER, foto TEXT, updated_by INTEGER, updated_at TEXT, deleted_at TEXT)');
 $pdo->exec('INSERT INTO assets (id,karyawan_id) VALUES (1,1752)');
 $pdo->exec("INSERT INTO user_feature_permissions VALUES (1, 'tanda_terima_asset', 1)");
-$pdo->exec('CREATE TABLE tanda_terima_asset (id INTEGER PRIMARY KEY, asset_id INTEGER, karyawan_id INTEGER, kode_asset TEXT, nama_asset TEXT, nama_merk TEXT, kategori TEXT, nomor_seri TEXT, kondisi TEXT, status TEXT, lokasi TEXT, nama_pemegang TEXT, nik_pemegang TEXT, departemen_pemegang TEXT, tanggal_tanda_terima TEXT, keterangan TEXT)');
+$pdo->exec('CREATE TABLE tanda_terima_asset (id INTEGER PRIMARY KEY, asset_id INTEGER, karyawan_id INTEGER, kode_asset TEXT, nama_asset TEXT, nama_merk TEXT, kategori TEXT, nomor_seri TEXT, kondisi TEXT, status TEXT, lokasi TEXT, nama_pemegang TEXT, nik_pemegang TEXT, departemen_pemegang TEXT, tanggal_tanda_terima TEXT, keterangan TEXT, foto TEXT)');
 $pdo->exec('CREATE TABLE tanda_terima_asset_fotos (id INTEGER PRIMARY KEY, tanda_terima_asset_id INTEGER, karyawan_id INTEGER, nik_pemegang TEXT, nama_pemegang TEXT, uploaded_by INTEGER, file_name TEXT, created_at TEXT)');
 $insert = $pdo->prepare("INSERT INTO tanda_terima_asset (id, asset_id, kode_asset, nama_asset, tanggal_tanda_terima, karyawan_id, nik_pemegang, nama_pemegang) VALUES (?, ?, ?, ?, '2026-10-22', 1752, '1595', ' adit ')");
 for ($i = 1; $i <= 26; $i++) $insert->execute([$i, $i, 'AST-' . $i, $i === 1 ? 'Laptop Khusus' : 'Monitor']);

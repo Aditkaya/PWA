@@ -66,6 +66,21 @@ class TandaTerimaAssetController
 
     private function photo(PDO $pdo, array $row): ?array
     {
+        $fileName = trim((string) ($row['foto'] ?? ''));
+        if ($fileName !== '') {
+            // AYPSIS uploads are stored directly on the receipt, without a PWA audit row.
+            // For PWA uploads, retain the original holder restriction after reassignment.
+            $owner = $pdo->prepare('SELECT karyawan_id, nik_pemegang, nama_pemegang FROM tanda_terima_asset_fotos
+                WHERE tanda_terima_asset_id = ? AND file_name = ? ORDER BY id DESC LIMIT 1');
+            $owner->execute([$row['id'], $fileName]);
+            $original = $owner->fetch(PDO::FETCH_ASSOC);
+            $normalize = static fn ($value) => function_exists('mb_strtolower')
+                ? mb_strtolower(trim((string) $value), 'UTF-8') : strtolower(trim((string) $value));
+            if ($original && ((int) $original['karyawan_id'] !== (int) $row['karyawan_id'] ||
+                trim($original['nik_pemegang']) !== trim($row['nik_pemegang']) ||
+                $normalize($original['nama_pemegang']) !== $normalize($row['nama_pemegang']))) return null;
+            return AssetPhotoStorage::validName($fileName) ? ['file_name' => $fileName] : null;
+        }
         $statement = $pdo->prepare('SELECT file_name FROM tanda_terima_asset_fotos
             WHERE tanda_terima_asset_id = ? AND karyawan_id = ? AND TRIM(nik_pemegang) = ?
             AND LOWER(TRIM(nama_pemegang)) = LOWER(?) ORDER BY id DESC LIMIT 1');
@@ -97,7 +112,7 @@ class TandaTerimaAssetController
             $lastPage = max(1, (int) ceil($total / $perPage));
             $page = min($page, $lastPage);
             $offset = ($page - 1) * $perPage;
-            $statement = $pdo->prepare('SELECT id, asset_id, kode_asset, nama_asset, nama_merk, kategori,
+            $statement = $pdo->prepare('SELECT id, asset_id, karyawan_id, foto, kode_asset, nama_asset, nama_merk, kategori,
                 nomor_seri, kondisi, status, lokasi, nama_pemegang, nik_pemegang, departemen_pemegang,
                 tanggal_tanda_terima, keterangan,
                 EXISTS (SELECT 1 FROM tanda_terima_asset_fotos f WHERE f.tanda_terima_asset_id = tanda_terima_asset.id
@@ -113,7 +128,11 @@ class TandaTerimaAssetController
                 trim((string) ($identity['nama_lengkap'] ?? '')),
             ], $bindings));
             $rows = $statement->fetchAll(PDO::FETCH_ASSOC);
-            foreach ($rows as &$row) $row['has_foto'] = (bool) $row['has_foto'];
+            foreach ($rows as &$row) {
+                $row['has_foto'] = trim((string) ($row['foto'] ?? '')) !== ''
+                    ? $this->photo($pdo, $row) !== null : (bool) $row['has_foto'];
+                unset($row['foto'], $row['karyawan_id']);
+            }
             unset($row);
             header('Cache-Control: no-store');
             echo json_encode([

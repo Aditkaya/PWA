@@ -112,6 +112,32 @@ with tempfile.TemporaryDirectory(prefix='asset-upload-', dir=root / 'scratch') a
         assert request('/1/foto') == image
         assert json.loads(request(''))['data'][0]['has_foto'] is True
         assert b'SURAT PERNYATAAN' in request('/1/surat')
+        # AYPSIS/Laravel uploads have mixed-case names and no PWA upload history.
+        external_name = 'AbCdEfGhIj' * 4 + '.jpeg'
+        (work / 'photos' / external_name).write_bytes(image)
+        with closing(sqlite3.connect(database)) as db:
+            db.execute('UPDATE tanda_terima_asset SET foto=? WHERE id=2', (external_name,))
+            db.commit()
+        assert request('/2/foto', token=tokens[1]) == image
+        assert json.loads(request('', token=tokens[1]))['data'][0]['has_foto'] is True
+        assert b'SURAT PERNYATAAN' in request('/2/surat', token=tokens[1])
+        request('/2/foto', expected=404)
+        # An external replacement must take precedence over older PWA history.
+        with closing(sqlite3.connect(database)) as db:
+            db.execute('UPDATE tanda_terima_asset SET foto=? WHERE id=1', (external_name,))
+            db.commit()
+        assert request('/1/foto') == image
+        (work / 'photos' / external_name).unlink()
+        request('/1/foto', expected=404)  # Do not silently serve an outdated PWA photo.
+        for invalid_name in ('../fixture.sqlite', '../photos/' + stored_path, 'https://example.com/photo.jpg'):
+            with closing(sqlite3.connect(database)) as db:
+                db.execute('UPDATE tanda_terima_asset SET foto=? WHERE id=2', (invalid_name,))
+                db.commit()
+            request('/2/foto', token=tokens[1], expected=404)
+            assert json.loads(request('', token=tokens[1]))['data'][0]['has_foto'] is False
+        with closing(sqlite3.connect(database)) as db:
+            db.execute('UPDATE tanda_terima_asset SET foto=NULL WHERE id=2')
+            db.commit()
         # Backfill links historical uploads to the receipt and preserves existing photos.
         sync_code = (
             "require " + repr((root / 'backend/config/database.php').as_posix()) + ";"

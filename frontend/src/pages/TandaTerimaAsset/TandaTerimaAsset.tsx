@@ -5,6 +5,7 @@ import { useAuthStore } from '../../store/auth.store'
 import { useToast } from '../../contexts/ToastContext'
 import AssetPhotoCamera from './AssetPhotoCamera'
 import AssetReceiptViewer from './AssetReceiptViewer'
+import AssetReturns from './AssetReturns'
 import './TandaTerimaAsset.css'
 
 interface AssetReceipt {
@@ -38,6 +39,7 @@ export default function TandaTerimaAsset() {
   const { showToast } = useToast()
   const [cameraAsset, setCameraAsset] = useState<AssetReceipt | null>(null)
   const [viewer, setViewer] = useState<{ id: number } | null>(null)
+  const [section, setSection] = useState<'assets' | 'returns'>('assets')
   const { featurePermissions } = useOutletContext<{
     featurePermissions: Record<string, boolean> | null
   }>()
@@ -109,6 +111,11 @@ export default function TandaTerimaAsset() {
         {accessDenied || !userId ? (
           <p role="alert">{accessDenied ? 'Anda belum memiliki akses ke menu ini. Hubungi IT untuk pengaturan akses.' : 'Silakan login kembali untuk melihat data.'}</p>
         ) : <>
+          <div className="asset-receipt-tabs" aria-label="Menu tanda terima asset">
+            <button aria-pressed={section === 'assets'} onClick={() => setSection('assets')}>Asset Anda</button>
+            <button aria-pressed={section === 'returns'} onClick={() => setSection('returns')}>Pengembalian Asset</button>
+          </div>
+          {section === 'returns' ? <AssetReturns token={token} /> : <>
           <div className="asset-receipt-guide">
             <span><span className="asset-receipt-step">1</span> Pilih asset Anda</span>
             <span><span className="asset-receipt-step">2</span> Ambil &amp; simpan foto</span>
@@ -157,6 +164,7 @@ export default function TandaTerimaAsset() {
                 <div><button disabled={meta.current_page <= 1} onClick={() => setPage(meta.current_page - 1)}>Sebelumnya</button><button disabled={meta.current_page >= meta.last_page} onClick={() => setPage(meta.current_page + 1)}>Berikutnya</button></div>
               </div>
             </>}
+          </>}
         </>}
       </div>
       {cameraAsset && <AssetPhotoCamera assetName={`${cameraAsset.kode_asset} — ${cameraAsset.nama_asset}`} onClose={() => setCameraAsset(null)} onSave={savePhoto} />}

@@ -1,5 +1,34 @@
 # Pembaruan production
 
+## Pengembalian Asset
+
+Setelah menerima fitur Pengembalian Asset, jalankan sekali dari root project PWA:
+
+```bash
+php backend/create_asset_returns_tables.php
+```
+
+Karyawan membuka **Tanda Terima Asset → Pengembalian Asset**, memilih 1–6 asset,
+mengisi tanggal, alasan, kondisi, kelengkapan, dan catatan, lalu menyimpan pengajuan.
+Dokumen Word dapat diunduh dari riwayat untuk pemeriksaan dan tanda tangan.
+Template asli disertakan di `backend/templates/pengembalian-asset.docx`;
+kop, format, tabel, pernyataan, dan kolom tanda tangan dipertahankan.
+Server memerlukan ekstensi PHP `zip`, `dom`, dan `mbstring`; Microsoft Word
+atau LibreOffice tidak diperlukan untuk menghasilkan unduhan di server.
+
+Status awal adalah **Menunggu Pelepasan Admin**. Pengajuan tidak mengubah
+`assets.karyawan_id`, status asset, atau data tanda terima. Admin melepas asset
+melalui Master Asset AYPSIS seperti biasa. Saat riwayat dimuat ulang, PWA
+memeriksa apakah `assets.karyawan_id` sudah kosong atau berpindah dari karyawan
+pengaju; item tersebut ditandai sudah dilepas. Pengajuan menjadi
+**Sudah Dikembalikan** setelah seluruh item dilepas. Pelepasan sebagian ditampilkan
+per item. Waktu selesai adalah waktu pelepasan terdeteksi oleh PWA.
+Dokumen menggunakan snapshot saat pengajuan, sehingga tetap dapat diunduh
+setelah data tanda terima diperbarui/dihapus oleh admin. Tidak ada persetujuan
+admin tambahan di PWA; kedua project harus memakai database Master Asset yang sama.
+
+## Foto Tanda Terima Asset
+
 Untuk fitur foto Tanda Terima Asset, jalankan sekali setelah menerima perubahan:
 
 ```bash

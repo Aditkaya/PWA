@@ -611,6 +611,18 @@ if ($uri === '/api/kapal/voyages' && $method === 'GET') {
     exit();
 }
 
+if ($uri === '/api/tanda-terima-asset/pengembalian' || $uri === '/api/tanda-terima-asset/pengembalian/options' ||
+    preg_match('#^/api/tanda-terima-asset/pengembalian/([1-9][0-9]*)/dokumen$#D', $uri, $assetReturnMatch)) {
+    require_once __DIR__ . '/../app/Http/Controllers/AssetReturnController.php';
+    $controller = new \App\Http\Controllers\AssetReturnController();
+    if ($uri === '/api/tanda-terima-asset/pengembalian' && $method === 'GET') $controller->returns();
+    elseif ($uri === '/api/tanda-terima-asset/pengembalian' && $method === 'POST') $controller->submit(is_array($requestData) ? $requestData : []);
+    elseif ($uri === '/api/tanda-terima-asset/pengembalian/options' && $method === 'GET') $controller->options();
+    elseif (!empty($assetReturnMatch[1]) && $method === 'GET') $controller->document((int) $assetReturnMatch[1]);
+    else { http_response_code(405); echo json_encode(['message' => 'Metode tidak diizinkan.']); }
+    exit();
+}
+
 if (preg_match('#^/api/tanda-terima-asset/([1-9][0-9]*)/(foto|surat)$#D', $uri, $assetReceiptMatch)) {
     require_once __DIR__ . '/../app/Http/Controllers/TandaTerimaAssetController.php';
     $controller = new \App\Http\Controllers\TandaTerimaAssetController();

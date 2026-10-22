@@ -13,7 +13,7 @@ use App\Services\AssetPhotoStorage;
 
 class TandaTerimaAssetController
 {
-    private function identity(PDO $pdo): ?array
+    protected function identity(PDO $pdo): ?array
     {
         $userId = \App\Services\PwaSession::userId();
         if (!$userId || $userId < 1) {
@@ -39,7 +39,7 @@ class TandaTerimaAssetController
         return $identity;
     }
 
-    private function scope(array $identity): array
+    protected function scope(array $identity): array
     {
         $nik = trim((string) ($identity['nik'] ?? ''));
         $name = trim((string) ($identity['nama_lengkap'] ?? ''));
@@ -48,7 +48,7 @@ class TandaTerimaAssetController
             [(int) $identity['karyawan_id'], $nik, $name]];
     }
 
-    private function owned(PDO $pdo, array $identity, int $id, bool $lock = false): ?array
+    protected function owned(PDO $pdo, array $identity, int $id, bool $lock = false): ?array
     {
         [$where, $bindings] = $this->scope($identity);
         $bindings[] = $id;

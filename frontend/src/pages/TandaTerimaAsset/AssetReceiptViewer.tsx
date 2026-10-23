@@ -16,29 +16,25 @@ export default function AssetReceiptViewer({ id, token, onClose }: Props) {
   useEffect(() => { dialog.current?.showModal() }, [])
   useEffect(() => {
     const controller = new AbortController()
-    let url = ''
     setLoading(true)
     setContent('')
     setError('')
-    fetch(`/api/tanda-terima-asset/${id}/foto`, { signal: controller.signal, cache: 'no-store', headers: { Authorization: `Bearer ${token || ''}` } })
+    fetch(`/api/tanda-terima-asset/${id}/surat`, { signal: controller.signal, cache: 'no-store', headers: { Authorization: `Bearer ${token || ''}` } })
       .then(async response => {
         if (!response.ok) {
           const body = await response.json()
-          throw new Error(body.message || 'Data gagal dimuat.')
+          throw new Error(body.message || 'Surat tanda terima gagal dimuat.')
         }
-        const blob = await response.blob()
-        if (controller.signal.aborted) return ''
-        url = URL.createObjectURL(blob)
-        return url
+        return response.text()
       })
       .then(value => { if (!controller.signal.aborted) setContent(value) })
-      .catch(reason => { if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'Gagal memuat data.') })
+      .catch(reason => { if (!controller.signal.aborted) setError(reason instanceof Error ? reason.message : 'Gagal memuat surat tanda terima.') })
       .finally(() => { if (!controller.signal.aborted) setLoading(false) })
-    return () => { controller.abort(); if (url) URL.revokeObjectURL(url) }
+    return () => controller.abort()
   }, [id, token, retry])
   return <dialog ref={dialog} className="asset-receipt-modal asset-receipt-viewer" aria-labelledby="asset-viewer-title" onCancel={event => { event.preventDefault(); onClose() }}>
-    <div className="asset-receipt-modal-header"><h2 id="asset-viewer-title">Foto Asset Tersimpan</h2><button onClick={onClose} aria-label="Tutup pratinjau"><X size={20} /></button></div>
-    {loading ? <p role="status">Memuat foto...</p> : error ? <div role="alert"><p>{error}</p><button onClick={() => setRetry(value => value + 1)}>Coba lagi</button></div>
-      : <img className="asset-receipt-saved-photo" src={content} alt="Foto asset tersimpan" />}
+    <div className="asset-receipt-modal-header"><h2 id="asset-viewer-title">Surat Tanda Terima Asset</h2><button onClick={onClose} aria-label="Tutup pratinjau"><X size={20} /></button></div>
+    {loading ? <p role="status">Memuat surat tanda terima...</p> : error ? <div role="alert"><p>{error}</p><button onClick={() => setRetry(value => value + 1)}>Coba lagi</button></div>
+      : <iframe className="asset-receipt-letter" srcDoc={content} title="Surat tanda terima asset" sandbox="" />}
   </dialog>
 }

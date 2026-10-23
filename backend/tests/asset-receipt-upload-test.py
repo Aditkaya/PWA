@@ -83,7 +83,7 @@ with tempfile.TemporaryDirectory(prefix='asset-upload-', dir=root / 'scratch') a
         image = base64.b64decode('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mP8/x8AAwMCAO+a9V0AAAAASUVORK5CYII=')
         request('/1/foto', token=None, photo=image, expected=401)
         request('/2/foto', photo=image, expected=404)
-        request('/1/surat', expected=409)
+        assert b'SURAT PERNYATAAN' in request('/1/surat')
         request('/1/foto', photo=b'not an image', expected=422)
         request('/1/foto', photo=image + bytes(5 * 1024 * 1024), expected=422)
         # A filesystem failure must not mark the receipt as complete.
@@ -167,7 +167,8 @@ with tempfile.TemporaryDirectory(prefix='asset-upload-', dir=root / 'scratch') a
             db.commit()
         request('/1/foto', expected=404)
         request('/1/foto', token=tokens[1], expected=404)
-        request('/1/surat', token=tokens[1], expected=409)
+        letter = request('/1/surat', token=tokens[1])
+        assert b'SURAT PERNYATAAN' in letter and b'BUDI' in letter and b'ADIT' not in letter
         assert not any(row['has_foto'] for row in json.loads(request('', token=tokens[1]))['data'])
         request('/1/foto', token=tokens[1], photo=image, expected=409)
         with closing(sqlite3.connect(database)) as db:

@@ -255,11 +255,6 @@ class TandaTerimaAssetController
             if (!$identity) return;
             $asset = $this->owned($pdo, $identity, $id);
             if (!$asset) return;
-            if (!$this->photo($pdo, $asset)) {
-                http_response_code(409);
-                echo json_encode(['message' => 'Ambil dan simpan foto asset terlebih dahulu untuk membuka surat tanda terima.']);
-                return;
-            }
             header('Content-Type: text/html; charset=UTF-8');
             header('Cache-Control: no-store');
             header("Content-Security-Policy: default-src 'none'; style-src 'unsafe-inline'; img-src 'self' data:; frame-ancestors 'self'");

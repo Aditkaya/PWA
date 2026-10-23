@@ -1,9 +1,7 @@
 import { useEffect, useState } from 'react'
-import { ArrowLeft, Camera, CheckCircle2, ChevronDown, ChevronUp, ClipboardCheck, FileText, RefreshCw, Search } from 'lucide-react'
+import { ArrowLeft, ChevronDown, ChevronUp, ClipboardCheck, FileText, RefreshCw, Search } from 'lucide-react'
 import { useNavigate, useOutletContext } from 'react-router-dom'
 import { useAuthStore } from '../../store/auth.store'
-import { useToast } from '../../contexts/ToastContext'
-import AssetPhotoCamera from './AssetPhotoCamera'
 import AssetReceiptViewer from './AssetReceiptViewer'
 import AssetReturns from './AssetReturns'
 import './TandaTerimaAsset.css'
@@ -23,7 +21,6 @@ interface AssetReceipt {
   departemen_pemegang: string | null
   tanggal_tanda_terima: string | null
   keterangan: string | null
-  has_foto: number | boolean
 }
 
 function formatDate(value: string | null) {
@@ -36,8 +33,6 @@ export default function TandaTerimaAsset() {
   const navigate = useNavigate()
   const userId = useAuthStore(state => state.user?.id)
   const token = useAuthStore(state => state.token)
-  const { showToast } = useToast()
-  const [cameraAsset, setCameraAsset] = useState<AssetReceipt | null>(null)
   const [viewer, setViewer] = useState<{ id: number } | null>(null)
   const [section, setSection] = useState<'assets' | 'returns'>('assets')
   const { featurePermissions } = useOutletContext<{
@@ -84,20 +79,6 @@ export default function TandaTerimaAsset() {
     return () => controller.abort()
   }, [accessDenied, userId, token, page, query, refresh])
 
-  const savePhoto = async (photo: Blob) => {
-    if (!cameraAsset) return
-    const form = new FormData()
-    form.append('foto', photo, 'asset.jpg')
-    const response = await fetch(`/api/tanda-terima-asset/${cameraAsset.id}/foto`, {
-      method: 'POST', headers: { Authorization: `Bearer ${token || ''}` }, body: form,
-    })
-    const result = await response.json()
-    if (!response.ok) throw new Error(result.message || 'Foto gagal disimpan.')
-    showToast(result.message || 'Foto asset berhasil disimpan.', 'success')
-    setCameraAsset(null)
-    setRefresh(value => value + 1)
-  }
-
   return (
     <section className="asset-receipt-page">
       <div className="asset-receipt-card fade-in">
@@ -118,8 +99,7 @@ export default function TandaTerimaAsset() {
           {section === 'returns' ? <AssetReturns token={token} /> : <>
           <div className="asset-receipt-guide">
             <span><span className="asset-receipt-step">1</span> Pilih asset Anda</span>
-            <span><span className="asset-receipt-step">2</span> Ambil &amp; simpan foto</span>
-            <span><span className="asset-receipt-step">3</span> Lihat surat tanda terima</span>
+            <span><span className="asset-receipt-step">2</span> Lihat surat tanda terima</span>
           </div>
           <form className="asset-receipt-toolbar" onSubmit={event => { event.preventDefault(); setPage(1); setQuery(search.trim()); setRefresh(value => value + 1) }}>
             <label className="asset-receipt-search">
@@ -152,9 +132,7 @@ export default function TandaTerimaAsset() {
                     <td data-label="Lokasi" role="cell">{row.lokasi || '—'}</td><td data-label="Kondisi" role="cell">{row.kondisi || '—'}</td><td data-label="Status" role="cell"><span className="asset-receipt-status">{row.status || '—'}</span></td>
                     <td data-label="Tanggal Terima" role="cell">{formatDate(row.tanggal_tanda_terima)}</td><td data-label="Keterangan" className="asset-receipt-notes" role="cell">{row.keterangan || '—'}</td>
                     <td data-label="Aksi" className="asset-receipt-actions-cell" role="cell"><div className="asset-receipt-row-actions">
-                      <span className={`asset-receipt-photo-status ${row.has_foto ? 'is-complete' : 'is-pending'}`}>{row.has_foto ? <CheckCircle2 size={16} /> : <Camera size={16} />}{row.has_foto ? 'Surat tanda terima tersedia' : 'Ambil foto untuk membuka surat'}</span>
-                      {!row.has_foto && <button className="asset-receipt-primary" onClick={() => setCameraAsset(row)} aria-label={`Ambil foto ${row.nama_asset}`}><Camera size={16} /> Ambil Foto Asset</button>}
-                      {!!row.has_foto && <button onClick={() => setViewer({ id: row.id })}><FileText size={16} /> Lihat Surat Tanda Terima</button>}
+                      <button className="asset-receipt-primary" onClick={() => setViewer({ id: row.id })}><FileText size={16} /> Lihat Surat Tanda Terima</button>
                     </div></td>
                   </tr>)}</tbody>
                 </table>
@@ -167,7 +145,6 @@ export default function TandaTerimaAsset() {
           </>}
         </>}
       </div>
-      {cameraAsset && <AssetPhotoCamera assetName={`${cameraAsset.kode_asset} — ${cameraAsset.nama_asset}`} onClose={() => setCameraAsset(null)} onSave={savePhoto} />}
       {viewer && <AssetReceiptViewer {...viewer} token={token} onClose={() => setViewer(null)} />}
     </section>
   )

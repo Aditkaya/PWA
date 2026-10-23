@@ -92,8 +92,8 @@ try {
     http_response_code(200);
     ob_start();
     (new TandaTerimaAssetController())->letter(1);
-    $body = json_decode(ob_get_clean(), true, 512, JSON_THROW_ON_ERROR);
-    verifyAsset(http_response_code() === 409 && !empty($body['message']));
+    $letter = ob_get_clean();
+    verifyAsset(http_response_code() === 200 && strpos($letter, 'SURAT PERNYATAAN') !== false && strpos($letter, 'AST-1') !== false);
     $pdo->exec("INSERT INTO tanda_terima_asset_fotos VALUES (2, 1, 1752, '1595', 'ADIT', 1, 'new.jpg', NULL)");
     $result = requestAssets(['search' => 'Laptop'], 200);
     verifyAsset((bool) $result['data'][0]['has_foto']);

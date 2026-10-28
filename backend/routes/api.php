@@ -676,10 +676,20 @@ if ($uri === '/api/amprahan/mine' && $method === 'GET') {
     exit();
 }
 
+if ($uri === '/api/amprahan/asset-ships' && $method === 'GET') {
+    require_once __DIR__ . '/../app/Http/Controllers/AmprahanController.php';
+    (new \App\Http\Controllers\AmprahanController())->getAssetShips();
+    exit();
+}
+
 if ($uri === '/api/amprahan/receive' && $method === 'POST') {
     require_once __DIR__ . '/../app/Http/Controllers/AmprahanController.php';
     $controller = new \App\Http\Controllers\AmprahanController();
-    $controller->submitTandaTerima($requestData);
+    $payload = is_array($requestData) ? $requestData : $_POST;
+    if (isset($payload['assets']) && is_string($payload['assets'])) {
+        $payload['assets'] = json_decode($payload['assets'], true);
+    }
+    $controller->submitTandaTerima($payload, $_FILES);
     exit();
 }
 

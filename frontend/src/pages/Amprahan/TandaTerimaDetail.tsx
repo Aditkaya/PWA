@@ -14,10 +14,14 @@ interface AmprahanItem {
   masuk_asset?: boolean;
   asset_id?: number | null;
   nomor_po?: string | null;
+  vendor?: string | null;
+  kuantitas_po?: string;
+  satuan_po?: string | null;
 }
 
 interface AssetForm {
   po_item_id: number;
+  kode_asset: string;
   nama_asset: string;
   kategori: string;
   nama_merk: string;
@@ -26,6 +30,15 @@ interface AssetForm {
   kondisi: string;
   lokasi: string;
   lokasi_asset: string;
+  kapal_id: string;
+  status: string;
+  tanggal_perolehan: string;
+  tanggal_tanda_terima: string;
+  kuantitas: string;
+  satuan: string;
+  tanggal_kadaluarsa: string;
+  vendor: string;
+  nomor_faktur: string;
   keterangan: string;
 }
 
@@ -40,6 +53,12 @@ const shipLocations = ['2 DECK', 'ACOMODATION', 'ANJUNGAN', 'BATH AND AFTER', 'B
   'DECK KIRI', 'EMERGENCY ROOM', 'ENGINE ROOM', 'GALERY KABIN', 'HALUAN', 'KAPAL',
   'LAMBUNG KANAN', 'LAMBUNG KIRI', 'MAIN DECK', 'PETA ROOM', 'RALLING', 'SHIP',
   'THIRD DECK', 'TWEEN DECK KIRI'];
+const assetStatuses = ['Tersedia', 'Digunakan', 'Dalam Pemeliharaan', 'Dipinjam', 'Dijual', 'Dihapuskan'];
+
+function todayDate() {
+  const now = new Date();
+  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+}
 
 interface Permohonan {
   id: number;
@@ -88,6 +107,8 @@ export default function TandaTerimaDetail() {
   const [isSubmitting, setIsSubmitting] = useState<number | null>(null);
   const [activeReceiptId, setActiveReceiptId] = useState<number | null>(null);
   const [assetForms, setAssetForms] = useState<AssetForm[]>([]);
+  const [assetFiles, setAssetFiles] = useState<Record<number, { foto?: File; lampiran?: File }>>({});
+  const [ships, setShips] = useState<Array<{ id: number; nama_kapal: string }>>([]);
 
   useEffect(() => {
     if (user?.id) fetchData();
@@ -96,6 +117,14 @@ export default function TandaTerimaDetail() {
       setIsLoading(false);
     }
   }, [user?.id, token]);
+
+  useEffect(() => {
+    if (!token) return;
+    fetch('/api/amprahan/asset-ships', { headers: { Authorization: `Bearer ${token}` } })
+      .then(response => response.ok ? response.json() : Promise.reject(new Error('Gagal memuat kapal')))
+      .then(data => setShips(Array.isArray(data.data) ? data.data : []))
+      .catch(error => console.error(error));
+  }, [token]);
 
   const fetchData = async () => {
     if (!user?.id || !token) {
@@ -132,10 +161,17 @@ export default function TandaTerimaDetail() {
     }
     setAssetForms(flagged.map(item => ({
       po_item_id: item.po_item_id!,
+      kode_asset: `AST-PO-${item.po_item_id}`,
       nama_asset: item.nama_barang,
       kategori: '', nama_merk: '', nomor_seri: '', spesifikasi: item.keterangan || '',
-      kondisi: '', lokasi: '', lokasi_asset: '', keterangan: '',
+      kondisi: '', lokasi: permohonan.kapal_id ? 'Di kapal' : '', lokasi_asset: '',
+      kapal_id: permohonan.kapal_id ? String(permohonan.kapal_id) : '',
+      status: 'Tersedia', tanggal_perolehan: todayDate(), tanggal_tanda_terima: todayDate(),
+      kuantitas: item.kuantitas_po || item.jumlah, satuan: item.satuan_po || item.satuan,
+      tanggal_kadaluarsa: '', vendor: (item.vendor || '').slice(0, 150), nomor_faktur: item.nomor_po || '',
+      keterangan: '',
     })));
+    setAssetFiles({});
     setActiveReceiptId(permohonan.id);
   };
 
@@ -155,16 +191,20 @@ export default function TandaTerimaDetail() {
     setIsSubmitting(permohonanId);
     
     try {
+      const body = new FormData();
+      body.append('permohonan_id', String(permohonanId));
+      body.append('assets', JSON.stringify(assets));
+      for (const asset of assets) {
+        const files = assetFiles[asset.po_item_id];
+        if (files?.foto) body.append(`foto_${asset.po_item_id}`, files.foto);
+        if (files?.lampiran) body.append(`lampiran_${asset.po_item_id}`, files.lampiran);
+      }
       const response = await fetch('/api/amprahan/receive', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json',
           Authorization: `Bearer ${token || ''}`,
         },
-        body: JSON.stringify({
-          permohonan_id: permohonanId,
-          assets,
-        })
+        body,
       });
 
       const data = await response.json();
@@ -174,6 +214,7 @@ export default function TandaTerimaDetail() {
         setPermohonans(prev => prev.map(p => p.id === permohonanId ? { ...p, status: 'received' } : p));
         setActiveReceiptId(null);
         setAssetForms([]);
+        setAssetFiles({});
       } else {
         alert('Gagal: ' + (data.message || 'Terjadi kesalahan'));
       }
@@ -251,19 +292,36 @@ export default function TandaTerimaDetail() {
                         {assetForms.map((asset, index) => (
                           <fieldset key={asset.po_item_id} className="receipt-asset-fieldset">
                             <legend>Aset {index + 1}: {permohonan.items.find(item => item.po_item_id === asset.po_item_id)?.nama_barang}</legend>
+                            <h6>Informasi Pokok Asset</h6>
+                            <label>Kode aset<input required maxLength={50} value={asset.kode_asset} onChange={e => updateAssetForm(asset.po_item_id, 'kode_asset', e.target.value.toUpperCase())} /></label>
                             <label>Nama aset<input required maxLength={255} value={asset.nama_asset} onChange={e => updateAssetForm(asset.po_item_id, 'nama_asset', e.target.value)} /></label>
-                            <label>Kategori<select required value={asset.kategori} onChange={e => updateAssetForm(asset.po_item_id, 'kategori', e.target.value)}><option value="">Pilih kategori</option>{(asset.lokasi === 'Di kapal' ? shipCategories : assetCategories).map(value => <option key={value}>{value}</option>)}</select></label>
-                            <label>Kondisi<select required value={asset.kondisi} onChange={e => updateAssetForm(asset.po_item_id, 'kondisi', e.target.value)}><option value="">Pilih kondisi</option>{(asset.lokasi === 'Di kapal' ? shipConditions : assetConditions).map(value => <option key={value}>{value}</option>)}</select></label>
-                            <label>Lokasi<select required value={asset.lokasi} onChange={e => updateAssetForm(asset.po_item_id, 'lokasi', e.target.value)}><option value="">Pilih lokasi</option><option>Jakarta</option><option>Batam</option>{permohonan.kapal_id && <option>Di kapal</option>}<option>Di bawa oleh karyawan</option></select></label>
+                            <label>Nama merk<input maxLength={150} value={asset.nama_merk} onChange={e => updateAssetForm(asset.po_item_id, 'nama_merk', e.target.value)} /></label>
+                            <label>Nomor seri / nomor mesin<input maxLength={100} value={asset.nomor_seri} onChange={e => updateAssetForm(asset.po_item_id, 'nomor_seri', e.target.value)} /></label>
+                            <label>Lokasi<select required value={asset.lokasi} onChange={e => updateAssetForm(asset.po_item_id, 'lokasi', e.target.value)}><option value="">Pilih lokasi</option><option>Jakarta</option><option>Batam</option><option>Di kapal</option><option>Di bawa oleh karyawan</option></select></label>
                             <label>Lokasi aset<select value={asset.lokasi_asset} onChange={e => updateAssetForm(asset.po_item_id, 'lokasi_asset', e.target.value)}><option value="">Pilih lokasi aset (opsional)</option>{(asset.lokasi === 'Di kapal' ? shipLocations : ['JKT', 'BTM', 'PNG']).map(value => <option key={value}>{value}</option>)}</select></label>
-                            <label>Merk<input maxLength={150} value={asset.nama_merk} onChange={e => updateAssetForm(asset.po_item_id, 'nama_merk', e.target.value)} /></label>
-                            <label>Nomor seri<input maxLength={100} value={asset.nomor_seri} onChange={e => updateAssetForm(asset.po_item_id, 'nomor_seri', e.target.value)} /></label>
-                            <label className="receipt-asset-wide">Spesifikasi<textarea maxLength={2000} value={asset.spesifikasi} onChange={e => updateAssetForm(asset.po_item_id, 'spesifikasi', e.target.value)} /></label>
+                            {asset.lokasi === 'Di kapal' && <label>Kapal<select required value={asset.kapal_id} onChange={e => updateAssetForm(asset.po_item_id, 'kapal_id', e.target.value)}><option value="">Pilih kapal</option>{permohonan.kapal_id && !ships.some(ship => ship.id === permohonan.kapal_id) && <option value={permohonan.kapal_id}>{permohonan.nama_kapal || `Kapal #${permohonan.kapal_id}`}</option>}{ships.map(ship => <option key={ship.id} value={ship.id}>{ship.nama_kapal}</option>)}</select></label>}
+                            <label>Kategori aset<select required value={asset.kategori} onChange={e => updateAssetForm(asset.po_item_id, 'kategori', e.target.value)}><option value="">Pilih kategori</option>{(asset.lokasi === 'Di kapal' ? shipCategories : assetCategories).map(value => <option key={value}>{value}</option>)}</select></label>
+                            <label>Status operasional<select required value={asset.status} onChange={e => updateAssetForm(asset.po_item_id, 'status', e.target.value)}>{assetStatuses.map(value => <option key={value}>{value}</option>)}</select></label>
+                            <label>Kondisi fisik<select required value={asset.kondisi} onChange={e => updateAssetForm(asset.po_item_id, 'kondisi', e.target.value)}><option value="">Pilih kondisi</option>{(asset.lokasi === 'Di kapal' ? shipConditions : assetConditions).map(value => <option key={value}>{value}</option>)}</select></label>
+                            <label>Tanggal tanda terima<input type="date" value={asset.tanggal_tanda_terima} onChange={e => updateAssetForm(asset.po_item_id, 'tanggal_tanda_terima', e.target.value)} /></label>
+                            <h6>Informasi Pengadaan</h6>
+                            <label>{asset.lokasi === 'Di kapal' ? 'Tanggal beli' : 'Tanggal perolehan'}<input type="date" value={asset.tanggal_perolehan} onChange={e => updateAssetForm(asset.po_item_id, 'tanggal_perolehan', e.target.value)} /></label>
+                            {asset.lokasi === 'Di kapal' && <>
+                              <label className="receipt-asset-wide">Spesifikasi<textarea maxLength={2000} value={asset.spesifikasi} onChange={e => updateAssetForm(asset.po_item_id, 'spesifikasi', e.target.value)} /></label>
+                              <label>Kuantitas<input type="number" min="0" step="0.01" value={asset.kuantitas} onChange={e => updateAssetForm(asset.po_item_id, 'kuantitas', e.target.value)} /></label>
+                              <label>Satuan<input maxLength={50} value={asset.satuan} onChange={e => updateAssetForm(asset.po_item_id, 'satuan', e.target.value)} /></label>
+                              <label>Tanggal kedaluwarsa<input type="date" value={asset.tanggal_kadaluarsa} onChange={e => updateAssetForm(asset.po_item_id, 'tanggal_kadaluarsa', e.target.value)} /></label>
+                            </>}
+                            <label>Vendor / supplier<input maxLength={150} value={asset.vendor} onChange={e => updateAssetForm(asset.po_item_id, 'vendor', e.target.value)} /></label>
+                            <label>No. faktur / invoice / PO<input maxLength={100} value={asset.nomor_faktur} onChange={e => updateAssetForm(asset.po_item_id, 'nomor_faktur', e.target.value)} /></label>
+                            <h6>Dokumen & Keterangan</h6>
+                            <label>Foto aset<input type="file" accept="image/jpeg,image/png,image/webp" onChange={e => setAssetFiles(files => ({ ...files, [asset.po_item_id]: { ...files[asset.po_item_id], foto: e.target.files?.[0] } }))} /><small>JPG, PNG, WEBP · maksimal 5 MB</small></label>
+                            <label>Lampiran dokumen<input type="file" accept=".pdf,.doc,.docx,.jpg,.jpeg,.png,.zip,.rar" onChange={e => setAssetFiles(files => ({ ...files, [asset.po_item_id]: { ...files[asset.po_item_id], lampiran: e.target.files?.[0] } }))} /><small>PDF, Word, gambar, ZIP · maksimal 10 MB</small></label>
                             <label className="receipt-asset-wide">Keterangan<textarea maxLength={5000} value={asset.keterangan} onChange={e => updateAssetForm(asset.po_item_id, 'keterangan', e.target.value)} /></label>
                           </fieldset>
                         ))}
                         <div className="receipt-asset-actions">
-                          <button type="button" onClick={() => { setActiveReceiptId(null); setAssetForms([]); }} disabled={isSubmitting !== null}>Batal</button>
+                          <button type="button" onClick={() => { setActiveReceiptId(null); setAssetForms([]); setAssetFiles({}); }} disabled={isSubmitting !== null}>Batal</button>
                           <button className="btn-terima" type="submit" disabled={isSubmitting !== null}>
                             {isSubmitting === permohonan.id ? <><Loader2 className="spinner" size={18} /> Memproses...</> : <><CheckCircle2 size={18} /> Simpan Aset & Terima Barang</>}
                           </button>

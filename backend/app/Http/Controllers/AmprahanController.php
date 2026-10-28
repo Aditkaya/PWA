@@ -328,6 +328,8 @@ class AmprahanController {
                             $item['asset_id'] = $poItem['asset_id'] ? (int) $poItem['asset_id'] : null;
                             $item['nomor_po'] = $poItem['nomor_po'];
                             $item['vendor'] = $poItem['vendor'];
+                            $item['kuantitas_po'] = $poItem['kuantitas'];
+                            $item['satuan_po'] = $poItem['satuan'];
                             break;
                         }
                         unset($item);
@@ -345,7 +347,24 @@ class AmprahanController {
         }
     }
 
-    public function submitTandaTerima($postData) {
+    public function getAssetShips() {
+        if (!\App\Services\PwaSession::userId()) {
+            http_response_code(401);
+            echo json_encode(['message' => 'Silakan masuk kembali']);
+            return;
+        }
+        try {
+            $pdo = Database::getConnection();
+            $ships = $pdo->query('SELECT id, nama_kapal FROM master_kapals ORDER BY nama_kapal')->fetchAll(PDO::FETCH_ASSOC);
+            echo json_encode(['data' => $ships]);
+        } catch (\PDOException $e) {
+            http_response_code(500);
+            error_log('Database error: ' . $e->getMessage());
+            echo json_encode(['message' => 'Gagal memuat daftar kapal']);
+        }
+    }
+
+    public function submitTandaTerima($postData, array $files = []) {
         $permohonan_id = $postData['permohonan_id'] ?? null;
         $user_id = \App\Services\PwaSession::userId();
 
@@ -360,6 +379,7 @@ class AmprahanController {
             return;
         }
 
+        $movedFiles = [];
         try {
             $pdo = Database::getConnection();
             $pdo->beginTransaction();
@@ -421,6 +441,7 @@ class AmprahanController {
             $shipConditions = ['Belum diketahui', 'Bagus', 'Baru', 'Bekas', 'Bekas/Bagus',
                 'Expired Batrai', 'Kurang', 'Kurang Bagus', 'Perlu Servis', 'Rusak', 'SPC/Rusak'];
             $allowedLocations = ['Jakarta', 'Batam', 'Di kapal', 'Di bawa oleh karyawan'];
+            $allowedStatuses = ['Tersedia', 'Digunakan', 'Dalam Pemeliharaan', 'Dipinjam', 'Dijual', 'Dihapuskan'];
             $shipAssetLocations = ['2 DECK', 'ACOMODATION', 'ANJUNGAN', 'BATH AND AFTER',
                 'BRIDGE', 'CABIN', 'CABIN F/P PALKA', 'CO2 ROOM', 'DAPUR', 'DECK',
                 'DECK BAWAH', 'DECK KANAN', 'DECK KIRI', 'EMERGENCY ROOM', 'ENGINE ROOM',
@@ -437,27 +458,57 @@ class AmprahanController {
                 if (!$form) throw new \InvalidArgumentException('Isi form aset untuk semua barang PO yang dicentang');
                 unset($formsById[$id]);
                 $nama = trim((string) ($form['nama_asset'] ?? ''));
+                $kode = strtoupper(trim((string) ($form['kode_asset'] ?? '')));
                 $kategori = trim((string) ($form['kategori'] ?? ''));
                 $kondisi = trim((string) ($form['kondisi'] ?? ''));
                 $lokasi = trim((string) ($form['lokasi'] ?? ''));
+                $status = trim((string) ($form['status'] ?? ''));
+                $kapalId = filter_var($form['kapal_id'] ?? null, FILTER_VALIDATE_INT);
                 $lokasiAsset = trim((string) ($form['lokasi_asset'] ?? ''));
                 $merk = trim((string) ($form['nama_merk'] ?? ''));
                 $seri = trim((string) ($form['nomor_seri'] ?? ''));
                 $spesifikasi = trim((string) ($form['spesifikasi'] ?? ''));
                 $keterangan = trim((string) ($form['keterangan'] ?? ''));
+                $tanggalPerolehan = trim((string) ($form['tanggal_perolehan'] ?? ''));
+                $tanggalTerima = trim((string) ($form['tanggal_tanda_terima'] ?? ''));
+                $tanggalKadaluarsa = trim((string) ($form['tanggal_kadaluarsa'] ?? ''));
+                $kuantitas = $form['kuantitas'] ?? null;
+                $satuan = trim((string) ($form['satuan'] ?? ''));
+                $vendor = trim((string) ($form['vendor'] ?? ''));
+                $nomorFaktur = trim((string) ($form['nomor_faktur'] ?? ''));
                 $isShip = $lokasi === 'Di kapal';
-                if ($nama === '' || strlen($nama) > 255
+                if ($nama === '' || strlen($nama) > 255 || $kode === '' || strlen($kode) > 50
                     || !in_array($kategori, $isShip ? $shipCategories : $categories, true)
                     || !in_array($kondisi, $isShip ? $shipConditions : $conditions, true)
                     || !in_array($lokasi, $allowedLocations, true)
+                    || !in_array($status, $allowedStatuses, true)
                     || ($lokasiAsset !== '' && !in_array($lokasiAsset,
                         $isShip ? $shipAssetLocations : ['JKT', 'BTM', 'PNG'], true))
                     || strlen($merk) > 150 || strlen($seri) > 100
-                    || strlen($spesifikasi) > 2000 || strlen($keterangan) > 5000) {
+                    || strlen($spesifikasi) > 2000 || strlen($satuan) > 50
+                    || strlen($vendor) > 150 || strlen($nomorFaktur) > 100
+                    || strlen($keterangan) > 5000) {
                     throw new \InvalidArgumentException('Lengkapi data aset dengan nilai yang valid');
                 }
-                if ($lokasi === 'Di kapal' && !$permohonan['kapal_id']) {
-                    throw new \InvalidArgumentException('Permohonan ini tidak memiliki kapal untuk lokasi aset');
+                $validDate = static function (string $value): bool {
+                    if ($value === '') return true;
+                    $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+                    return $date !== false && $date->format('Y-m-d') === $value;
+                };
+                if (!$validDate($tanggalPerolehan) || !$validDate($tanggalTerima)
+                    || !$validDate($tanggalKadaluarsa)
+                    || ($isShip && $kuantitas !== null && $kuantitas !== ''
+                        && (!is_numeric($kuantitas) || (float) $kuantitas < 0))) {
+                    throw new \InvalidArgumentException('Tanggal atau kuantitas aset tidak valid');
+                }
+                $codeStmt = $pdo->prepare('SELECT id FROM assets WHERE kode_asset = ?');
+                $codeStmt->execute([$kode]);
+                if ($codeStmt->fetchColumn()) throw new \InvalidArgumentException('Kode aset sudah digunakan: ' . $kode);
+                if ($isShip) {
+                    if (!$kapalId) throw new \InvalidArgumentException('Pilih kapal untuk lokasi aset');
+                    $shipStmt = $pdo->prepare('SELECT id FROM master_kapals WHERE id = ?');
+                    $shipStmt->execute([$kapalId]);
+                    if (!$shipStmt->fetchColumn()) throw new \InvalidArgumentException('Kapal aset tidak ditemukan');
                 }
                 $karyawan = null;
                 if ($lokasi === 'Di bawa oleh karyawan') {
@@ -468,22 +519,26 @@ class AmprahanController {
                     if (!$karyawan) throw new \InvalidArgumentException('Akun Anda belum terhubung ke data karyawan');
                 }
 
-                $kode = 'AST-PO-' . $id;
+                $photo = $this->storeAssetFile($files['foto_' . $id] ?? null, 'foto', $movedFiles);
+                $attachment = $this->storeAssetFile($files['lampiran_' . $id] ?? null, 'lampiran', $movedFiles);
                 $assetStmt = $pdo->prepare("
                     INSERT INTO assets (source_table, source_id, kode_asset, nama_asset, nama_merk,
                         spesifikasi, kategori, nomor_seri, lokasi, lokasi_asset, kapal_id,
-                        tanggal_perolehan, tanggal_tanda_terima,
+                        tanggal_perolehan, tanggal_tanda_terima, tanggal_kadaluarsa,
                         kuantitas, satuan, kondisi, status, karyawan_id,
-                        vendor, keterangan, created_by, created_at, updated_at)
-                    VALUES ('purchase_order_items', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_DATE,
-                        CURRENT_DATE, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                        vendor, nomor_faktur, foto, lampiran, keterangan, created_by, created_at, updated_at)
+                    VALUES ('purchase_order_items', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
+                        ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 ");
                 $assetStmt->execute([$id, $kode, $nama, $merk ?: null, $spesifikasi ?: null,
                     $kategori, $seri ?: null, $lokasi, $lokasiAsset ?: null,
-                    $lokasi === 'Di kapal' ? $permohonan['kapal_id'] : null,
-                    $poItem['kuantitas'], $poItem['satuan'], $kondisi,
-                    $karyawan ? 'Digunakan' : 'Tersedia', $karyawan['id'] ?? null,
-                    $poItem['vendor'], $keterangan ?: null, $user_id]);
+                    $isShip ? $kapalId : null,
+                    $tanggalPerolehan ?: null, $tanggalTerima ?: null,
+                    $isShip ? ($tanggalKadaluarsa ?: null) : null,
+                    $isShip ? ($kuantitas === '' ? null : $kuantitas) : null,
+                    $isShip ? ($satuan ?: null) : null, $kondisi,
+                    $status, $karyawan['id'] ?? null, $vendor ?: null,
+                    $nomorFaktur ?: null, $photo, $attachment, $keterangan ?: null, $user_id]);
                 $assetId = $pdo->lastInsertId();
 
                 // PDO tidak memicu observer Laravel; salin data tanda terima seperti AssetObserver.
@@ -492,15 +547,15 @@ class AmprahanController {
                         nama_merk, kategori, nomor_seri, kondisi, status, lokasi, nama_pemegang,
                         nik_pemegang, departemen_pemegang, tanggal_tanda_terima, keterangan,
                         created_by, created_at, updated_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, CURRENT_DATE, ?, ?,
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,
                         CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 ");
                 $receiptStmt->execute([$assetId, $karyawan['id'] ?? null, $kode, $nama,
                     $merk ?: null, $kategori, $seri ?: null, $kondisi,
-                    $karyawan ? 'Digunakan' : 'Tersedia', $lokasi,
+                    $status, $lokasi,
                     $karyawan['nama_lengkap'] ?? null, $karyawan['nik'] ?? null,
                     $karyawan['departemen'] ?? $karyawan['divisi'] ?? null,
-                    $keterangan ?: null, $user_id]);
+                    $tanggalTerima ?: null, $keterangan ?: null, $user_id]);
                 $created++;
             }
             if ($formsById) throw new \InvalidArgumentException('Form aset tidak sesuai dengan PO');
@@ -519,18 +574,57 @@ class AmprahanController {
 
         } catch (\InvalidArgumentException $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
+            foreach ($movedFiles as $file) @unlink($file);
             http_response_code(422);
             echo json_encode(['message' => $e->getMessage()]);
         } catch (\PDOException $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
+            foreach ($movedFiles as $file) @unlink($file);
             http_response_code(500);
             error_log('Database error: ' . $e->getMessage());
             echo json_encode(['message' => 'Terjadi kesalahan pada server database']);
         } catch (\Throwable $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
+            foreach ($movedFiles as $file) @unlink($file);
             http_response_code(500);
             error_log('Amprahan receive error: ' . $e->getMessage());
             echo json_encode(['message' => 'Gagal menyimpan tanda terima dan aset']);
         }
+    }
+
+    private function storeAssetFile(?array $file, string $kind, array &$movedFiles): ?string {
+        if (!$file || ($file['error'] ?? UPLOAD_ERR_NO_FILE) === UPLOAD_ERR_NO_FILE) return null;
+        if (($file['error'] ?? null) !== UPLOAD_ERR_OK || !is_uploaded_file($file['tmp_name'] ?? '')) {
+            throw new \InvalidArgumentException('Unggahan file aset gagal');
+        }
+        $isPhoto = $kind === 'foto';
+        $limit = $isPhoto ? 5 * 1024 * 1024 : 10 * 1024 * 1024;
+        if (($file['size'] ?? 0) < 1 || $file['size'] > $limit) {
+            throw new \InvalidArgumentException($isPhoto ? 'Foto maksimal 5 MB' : 'Lampiran maksimal 10 MB');
+        }
+        $extension = strtolower(pathinfo((string) ($file['name'] ?? ''), PATHINFO_EXTENSION));
+        $mime = (new \finfo(FILEINFO_MIME_TYPE))->file($file['tmp_name']);
+        $allowed = $isPhoto
+            ? ['jpg' => ['image/jpeg'], 'jpeg' => ['image/jpeg'], 'png' => ['image/png'], 'webp' => ['image/webp']]
+            : ['pdf' => ['application/pdf'], 'doc' => ['application/msword', 'application/octet-stream'],
+                'docx' => ['application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/zip'],
+                'jpg' => ['image/jpeg'], 'jpeg' => ['image/jpeg'], 'png' => ['image/png'],
+                'zip' => ['application/zip', 'application/x-zip-compressed'],
+                'rar' => ['application/vnd.rar', 'application/x-rar-compressed']];
+        if (!isset($allowed[$extension]) || !in_array($mime, $allowed[$extension], true)) {
+            throw new \InvalidArgumentException('Format file aset tidak didukung');
+        }
+        $relativeDir = $isPhoto ? 'uploads/assets/photos' : 'uploads/assets/documents';
+        $directory = rtrim(AYPSIS_PUBLIC_DIR, '/\\') . DIRECTORY_SEPARATOR . str_replace('/', DIRECTORY_SEPARATOR, $relativeDir);
+        if (!is_dir($directory) && !mkdir($directory, 0755, true) && !is_dir($directory)) {
+            throw new \RuntimeException('Direktori unggahan aset tidak dapat dibuat');
+        }
+        $name = time() . '_asset_' . bin2hex(random_bytes(8)) . '.' . $extension;
+        $destination = $directory . DIRECTORY_SEPARATOR . $name;
+        if (!move_uploaded_file($file['tmp_name'], $destination)) {
+            throw new \RuntimeException('File aset tidak dapat disimpan');
+        }
+        $movedFiles[] = $destination;
+        return $relativeDir . '/' . $name;
     }
 }

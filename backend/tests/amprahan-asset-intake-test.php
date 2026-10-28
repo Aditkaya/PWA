@@ -20,7 +20,7 @@ $schema = [
     'CREATE TABLE permohonan_amprahan_items (id INTEGER PRIMARY KEY, permohonan_id INTEGER, nama_barang TEXT, link_barang TEXT, jumlah REAL, jumlah_disetujui REAL, satuan TEXT, keterangan TEXT)',
     'CREATE TABLE purchase_orders (id INTEGER PRIMARY KEY, permohonan_amprahan_id INTEGER, nomor_po TEXT, vendor TEXT, status TEXT)',
     'CREATE TABLE purchase_order_items (id INTEGER PRIMARY KEY, purchase_order_id INTEGER, urutan INTEGER, deskripsi TEXT, kuantitas REAL, satuan TEXT, jumlah REAL, masuk_asset INTEGER)',
-    'CREATE TABLE assets (id INTEGER PRIMARY KEY, source_table TEXT, source_id INTEGER, kode_asset TEXT UNIQUE, nama_asset TEXT, nama_merk TEXT, spesifikasi TEXT, kategori TEXT, nomor_seri TEXT, lokasi TEXT, lokasi_asset TEXT, kapal_id INTEGER, tanggal_perolehan TEXT, tanggal_tanda_terima TEXT, kuantitas REAL, satuan TEXT, kondisi TEXT, status TEXT, karyawan_id INTEGER, vendor TEXT, keterangan TEXT, created_by INTEGER, created_at TEXT, updated_at TEXT, deleted_at TEXT)',
+    'CREATE TABLE assets (id INTEGER PRIMARY KEY, source_table TEXT, source_id INTEGER, kode_asset TEXT UNIQUE, nama_asset TEXT, nama_merk TEXT, spesifikasi TEXT, kategori TEXT, nomor_seri TEXT, lokasi TEXT, lokasi_asset TEXT, kapal_id INTEGER, tanggal_perolehan TEXT, tanggal_tanda_terima TEXT, tanggal_kadaluarsa TEXT, kuantitas REAL, satuan TEXT, kondisi TEXT, status TEXT, karyawan_id INTEGER, vendor TEXT, nomor_faktur TEXT, foto TEXT, lampiran TEXT, keterangan TEXT, created_by INTEGER, created_at TEXT, updated_at TEXT, deleted_at TEXT)',
     'CREATE UNIQUE INDEX asset_source ON assets(source_table, source_id)',
     'CREATE TABLE tanda_terima_asset (id INTEGER PRIMARY KEY, asset_id INTEGER UNIQUE, karyawan_id INTEGER, kode_asset TEXT, nama_asset TEXT, nama_merk TEXT, kategori TEXT, nomor_seri TEXT, kondisi TEXT, status TEXT, lokasi TEXT, nama_pemegang TEXT, nik_pemegang TEXT, departemen_pemegang TEXT, tanggal_tanda_terima TEXT, keterangan TEXT, created_by INTEGER, created_at TEXT, updated_at TEXT)',
 ];
@@ -49,6 +49,8 @@ function callController(callable $call): array {
 
 [$code, $list] = callController(fn () => $controller->getMyRequests([]));
 check($code === 200 && count($list['data']) === 2, 'Daftar harus dibatasi ke pemilik');
+[$code, $ships] = callController(fn () => $controller->getAssetShips());
+check($code === 200 && $ships['data'][0]['nama_kapal'] === 'KM Contoh', 'Daftar kapal aset harus tersedia');
 $request = current(array_filter($list['data'], static fn ($row) => $row['id'] == 1));
 check($request['items'][0]['masuk_asset'] === true, 'Centang PO harus terhubung ke barang pertama');
 check(!isset($request['items'][1]['masuk_asset']) || $request['items'][1]['masuk_asset'] === false, 'Barang kedua tidak masuk aset');
@@ -57,14 +59,23 @@ check(!isset($request['items'][1]['masuk_asset']) || $request['items'][1]['masuk
 check($code === 422, 'Form aset wajib untuk barang yang dicentang');
 check($pdo->query('SELECT status FROM permohonan_amprahans WHERE id=1')->fetchColumn() === 'approved', 'Penerimaan gagal harus rollback');
 
-$form = ['po_item_id' => 101, 'nama_asset' => 'Kasur', 'kategori' => 'Perlengkapan',
-    'kondisi' => 'Baru', 'lokasi' => 'Di kapal', 'lokasi_asset' => 'CABIN',
-    'nama_merk' => 'Merk A', 'nomor_seri' => 'S-001', 'spesifikasi' => '', 'keterangan' => 'Dari PO'];
+$form = ['po_item_id' => 101, 'kode_asset' => 'AST-PO-101', 'nama_asset' => 'Kasur', 'kategori' => 'Perlengkapan',
+    'kondisi' => 'Baru', 'status' => 'Tersedia', 'lokasi' => 'Di kapal', 'lokasi_asset' => 'CABIN', 'kapal_id' => '1',
+    'nama_merk' => 'Merk A', 'nomor_seri' => 'S-001', 'spesifikasi' => 'Ukuran besar',
+    'tanggal_perolehan' => '2026-10-28', 'tanggal_tanda_terima' => '2026-10-28',
+    'tanggal_kadaluarsa' => '', 'kuantitas' => '1', 'satuan' => 'pcs', 'vendor' => 'Vendor A',
+    'nomor_faktur' => 'PO-001', 'keterangan' => 'Dari PO'];
 [$code, $result] = callController(fn () => $controller->submitTandaTerima(['permohonan_id' => 1, 'assets' => [$form]]));
 check($code === 200 && $result['assets_created'] === 1, 'Aset harus dibuat ketika diterima');
 check($pdo->query('SELECT status FROM permohonan_amprahans WHERE id=1')->fetchColumn() === 'received', 'Permohonan harus diterima');
 check($pdo->query('SELECT COUNT(*) FROM assets WHERE source_id=101')->fetchColumn() == 1, 'Aset PO dibuat sekali');
 check($pdo->query('SELECT COUNT(*) FROM tanda_terima_asset')->fetchColumn() == 1, 'Tanda terima aset ikut dibuat');
+$saved = $pdo->query('SELECT kode_asset, status, lokasi, kapal_id, spesifikasi, kuantitas, satuan, nomor_faktur FROM assets WHERE source_id=101')->fetch();
+check($saved['kode_asset'] === 'AST-PO-101' && $saved['status'] === 'Tersedia'
+    && $saved['lokasi'] === 'Di kapal' && $saved['kapal_id'] == 1
+    && $saved['spesifikasi'] === 'Ukuran besar' && $saved['kuantitas'] == 1
+    && $saved['satuan'] === 'pcs' && $saved['nomor_faktur'] === 'PO-001',
+    'Field kapal dan pengadaan harus tersimpan pada asset AYPSIS');
 [$code, $list] = callController(fn () => $controller->getMyRequests([]));
 check($code === 200 && $list['data'][1]['items'][0]['asset_id'] > 0, 'Daftar harus menandai aset yang sudah tersimpan');
 

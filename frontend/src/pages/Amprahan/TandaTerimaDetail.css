@@ -119,7 +119,8 @@
   line-height: 1.4;
 }
 
-.tanda-terima-page .status-badge.approved {
+.tanda-terima-page .status-badge.approved,
+.tanda-terima-page .status-badge.partially_approved {
   background: rgba(34, 197, 94, 0.15);
   color: #4ade80;
   border: 1px solid rgba(34, 197, 94, 0.3);
@@ -203,6 +204,18 @@
   margin-top: 3px;
 }
 
+.tanda-terima-page .receipt-asset-tag {
+  display: block;
+  width: fit-content;
+  margin-top: 6px;
+  padding: 3px 7px;
+  border-radius: 7px;
+  background: rgba(56, 189, 248, 0.12);
+  color: #38bdf8;
+  font-size: 0.72rem;
+  font-weight: 600;
+}
+
 .tanda-terima-page .item-link {
   display: inline-block;
   margin-top: 5px;
@@ -246,10 +259,97 @@
   cursor: wait;
 }
 
+.tanda-terima-page .receipt-asset-form {
+  width: 100%;
+}
+
+.tanda-terima-page .receipt-asset-form > h5 {
+  color: var(--text-primary);
+  font-size: 1rem;
+  margin-bottom: 5px;
+}
+
+.tanda-terima-page .receipt-asset-form > p {
+  color: var(--text-secondary);
+  font-size: 0.78rem;
+  line-height: 1.5;
+  margin-bottom: 16px;
+}
+
+.tanda-terima-page .receipt-asset-fieldset {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+  min-width: 0;
+  margin: 0 0 16px;
+  padding: 14px;
+  border: 1px solid var(--glass-border);
+  border-radius: 12px;
+}
+
+.tanda-terima-page .receipt-asset-fieldset legend {
+  padding: 0 5px;
+  color: var(--text-primary);
+  font-size: 0.83rem;
+  font-weight: 700;
+}
+
+.tanda-terima-page .receipt-asset-fieldset label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  color: var(--text-secondary);
+  font-size: 0.76rem;
+  font-weight: 600;
+}
+
+.tanda-terima-page .receipt-asset-fieldset .receipt-asset-wide {
+  grid-column: 1 / -1;
+}
+
+.tanda-terima-page .receipt-asset-fieldset input,
+.tanda-terima-page .receipt-asset-fieldset select,
+.tanda-terima-page .receipt-asset-fieldset textarea {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 9px 10px;
+  border: 1px solid var(--glass-border);
+  border-radius: 9px;
+  background: var(--bg-color);
+  color: var(--text-primary);
+  font: inherit;
+  font-size: 16px;
+}
+
+.tanda-terima-page .receipt-asset-fieldset textarea {
+  min-height: 62px;
+  resize: vertical;
+}
+
+.tanda-terima-page .receipt-asset-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 9px;
+}
+
+.tanda-terima-page .receipt-asset-actions > button:first-child {
+  min-height: 42px;
+  border: 1px solid var(--glass-border);
+  border-radius: 10px;
+  background: transparent;
+  color: var(--text-secondary);
+  font-weight: 600;
+  cursor: pointer;
+}
+
 @media (max-width: 360px) {
   .tanda-terima-page .card-header { padding: 15px; }
   .tanda-terima-page .receipt-items { padding: 14px 15px; }
   .tanda-terima-page .card-footer { padding: 12px 15px 15px; }
   .tanda-terima-page .receipt-item { grid-template-columns: 22px minmax(0, 1fr); }
   .tanda-terima-page .receipt-item-amount { grid-column: 2; max-width: none; text-align: left; }
+  .tanda-terima-page .receipt-asset-fieldset { grid-template-columns: 1fr; }
+  .tanda-terima-page .receipt-asset-fieldset .receipt-asset-wide { grid-column: auto; }
 }

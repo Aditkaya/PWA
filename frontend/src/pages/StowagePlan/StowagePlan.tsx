@@ -3,6 +3,7 @@ import { useSearchParams } from 'react-router-dom'
 import { ArrowLeft, Ship } from 'lucide-react'
 import './StowagePlan.css'
 import FitLayout from './FitLayout'
+import LayoutEditor from './LayoutEditor'
 
 const Ship3D = lazy(() => import('./Ship3D').catch(() => ({
   default: () => <p role="alert">View 3D gagal dimuat. Muat ulang aplikasi atau gunakan Kapal 2D.</p>,
@@ -45,7 +46,7 @@ export default function StowagePlan() {
   const [selected, setSelected] = useState('')
   const [mode, setMode] = useState<'deck' | 'bay' | '3d'>('deck')
   const [saving, setSaving] = useState(false)
-  const [panel, setPanel] = useState<'input' | 'layout'>('input')
+  const [panel, setPanel] = useState<'input' | 'layout' | 'settings'>('input')
   const [search, setSearch] = useState('')
   const [filter, setFilter] = useState<'pending' | 'all'>('pending')
   const [viewBay, setViewBay] = useState('')
@@ -137,6 +138,25 @@ export default function StowagePlan() {
     } finally { setSaving(false) }
   }
 
+  async function saveLayout(nextLayout: Layout) {
+    if (saving) return
+    setSaving(true)
+    setError('')
+    setNotice('')
+    try {
+      const result = await request<{ message: string; layout: Layout }>('/layout', undefined, { nama_kapal: activeShip, ...nextLayout })
+      setPlan(previous => previous ? { ...previous, layout: result.layout } : previous)
+      setViewBay(previous => result.layout.bays.includes(previous) ? previous : result.layout.bays[0])
+      setViewTier(previous => result.layout.tiers.includes(previous) ? previous : result.layout.tiers[0])
+      setBay(previous => result.layout.bays.includes(previous) ? previous : result.layout.bays[0])
+      setRow(previous => result.layout.rows.includes(previous) ? previous : result.layout.rows[0])
+      setTier(previous => result.layout.tiers.includes(previous) ? previous : result.layout.tiers[0])
+      setNotice(result.message)
+    } catch (e) {
+      setError(e instanceof Error ? e.message : 'Gagal menyimpan layout kapal.')
+    } finally { setSaving(false) }
+  }
+
   function cell(cellBay: string, cellRow: string, cellTier: string) {
     const slot = cellBay + cellRow + cellTier
     const previous = layout!.bays[layout!.bays.indexOf(cellBay) - 1]
@@ -176,19 +196,21 @@ export default function StowagePlan() {
       <select id="sp-voyage" required value={voyage} disabled={!ship || loadingVoyages} onChange={e => setVoyage(e.target.value)}>
         <option value="">{loadingVoyages ? 'Memuat voyage...' : '-- Pilih voyage --'}</option>{voyages.map(v => <option key={v}>{v}</option>)}
       </select>
-      <p>{!ship ? 'Pilih kapal terlebih dahulu.' : !loadingVoyages && !voyages.length && !voyageError ? 'Belum ada voyage untuk kapal ini.' : 'Layout mengikuti pengaturan Master Kapal di AYPSIS.'}</p>
+      <p>{!ship ? 'Pilih kapal terlebih dahulu.' : !loadingVoyages && !voyages.length && !voyageError ? 'Belum ada voyage untuk kapal ini.' : 'Layout kapal dapat diatur setelah membuka stowage plan.'}</p>
       <button className="sp-primary" disabled={!ship || !voyage || loadingShips || loadingVoyages || !!error || !!voyageError}>Lanjutkan</button>
     </form> : <>
       <button className="sp-back" disabled={saving} onClick={() => { setShip(activeShip); setVoyage(activeVoyage); setNotice(''); setParams({}) }}><ArrowLeft size={16} /> Ganti kapal / voyage</button>
       {loading && <p role="status">Memuat stowage plan...</p>}
       {plan && <>
         <p>{containers.length} kontainer · {containers.filter(c => c.plan_id).length} ditempatkan · {containers.filter(c => !c.plan_id).length} belum ditempatkan</p>
-        {!ready && <div className="sp-card">Layout kapal belum lengkap. Isi Bay, Row, dan Tier melalui Master Kapal → Edit di AYPSIS.</div>}
+        {!ready && <div className="sp-card">Layout kapal belum lengkap. Buka tab Atur layout untuk menambahkan Bay, Row, dan Tier.</div>}
         <div className="sp-panel-switch" aria-label="Bagian stowage plan">
-          <button type="button" aria-pressed={panel === 'input'} onClick={() => setPanel('input')}>Input kontainer</button>
-          <button type="button" aria-pressed={panel === 'layout'} onClick={() => { setViewBay(bay); setViewTier(tier); setPanel('layout') }}>Layout kapal</button>
+          <button type="button" disabled={saving} aria-pressed={panel === 'input'} onClick={() => setPanel('input')}>Input kontainer</button>
+          <button type="button" disabled={saving || !ready} aria-pressed={panel === 'layout'} onClick={() => { setViewBay(bay); setViewTier(tier); setPanel('layout') }}>Layout kapal</button>
+          <button type="button" disabled={saving} aria-pressed={panel === 'settings'} onClick={() => setPanel('settings')}>Atur layout</button>
         </div>
-        {ready && <div className={`sp-card sp-layout-panel ${panel !== 'layout' ? 'sp-mobile-hidden' : ''}`}>
+        {panel === 'settings' && <LayoutEditor layout={layout!} manifests={plan.manifests} saving={saving} onSave={saveLayout} />}
+        {ready && <div className={`sp-card sp-layout-panel ${panel !== 'layout' ? 'sp-panel-hidden' : ''}`}>
           <h3>Pilih posisi di kapal</h3>
           {current && <p>Kontainer dipilih: <strong>{current.nomor_kontainer || `Manifest ${current.id}`}</strong>. Ketuk slot kosong untuk menentukan tujuan.</p>}
           <div className="sp-toolbar">
@@ -224,7 +246,7 @@ export default function StowagePlan() {
           </div>}
           {mode !== '3d' && <p>Seluruh layout pas di layar. Ketuk slot untuk memilih posisi. Untuk slot yang kecil, gunakan pilihan Bay, Row, dan Tier di tab Input kontainer.</p>}
         </div>}
-        <form ref={editorRef} className={`sp-card sp-form sp-editor ${panel !== 'input' && ready ? 'sp-mobile-hidden' : ''}`} onSubmit={e => { e.preventDefault(); void save() }}>
+        <form ref={editorRef} className={`sp-card sp-form sp-editor ${panel !== 'input' ? 'sp-panel-hidden' : ''}`} onSubmit={e => { e.preventDefault(); void save() }}>
           {notice && <p className="sp-notice" role="status">{notice} Pilih kontainer berikutnya.</p>}
           {error && <div className="sp-error" role="alert">{error}</div>}
           <h3>1. Pilih kontainer</h3>

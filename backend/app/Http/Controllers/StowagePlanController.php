@@ -43,6 +43,66 @@ class StowagePlanController
         ];
     }
 
+    private function layoutCoordinates($value, $label)
+    {
+        if (!is_array($value) || !$value) throw new InvalidArgumentException("$label wajib diisi.");
+        $result = [];
+        foreach ($value as $coordinate) {
+            if (!is_string($coordinate) || !preg_match('/^\d{1,2}$/', $coordinate)) {
+                throw new InvalidArgumentException("$label harus berupa angka 0 sampai 99.");
+            }
+            $result[] = str_pad($coordinate, 2, '0', STR_PAD_LEFT);
+        }
+        $result = array_values(array_unique($result));
+        sort($result, SORT_NUMERIC);
+        return $result;
+    }
+
+    private function saveLayout($pdo, $shipName, $input)
+    {
+        $pdo->beginTransaction();
+        $ships = $this->query($pdo, 'SELECT * FROM master_kapals WHERE nama_kapal = ? FOR UPDATE', [$shipName]);
+        if (!$ships) throw new InvalidArgumentException('Kapal belum terdaftar di Master Kapal AYPSIS.');
+        $previousLayout = $this->layout($ships[0]);
+        $layout = [
+            'bays' => $this->layoutCoordinates($input['bays'] ?? null, 'Bay'),
+            'rows' => $this->layoutCoordinates($input['rows'] ?? null, 'Row'),
+            'tiers' => $this->layoutCoordinates($input['tiers'] ?? null, 'Tier'),
+        ];
+        $disabled = $input['disabled_slots'] ?? [];
+        if (!is_array($disabled)) throw new InvalidArgumentException('Slot nonaktif tidak valid.');
+        $validSlots = [];
+        foreach ($layout['bays'] as $bay) foreach ($layout['rows'] as $row) foreach ($layout['tiers'] as $tier) {
+            $validSlots[$bay . $row . $tier] = true;
+        }
+        foreach ($disabled as $slot) {
+            if (!is_string($slot) || !isset($validSlots[$slot])) throw new InvalidArgumentException('Slot nonaktif tidak tersedia pada layout.');
+        }
+        $layout['disabled_slots'] = array_values(array_unique($disabled));
+
+        $placed = $this->query($pdo, 'SELECT s.bay, s.`row`, s.tier, m.size_kontainer FROM stowage_plans s JOIN manifests m ON m.id = s.manifest_id WHERE m.nama_kapal = ?', [$shipName]);
+        foreach ($placed as $item) {
+            $placedBay = str_pad($item['bay'], 2, '0', STR_PAD_LEFT);
+            if (strpos((string) $item['size_kontainer'], '40') !== false) {
+                $oldIndex = array_search($placedBay, $previousLayout['bays'], true);
+                $newIndex = array_search($placedBay, $layout['bays'], true);
+                if ($oldIndex === false || $newIndex === false ||
+                    ($previousLayout['bays'][$oldIndex + 1] ?? null) !== ($layout['bays'][$newIndex + 1] ?? null)) {
+                    throw new InvalidArgumentException('Urutan bay kontainer 40 ft yang sudah ditempatkan tidak boleh berubah.');
+                }
+            }
+            try {
+                self::footprint($layout, $placedBay, str_pad($item['row'], 2, '0', STR_PAD_LEFT), str_pad($item['tier'], 2, '0', STR_PAD_LEFT), $item['size_kontainer']);
+            } catch (InvalidArgumentException $e) {
+                throw new InvalidArgumentException('Layout baru menghilangkan atau menonaktifkan posisi kontainer yang sudah ditempatkan.');
+            }
+        }
+        $stmt = $pdo->prepare('UPDATE master_kapals SET stowage_bays = ?, stowage_rows = ?, stowage_tiers = ?, disabled_slots = ?, updated_at = NOW() WHERE id = ?');
+        $stmt->execute([implode(',', $layout['bays']), implode(',', $layout['rows']), implode(',', $layout['tiers']), json_encode($layout['disabled_slots']), $ships[0]['id']]);
+        $pdo->commit();
+        return ['message' => 'Layout kapal berhasil disimpan.', 'layout' => $layout];
+    }
+
     public static function footprint($layout, $bay, $row, $tier, $size)
     {
         if (!in_array($bay, $layout['bays'], true) || !in_array($row, $layout['rows'], true) || !in_array($tier, $layout['tiers'], true)) {
@@ -72,7 +132,9 @@ class StowagePlanController
                 $data = array_column($this->query($pdo, "SELECT DISTINCT nama_kapal FROM manifests WHERE nama_kapal IS NOT NULL AND nama_kapal <> '' ORDER BY nama_kapal"), 'nama_kapal');
             } else {
                 $shipName = $this->required($input, 'nama_kapal');
-                if ($action === 'voyages') {
+                if ($action === 'layout') {
+                    $data = $this->saveLayout($pdo, $shipName, $input);
+                } elseif ($action === 'voyages') {
                     $data = array_column($this->query($pdo, "SELECT DISTINCT no_voyage FROM manifests WHERE nama_kapal = ? AND no_voyage IS NOT NULL AND no_voyage <> '' ORDER BY no_voyage DESC", [$shipName]), 'no_voyage');
                 } else {
                     $voyage = $this->required($input, 'no_voyage');

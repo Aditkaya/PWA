@@ -345,6 +345,7 @@ $stowageRoutes = [
     'GET /api/stowage-plan' => 'show',
     'POST /api/stowage-plan' => 'save',
     'POST /api/stowage-plan/cancel' => 'cancel',
+    'POST /api/stowage-plan/layout' => 'layout',
 ];
 if (isset($stowageRoutes[$method . ' ' . $uri])) {
     require_once __DIR__ . '/../app/Http/Controllers/StowagePlanController.php';

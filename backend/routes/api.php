@@ -669,6 +669,13 @@ if ($uri === '/api/amprahan/approved' && $method === 'GET') {
     exit();
 }
 
+if ($uri === '/api/amprahan/mine' && $method === 'GET') {
+    require_once __DIR__ . '/../app/Http/Controllers/AmprahanController.php';
+    $controller = new \App\Http\Controllers\AmprahanController();
+    $controller->getMyRequests($_GET);
+    exit();
+}
+
 if ($uri === '/api/amprahan/receive' && $method === 'POST') {
     require_once __DIR__ . '/../app/Http/Controllers/AmprahanController.php';
     $controller = new \App\Http\Controllers\AmprahanController();

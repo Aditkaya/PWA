@@ -1,6 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
-import { Ship, Navigation2, CheckCircle2, ArrowLeft, Loader2 } from 'lucide-react';
+import { CheckCircle2, Loader2 } from 'lucide-react';
 import { useAuthStore } from '../../store/auth.store';
 import './TandaTerimaDetail.css';
 
@@ -16,47 +15,46 @@ interface AmprahanItem {
 interface Permohonan {
   id: number;
   user_id: number;
-  user_nama: string;
+  jenis_amprahan: string | null;
   status: string;
   keterangan_umum: string;
   created_at: string;
+  nama_kapal: string | null;
+  nomor_voyage: string | null;
+  tujuan_permintaan: string | null;
   items: AmprahanItem[];
 }
 
 export default function TandaTerimaDetail() {
-  const location = useLocation();
-  const navigate = useNavigate();
   const { user } = useAuthStore();
-  
-  const state = location.state as {
-    kapalId: string;
-    kapalName: string;
-    nomorVoyage: string;
-  };
-
-  if (!state) {
-    navigate('/amprahan/tanda-terima');
-    return null;
-  }
 
   const [permohonans, setPermohonans] = useState<Permohonan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState('');
   const [isSubmitting, setIsSubmitting] = useState<number | null>(null);
 
   useEffect(() => {
-    fetchData();
-  }, []);
+    if (user?.id) fetchData();
+    else {
+      setError('Data pengguna tidak tersedia. Silakan masuk kembali.');
+      setIsLoading(false);
+    }
+  }, [user?.id]);
 
   const fetchData = async () => {
     setIsLoading(true);
+    setError('');
     try {
-      const response = await fetch(`/api/amprahan/approved?kapal_id=${state.kapalId}&nomor_voyage=${state.nomorVoyage}`);
+      const response = await fetch(`/api/amprahan/mine?user_id=${encodeURIComponent(user!.id)}`);
       const data = await response.json();
       if (response.ok) {
         setPermohonans(data.data || []);
+      } else {
+        setError(data.message || 'Gagal memuat permohonan.');
       }
     } catch (error) {
       console.error(error);
+      setError('Gagal memuat permohonan.');
     } finally {
       setIsLoading(false);
     }
@@ -85,8 +83,7 @@ export default function TandaTerimaDetail() {
       
       if (response.ok) {
         alert('Berhasil: ' + data.message);
-        // Hapus permohonan yang sudah di-receive dari daftar
-        setPermohonans(prev => prev.filter(p => p.id !== permohonanId));
+        setPermohonans(prev => prev.map(p => p.id === permohonanId ? { ...p, status: 'received' } : p));
       } else {
         alert('Gagal: ' + (data.message || 'Terjadi kesalahan'));
       }
@@ -101,23 +98,9 @@ export default function TandaTerimaDetail() {
   return (
     <div className="tanda-terima-page">
       <div className="tanda-terima-container fade-in">
-        <button className="btn-back" onClick={() => navigate('/amprahan/tanda-terima')}>
-          <ArrowLeft size={20} />
-          <span>Kembali</span>
-        </button>
-
         <div className="header-section">
-          <h2>Daftar Approved Amprahan</h2>
-          <div className="info-chips">
-            <div className="chip">
-              <Ship size={16} />
-              <span>{state.kapalName}</span>
-            </div>
-            <div className="chip">
-              <Navigation2 size={16} />
-              <span>Voyage: {state.nomorVoyage}</span>
-            </div>
-          </div>
+          <h2>Tanda Terima Amprahan</h2>
+          <p>Permohonan amprahan yang telah Anda buat.</p>
         </div>
 
         {isLoading ? (
@@ -125,11 +108,13 @@ export default function TandaTerimaDetail() {
             <Loader2 className="spinner" size={32} />
             <p>Memuat data...</p>
           </div>
+        ) : error ? (
+          <div className="empty-state"><p>{error}</p><button type="button" onClick={fetchData}>Coba lagi</button></div>
         ) : permohonans.length === 0 ? (
           <div className="empty-state">
             <CheckCircle2 size={48} className="empty-icon" />
             <h3>Tidak ada data</h3>
-            <p>Tidak ada permohonan amprahan berstatus "Approved" untuk Kapal dan Voyage ini.</p>
+            <p>Belum ada permohonan amprahan yang Anda buat.</p>
           </div>
         ) : (
           <div className="permohonan-list">
@@ -138,10 +123,11 @@ export default function TandaTerimaDetail() {
                 <div className="card-header">
                   <div>
                     <h4>ID Permohonan: #{permohonan.id}</h4>
-                    <p className="meta-text">Diajukan oleh: {permohonan.user_nama}</p>
+                    <p className="meta-text">{({ kapal: 'Kapal', kendaraan: 'Kendaraan', alat_berat: 'Alat Berat', lainnya: 'Lainnya' } as Record<string, string>)[permohonan.jenis_amprahan || ''] || 'Amprahan'}{permohonan.nama_kapal ? ` · ${permohonan.nama_kapal}` : ''}{permohonan.nomor_voyage ? ` · Voyage ${permohonan.nomor_voyage}` : ''}</p>
+                    {permohonan.tujuan_permintaan && <p className="meta-text">Tujuan: {permohonan.tujuan_permintaan}</p>}
                     <p className="meta-text">Tanggal: {new Date(permohonan.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
                   </div>
-                  <div className="status-badge approved">Approved</div>
+                  <div className={`status-badge ${permohonan.status.toLowerCase()}`}>{permohonan.status}</div>
                 </div>
 
                 {permohonan.keterangan_umum && (
@@ -183,11 +169,11 @@ export default function TandaTerimaDetail() {
                   </table>
                 </div>
 
-                <div className="card-footer">
+                {permohonan.status.toLowerCase() === 'approved' && <div className="card-footer">
                   <button 
                     className="btn-terima"
                     onClick={() => handleTerima(permohonan.id)}
-                    disabled={isSubmitting === permohonan.id}
+                    disabled={isSubmitting !== null}
                   >
                     {isSubmitting === permohonan.id ? (
                       <>
@@ -201,7 +187,7 @@ export default function TandaTerimaDetail() {
                       </>
                     )}
                   </button>
-                </div>
+                </div>}
               </div>
             ))}
           </div>

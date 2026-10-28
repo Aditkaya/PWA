@@ -8,7 +8,6 @@ import HrdApproval from './pages/HrdApproval/HrdApproval'
 import Amprahan from './pages/Amprahan/Amprahan'
 import AmprahanRequest from './pages/Amprahan/AmprahanRequest'
 import TandaTerima from './pages/Amprahan/TandaTerima'
-import TandaTerimaDetail from './pages/Amprahan/TandaTerimaDetail'
 import TandaTerimaAsset from './pages/TandaTerimaAsset/TandaTerimaAsset'
 import StowagePlan from './pages/StowagePlan/StowagePlan'
 import DenahGudang from './pages/DenahGudang/DenahGudang'
@@ -43,7 +42,7 @@ function App() {
             <Route path="amprahan" element={<Amprahan />} />
             <Route path="amprahan/request" element={<AmprahanRequest />} />
             <Route path="amprahan/tanda-terima" element={<TandaTerima />} />
-            <Route path="amprahan/tanda-terima/detail" element={<TandaTerimaDetail />} />
+            <Route path="amprahan/tanda-terima/detail" element={<Navigate to="/amprahan/tanda-terima" replace />} />
             <Route path="tanda-terima-asset" element={<TandaTerimaAsset />} />
             <Route path="berita" element={<Berita />} />
             <Route path="berita/:id" element={<BeritaDetail />} />

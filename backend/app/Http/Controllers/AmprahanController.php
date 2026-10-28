@@ -258,6 +258,57 @@ class AmprahanController {
         }
     }
 
+    public function getMyRequests($requestData) {
+        $user_id = $requestData['user_id'] ?? null;
+        if (!$user_id || !filter_var($user_id, FILTER_VALIDATE_INT)) {
+            http_response_code(400);
+            echo json_encode(['message' => 'User ID diperlukan']);
+            return;
+        }
+
+        try {
+            $pdo = Database::getConnection();
+            $stmt = $pdo->prepare("
+                SELECT p.id, p.user_id, p.jenis_amprahan, p.status, p.keterangan_umum,
+                       p.created_at, p.nomor_voyage, p.tujuan_permintaan,
+                       k.nama_kapal
+                FROM permohonan_amprahans p
+                LEFT JOIN master_kapals k ON p.kapal_id = k.id
+                WHERE p.user_id = ?
+                ORDER BY p.created_at DESC, p.id DESC
+            ");
+            $stmt->execute([$user_id]);
+            $permohonans = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $ids = array_column($permohonans, 'id');
+            if ($ids) {
+                $placeholders = implode(',', array_fill(0, count($ids), '?'));
+                $itemsStmt = $pdo->prepare("
+                    SELECT id, permohonan_id, nama_barang, link_barang, jumlah, satuan, keterangan
+                    FROM permohonan_amprahan_items
+                    WHERE permohonan_id IN ($placeholders)
+                    ORDER BY id ASC
+                ");
+                $itemsStmt->execute($ids);
+                $itemsByRequest = [];
+                foreach ($itemsStmt->fetchAll(PDO::FETCH_ASSOC) as $item) {
+                    $itemsByRequest[$item['permohonan_id']][] = $item;
+                }
+                foreach ($permohonans as &$permohonan) {
+                    $permohonan['items'] = $itemsByRequest[$permohonan['id']] ?? [];
+                }
+                unset($permohonan);
+            }
+
+            http_response_code(200);
+            echo json_encode(['data' => $permohonans]);
+        } catch (\PDOException $e) {
+            http_response_code(500);
+            error_log('Database error: ' . $e->getMessage());
+            echo json_encode(['message' => 'Gagal memuat permohonan amprahan']);
+        }
+    }
+
     public function submitTandaTerima($postData) {
         $permohonan_id = $postData['permohonan_id'] ?? null;
         $user_id = $postData['user_id'] ?? null;
@@ -272,13 +323,19 @@ class AmprahanController {
             $pdo = Database::getConnection();
             
             // Check if it exists and is approved
-            $stmt = $pdo->prepare("SELECT id, status FROM permohonan_amprahans WHERE id = ?");
+            $stmt = $pdo->prepare("SELECT id, user_id, status FROM permohonan_amprahans WHERE id = ?");
             $stmt->execute([$permohonan_id]);
             $permohonan = $stmt->fetch(PDO::FETCH_ASSOC);
 
             if (!$permohonan) {
                 http_response_code(404);
                 echo json_encode(['message' => 'Permohonan tidak ditemukan']);
+                return;
+            }
+
+            if ((int) $permohonan['user_id'] !== (int) $user_id) {
+                http_response_code(403);
+                echo json_encode(['message' => 'Permohonan ini bukan milik Anda']);
                 return;
             }
 

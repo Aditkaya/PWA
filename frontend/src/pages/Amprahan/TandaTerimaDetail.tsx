@@ -18,11 +18,34 @@ interface Permohonan {
   jenis_amprahan: string | null;
   status: string;
   keterangan_umum: string;
-  created_at: string;
+  created_at: string | null;
   nama_kapal: string | null;
   nomor_voyage: string | null;
   tujuan_permintaan: string | null;
   items: AmprahanItem[];
+}
+
+const jenisLabels: Record<string, string> = {
+  kapal: 'Kapal',
+  kendaraan: 'Kendaraan',
+  alat_berat: 'Alat Berat',
+  lainnya: 'Lainnya',
+};
+
+const statusLabels: Record<string, string> = {
+  pending: 'Menunggu',
+  approved: 'Disetujui',
+  received: 'Diterima',
+  rejected: 'Ditolak',
+};
+
+function formatTanggal(value: string | null) {
+  if (!value || value.startsWith('0000-00-00')) return 'Tanggal belum tersedia';
+  const date = new Date(value.replace(' ', 'T'));
+  if (Number.isNaN(date.getTime()) || date.getFullYear() < 2000) return 'Tanggal belum tersedia';
+  return date.toLocaleString('id-ID', {
+    day: 'numeric', month: 'long', year: 'numeric', hour: '2-digit', minute: '2-digit',
+  });
 }
 
 export default function TandaTerimaDetail() {
@@ -122,12 +145,12 @@ export default function TandaTerimaDetail() {
               <div key={permohonan.id} className="permohonan-card">
                 <div className="card-header">
                   <div>
-                    <h4>ID Permohonan: #{permohonan.id}</h4>
-                    <p className="meta-text">{({ kapal: 'Kapal', kendaraan: 'Kendaraan', alat_berat: 'Alat Berat', lainnya: 'Lainnya' } as Record<string, string>)[permohonan.jenis_amprahan || ''] || 'Amprahan'}{permohonan.nama_kapal ? ` · ${permohonan.nama_kapal}` : ''}{permohonan.nomor_voyage ? ` · Voyage ${permohonan.nomor_voyage}` : ''}</p>
+                    <h4>Permohonan #{permohonan.id}</h4>
+                    <p className="meta-text">{jenisLabels[permohonan.jenis_amprahan || ''] || 'Amprahan'}{permohonan.nama_kapal ? ` · ${permohonan.nama_kapal}` : ''}{permohonan.nomor_voyage ? ` · Voyage ${permohonan.nomor_voyage}` : ''}</p>
                     {permohonan.tujuan_permintaan && <p className="meta-text">Tujuan: {permohonan.tujuan_permintaan}</p>}
-                    <p className="meta-text">Tanggal: {new Date(permohonan.created_at).toLocaleDateString('id-ID', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</p>
+                    <p className="meta-text">{formatTanggal(permohonan.created_at)}</p>
                   </div>
-                  <div className={`status-badge ${permohonan.status.toLowerCase()}`}>{permohonan.status}</div>
+                  <div className={`status-badge ${permohonan.status.toLowerCase()}`}>{statusLabels[permohonan.status.toLowerCase()] || permohonan.status}</div>
                 </div>
 
                 {permohonan.keterangan_umum && (
@@ -136,37 +159,19 @@ export default function TandaTerimaDetail() {
                   </div>
                 )}
 
-                <div className="items-table-container">
-                  <table className="items-table">
-                    <thead>
-                      <tr>
-                        <th>No</th>
-                        <th>Nama Barang</th>
-                        <th>Link Barang</th>
-                        <th>Jumlah</th>
-                        <th>Satuan</th>
-                        <th>Keterangan</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {permohonan.items.map((item, index) => (
-                        <tr key={item.id}>
-                          <td>{index + 1}</td>
-                          <td>{item.nama_barang}</td>
-                          <td>
-                            {item.link_barang ? (
-                              <a href={item.link_barang} target="_blank" rel="noreferrer" className="item-link">
-                                Buka link
-                              </a>
-                            ) : '-'}
-                          </td>
-                          <td>{parseFloat(item.jumlah)}</td>
-                          <td>{item.satuan}</td>
-                          <td>{item.keterangan || '-'}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                <div className="receipt-items">
+                  <h5>Daftar barang</h5>
+                  {permohonan.items.map((item, index) => (
+                    <div key={item.id} className="receipt-item">
+                      <span className="receipt-item-number">{index + 1}</span>
+                      <div className="receipt-item-info">
+                        <strong>{item.nama_barang}</strong>
+                        {item.keterangan && <p>{item.keterangan}</p>}
+                        {item.link_barang && <a href={item.link_barang} target="_blank" rel="noreferrer" className="item-link">Lihat referensi barang</a>}
+                      </div>
+                      <span className="receipt-item-amount">{parseFloat(item.jumlah)} {item.satuan}</span>
+                    </div>
+                  ))}
                 </div>
 
                 {permohonan.status.toLowerCase() === 'approved' && <div className="card-footer">

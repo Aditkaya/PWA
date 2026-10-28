@@ -110,7 +110,7 @@ body {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 20px 24px;
+  padding: calc(20px + env(safe-area-inset-top, 0px)) 24px 20px;
   background: transparent;
   position: sticky;
   top: 0;

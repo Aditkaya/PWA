@@ -118,21 +118,6 @@ export default function CutiModal({ isOpen, onClose, userProfile }: CutiModalPro
               <div className="applicant-division">{userProfile?.divisi || 'Divisi tidak tersedia'}</div>
             </div>
             
-            <div className="leave-balance-info" style={{ display: 'flex', justifyContent: 'space-between', backgroundColor: 'rgba(255,255,255,0.05)', padding: '12px 16px', borderRadius: '8px', marginBottom: '16px', border: '1px solid rgba(255,255,255,0.1)' }}>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '11px', color: '#9ca3af', textTransform: 'uppercase', marginBottom: '4px' }}>Total Cuti</div>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#fff' }}>{userProfile?.total_cuti ?? 0}</div>
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '11px', color: '#9ca3af', textTransform: 'uppercase', marginBottom: '4px' }}>Terpakai</div>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#f87171' }}>{userProfile?.cuti_terpakai ?? 0}</div>
-              </div>
-              <div style={{ textAlign: 'center' }}>
-                <div style={{ fontSize: '11px', color: '#9ca3af', textTransform: 'uppercase', marginBottom: '4px' }}>Sisa Cuti</div>
-                <div style={{ fontSize: '18px', fontWeight: 'bold', color: '#10b981' }}>{userProfile?.sisa_cuti ?? 0}</div>
-              </div>
-            </div>
-
             <div className="form-group">
               <label><FileText size={16} /> {t.leaveType}</label>
               <div className="radio-group" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>

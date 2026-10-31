@@ -20,6 +20,7 @@ function setup(options = {}) {
   let gpsError;
   let shutter;
   let retry;
+  let cameraRetry;
   let tree;
   let now = Date.now();
   class Clock extends Date {
@@ -63,22 +64,31 @@ function setup(options = {}) {
     if (type === 'button' && props['aria-label'] === 'Ambil foto untuk registrasi wajah') shutter = props;
     if (type === 'button' && props['aria-label'] === 'Cari ulang GPS') retry = props;
     if (type === 'button' && props['aria-label'] === 'Izinkan akses kamera') retry = props;
+    if (type === 'button' && props['aria-label'] === 'Coba lagi kamera') cameraRetry = props;
     if (props?.ref && type === 'video') props.ref.current = video;
     if (props?.ref && type === 'canvas') props.ref.current ??= canvas();
     return { type, props };
   };
   const t = new Proxy({}, { get: (_target, key) => key });
   const module = { exports: {} };
+  const cameraModule = { exports: {} };
+  vm.runInNewContext(ts.transpileModule(fs.readFileSync(path.join(__dirname, '../src/utils/attendanceCamera.ts'), 'utf8'), {
+    compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022 },
+  }).outputText, {
+    exports: cameraModule.exports, queueMicrotask,
+    navigator: { mediaDevices: { getUserMedia: options.getUserMedia ?? (async () => ({ getTracks: () => [{ stop() {} }] })) } },
+  });
   const source = fs.readFileSync(path.join(__dirname, `../src/components/${options.registration ? 'FaceRegistrationModal' : 'CameraModal'}.tsx`), 'utf8');
   vm.runInNewContext(ts.transpileModule(source, {
     compilerOptions: { module: ts.ModuleKind.CommonJS, target: ts.ScriptTarget.ES2022, jsx: ts.JsxEmit.ReactJSX },
   }).outputText, {
-    exports: module.exports, console, AbortController, Error, Date: Clock, URL,
+    exports: module.exports, console, AbortController, Error, DOMException, Date: Clock, URL,
     window: { isSecureContext: options.secure ?? true, location: {
       href: options.url ?? 'https://attendance.example.com/registration',
       assign: url => navigations.push(url),
     } },
     require: name => {
+      if (name.includes('attendanceCamera')) return cameraModule.exports;
       if (name === 'react') return react;
       if (name === 'react/jsx-runtime') return { jsx, jsxs: jsx };
       if (name === 'react-dom') return { createPortal: value => value };
@@ -124,12 +134,46 @@ function setup(options = {}) {
     advance: ms => { now += ms; dirty = true; },
     forceClick: () => shutter.onClick(),
     retry: () => retry.onClick(),
+    retryCamera: () => cameraRetry.onClick(),
     runTimers: () => { const pending = [...timers.values()]; timers.clear(); pending.forEach(timer => timer.fn()); },
     resolve: () => resolveSubmission(),
     reject: message => rejectSubmission(new Error(message)),
     close: () => { props.isOpen = false; dirty = true; },
+    open: () => { props.isOpen = true; dirty = true; },
   };
 }
+
+test('attendance camera stops on close and opens once for the next session', async () => {
+  let calls = 0, stops = 0;
+  const camera = setup({ getUserMedia: async () => {
+    calls++;
+    return { getTracks: () => [{ stop() { stops++; } }] };
+  } });
+  await camera.settle();
+  assert.equal(calls, 1);
+  camera.close(); await camera.settle();
+  assert.equal(stops, 1);
+  camera.open(); await camera.settle();
+  assert.equal(calls, 2);
+  camera.gps(); await camera.settle();
+  assert.equal(camera.shutterDisabled, false);
+});
+
+test('attendance camera retries only on user action after permission denial', async () => {
+  let calls = 0;
+  const camera = setup({ getUserMedia: async () => {
+    calls++;
+    if (calls === 1) throw new DOMException('Denied', 'NotAllowedError');
+    return { getTracks: () => [{ stop() {} }] };
+  } });
+  await camera.settle();
+  assert.equal(calls, 1);
+  assert.equal(camera.shutterDisabled, true);
+  camera.retryCamera(); await camera.settle();
+  camera.gps(); await camera.settle();
+  assert.equal(calls, 2);
+  assert.equal(camera.shutterDisabled, false);
+});
 
 test('camera opens without AI or auto-submit; manual double click sends one photo', async () => {
   const camera = setup();

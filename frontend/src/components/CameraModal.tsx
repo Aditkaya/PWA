@@ -4,6 +4,7 @@ import { Camera, X, Loader2, AlertCircle, Zap, RefreshCw, MapPin } from 'lucide-
 import { useLangStore } from '../store/lang.store';
 import { useAuthStore } from '../store/auth.store';
 import { translations } from '../utils/translations';
+import { acquireAttendanceCamera } from '../utils/attendanceCamera';
 import '../styles/cameramodal.css';
 
 const activeAiModel = 'Server';
@@ -40,6 +41,7 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
   const [isCameraReady, setIsCameraReady] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
   const [cameraError, setCameraError] = useState('');
+  const [cameraRetry, setCameraRetry] = useState(0);
   const [gpsError, setGpsError] = useState('');
   const [validationError, setValidationError] = useState('');
   const [statusMsg, setStatusMsg] = useState('');
@@ -280,10 +282,11 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
 
   // Stop even a late camera permission response after closing the modal.
   useEffect(() => {
-    if (!isOpen || cameraError) return;
+    if (!isOpen) return;
     let cancelled = false;
-    let stream: MediaStream | undefined;
     const video = videoRef.current;
+    setCameraError('');
+    setIsCameraReady(false);
     if (!window.isSecureContext) {
       setCameraError('Kamera membutuhkan koneksi HTTPS atau localhost.');
       return;
@@ -292,14 +295,9 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
       setCameraError('Browser atau perangkat ini tidak mendukung akses kamera.');
       return;
     }
-    navigator.mediaDevices.getUserMedia({
-      video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 } },
-    }).then(result => {
-      stream = result;
-      if (cancelled || !video) {
-        result.getTracks().forEach(track => track.stop());
-        return;
-      }
+    const camera = acquireAttendanceCamera();
+    camera.ready.then(result => {
+      if (cancelled || !video) return;
       video.onloadeddata = () => {
         if (!cancelled) setIsCameraReady(true);
       };
@@ -319,13 +317,13 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
     });
     return () => {
       cancelled = true;
-      stream?.getTracks().forEach(track => track.stop());
+      camera.release();
       if (video) {
         video.onloadeddata = null;
         video.srcObject = null;
       }
     };
-  }, [isOpen, cameraError, t.cameraDenied]);
+  }, [isOpen, cameraRetry, t.cameraDenied]);
 
   const stopCamera = () => {
     const stream = videoRef.current?.srcObject as MediaStream | null;
@@ -718,6 +716,16 @@ export default function CameraModal({ isOpen, onClose, onCapture, attendanceType
 
         {/* Bottom Controls */}
         <div className="camera-bottom-controls">
+          <details style={{ color: 'white', width: '100%', marginBottom: '10px', fontSize: '0.8rem', background: 'rgba(0,0,0,0.8)', padding: '8px 12px', borderRadius: '8px' }}>
+            <summary style={{ cursor: 'pointer' }}>Kamera/lokasi meminta izin lagi?</summary>
+            <p>Di setelan situs untuk alamat aplikasi ini, izinkan Kamera dan Lokasi. Jika tersedia, pilih izin yang berlaku untuk kunjungan berikutnya, bukan “Hanya kali ini”. Periksa juga izin browser/aplikasi di pengaturan HP.</p>
+            <p>PWA tetap mengikuti izin browser. Jika perangkat hanya memberi izin sementara, persetujuan dapat diminta lagi. Kamera dimatikan setelah halaman absensi ditutup.</p>
+          </details>
+          {cameraError && (
+            <button type="button" className="btn-loc-action" aria-label="Coba lagi kamera" onClick={() => setCameraRetry(value => value + 1)}>
+              <RefreshCw size={16} /> Coba lagi kamera
+            </button>
+          )}
           <div style={{ width: '100%', display: 'flex', justifyContent: 'center', marginBottom: '12px' }}>
             {validationError ? (
               <div style={{ padding: '8px 16px', background: 'rgba(220, 38, 38, 0.95)', color: 'white', borderRadius: '20px', fontSize: '0.85rem', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 4px 10px rgba(239, 68, 68, 0.4)' }}>

@@ -52,7 +52,13 @@ class FaceVerificationService {
         curl_close($curl);
         $data = is_string($body) ? json_decode($body, true) : null;
         if ($status === 422) {
-            throw new FaceVerificationException($data['message'] ?? 'Foto wajah tidak valid.', 422);
+            $message = $data['message'] ?? 'Foto wajah tidak valid.';
+            // The deployed AI rejects mismatches with HTTP 422, rather than
+            // returning HTTP 200 with matched=false. Preserve the same reason.
+            if ($endpoint === '/verify' && stripos($message, 'Wajah tidak cocok dengan foto terdaftar.') === 0) {
+                throw new FaceMismatchException($message, 422);
+            }
+            throw new FaceVerificationException($message, 422);
         }
         if ($curlFailed) {
             throw new FaceVerificationException('Layanan validasi wajah tidak dapat dihubungi. Pastikan layanan AI berjalan dan URL FACE_AI_URL dapat dijangkau dari PHP.', 503);

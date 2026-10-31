@@ -228,17 +228,12 @@ class AttendanceController {
                 }
             }
 
-            // Offline face checks run only after connectivity returns. If the offline
-            // photo has no detectable face, keep the attendance for HRD review.
-            $faceReviewRequired = false;
-            try {
-                (new \App\Services\FaceVerificationService())->verifyAttendance($pdo, $user_id, $foto_base64);
-            } catch (\App\Services\FaceVerificationException $e) {
-                if (!$isOffline || $e->getCode() !== 422 || stripos($e->getMessage(), 'wajah tidak terdeteksi') === false) {
-                    throw $e;
-                }
-                $faceReviewRequired = true;
-            }
+            // Preserve offline evidence and its original time for HRD review when
+            // the face is not detected or does not match. Online checks still reject.
+            $faceReviewReason = (new \App\Services\FaceVerificationService())->verifyAttendanceForSubmission(
+                $pdo, $user_id, $foto_base64, $isOffline && $waktuAbsenParam !== null
+            );
+            $faceReviewRequired = $faceReviewReason !== null;
 
             // Save image
             $tipe_folder = strtolower(str_replace([' ', '/'], '_', $tipe));
@@ -277,7 +272,7 @@ class AttendanceController {
             $statusAbsensi = $faceReviewRequired ? 'Persetujuan' : 'Selesai';
             $finalDetailLokasi = $detail_lokasi;
             if ($faceReviewRequired) {
-                $faceReviewNote = 'Foto absensi offline memerlukan pemeriksaan wajah oleh HRD';
+                $faceReviewNote = 'Foto absensi offline memerlukan pemeriksaan wajah oleh HRD: ' . $faceReviewReason;
                 $finalDetailLokasi = $finalDetailLokasi ? ($finalDetailLokasi . ' | ' . $faceReviewNote) : $faceReviewNote;
             }
 

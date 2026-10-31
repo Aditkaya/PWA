@@ -3,8 +3,24 @@
 namespace App\Services;
 
 class FaceVerificationException extends \RuntimeException {}
+class FaceMismatchException extends FaceVerificationException {}
 
 class FaceVerificationService {
+    // Return the actual failure for offline HRD review; never report it as a match.
+    public function verifyAttendanceForSubmission($pdo, $userId, $dataUrl, $isOffline = false) {
+        try {
+            $this->verifyAttendance($pdo, $userId, $dataUrl);
+            return null;
+        } catch (FaceVerificationException $e) {
+            $reviewable = $e instanceof FaceMismatchException
+                || stripos($e->getMessage(), 'wajah tidak terdeteksi') !== false;
+            if (!$isOffline || $e->getCode() !== 422 || !$reviewable) {
+                throw $e;
+            }
+            return $e->getMessage();
+        }
+    }
+
     private function request($endpoint, $payload) {
         $filename = __DIR__ . '/../../config/face-ai.local.json';
         $config = is_file($filename) ? json_decode(file_get_contents($filename), true) : [];
@@ -165,7 +181,7 @@ class FaceVerificationService {
                 date('Y-m-d H:i:s'),
                 json_encode($result)
             ));
-            throw new FaceVerificationException(
+            throw new FaceMismatchException(
                 'Wajah tidak cocok dengan foto terdaftar. ' .
                 'Pastikan wajah terlihat jelas dan menghadap kamera, lalu coba lagi. ' .
                 'Jika masalah berlanjut, hubungi HRD untuk registrasi ulang wajah.',

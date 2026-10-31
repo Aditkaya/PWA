@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useMemo } from 'react'
 import { useOutletContext, useNavigate } from 'react-router-dom'
 import { Clock, Coffee, LogOut, LogIn, CalendarDays, Sun, Plane, AlertCircle, Info, XCircle, ScanFace, ClipboardCheck, CalendarClock, Shield, WifiOff, RefreshCw, Megaphone } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
@@ -14,19 +14,8 @@ import { useModeStore } from '../../store/mode.store'
 import { translations } from '../../utils/translations'
 import { useToast } from '../../contexts/ToastContext'
 import { saveOfflineAttendance, getPendingOfflineCount, syncOfflineAttendances, getOfflineAttendances, type OfflineAttendanceItem } from '../../utils/offlineQueue'
+import { mergeAttendanceHistory, getOvertimeSession, type HistoryItem } from '../../utils/attendanceHistory'
 import './dashboard.css'
-
-interface HistoryItem {
-  id: number | string
-  date: string
-  type: string
-  time: string
-  status: string
-  is_overnight?: boolean
-  actual_date?: string
-  occurred_at?: string
-  is_offline?: boolean
-}
 
 const NEWS_API_BASE = import.meta.env.VITE_API_URL ?? ''
 
@@ -64,7 +53,7 @@ export default function Dashboard() {
   const navigate = useNavigate()
   const [time, setTime] = useState(new Date())
   const { user } = useAuthStore()
-  const [historyData, setHistoryData] = useState<HistoryItem[]>(() => {
+  const [serverHistory, setServerHistory] = useState<HistoryItem[]>(() => {
     if (!user?.id) return [];
     try {
       const cached = localStorage.getItem(`cached_history_${user.id}`);
@@ -73,6 +62,10 @@ export default function Dashboard() {
       return [];
     }
   })
+  const [offlineItems, setOfflineItems] = useState<OfflineAttendanceItem[]>([])
+  const historyData = useMemo(() => mergeAttendanceHistory(serverHistory, offlineItems), [serverHistory, offlineItems])
+  const historyRequest = useRef(0)
+  const queueRequest = useRef(0)
   const [, setPermohonanData] = useState<any[]>([])
   const [userGroup, setUserGroup] = useState<string>('')
   const [userProfile, setUserProfile] = useState<any>(() => {
@@ -84,7 +77,8 @@ export default function Dashboard() {
     }
   })
   const [pendingApprovalCount, setPendingApprovalCount] = useState(0)
-  const [pendingOfflineCount, setPendingOfflineCount] = useState(0)
+  const pendingOfflineCount = offlineItems.length
+  const failedOfflineItems = offlineItems.filter(item => item.status === 'failed')
   const [isSyncing, setIsSyncing] = useState(false)
   const syncInProgress = useRef(false)
   const [announcementMarkup, setAnnouncementMarkup] = useState('')
@@ -191,35 +185,10 @@ export default function Dashboard() {
   };
 
   const loadOfflinePendingToHistory = async () => {
+    const request = ++queueRequest.current;
     try {
-      const offlineItems = await getOfflineAttendances();
-      setPendingOfflineCount(offlineItems.filter(item => item.user_id === user?.id).length);
-      if (offlineItems.length > 0 && user?.id) {
-        const offlineHistoryItems: HistoryItem[] = offlineItems
-          .filter(item => item.user_id === user.id)
-          .map(item => {
-            const timePart = item.waktu_offline.split(' ')[1] || '';
-            const datePart = item.waktu_offline.split(' ')[0] || '';
-            return {
-              id: item.id,
-              date: datePart,
-              actual_date: datePart,
-              occurred_at: item.waktu_offline,
-              type: item.tipe,
-              time: timePart.slice(0, 5),
-              status: item.status === 'failed' ? 'Sinkronisasi Gagal' : 'Menunggu Sinkronisasi',
-              is_offline: true
-            };
-          });
-
-        setHistoryData(prev => {
-          const serverHistory = prev.filter(item => !item.is_offline);
-          const existingIds = new Set(serverHistory.map(h => String(h.id)));
-          return [...offlineHistoryItems.filter(item => !existingIds.has(String(item.id))), ...serverHistory];
-        });
-      } else {
-        setHistoryData(prev => prev.filter(item => !item.is_offline));
-      }
+      const items = await getOfflineAttendances();
+      if (request === queueRequest.current) setOfflineItems(items.filter(item => item.user_id === user?.id));
     } catch (e) {
       console.warn('Gagal memuat pending offline ke history:', e);
     }
@@ -228,42 +197,47 @@ export default function Dashboard() {
   const runAutoSync = async (retryFailed = false) => {
     if (!user?.id || syncInProgress.current || !navigator.onLine) return;
     syncInProgress.current = true;
-    const count = await getPendingOfflineCount(user.id);
-    if (count === 0) { syncInProgress.current = false; return; }
-    setIsSyncing(true);
     try {
+      const count = await getPendingOfflineCount(user.id);
+      if (count === 0) return;
+      setIsSyncing(true);
       const res = await syncOfflineAttendances(user.id, undefined, retryFailed);
       if (res.success > 0) {
         showToast(res.approval > 0
           ? `${res.success} absensi tersinkron; ${res.approval} menunggu pemeriksaan HRD.`
           : `Berhasil menyinkronkan ${res.success} absensi offline ke server!`, res.approval > 0 ? 'info' : 'success');
-        fetchHistoryAndProfile();
+        // Refresh server history before removing optimistic offline sessions.
+        await fetchHistoryAndProfile();
       }
-      if (res.errors.length > 0 && res.failed > 0) {
+      if (res.errors.length > 0) {
         showToast(res.errors[0], 'error');
       }
     } catch (e) {
       console.warn('Auto-sync offline attendance error:', e);
     } finally {
       setIsSyncing(false);
-      const remaining = await getPendingOfflineCount(user.id);
-      setPendingOfflineCount(remaining);
-      await loadOfflinePendingToHistory();
-      syncInProgress.current = false;
+      try {
+        await loadOfflinePendingToHistory();
+      } finally {
+        syncInProgress.current = false;
+      }
     }
   };
 
   const fetchHistoryAndProfile = async () => {
     if (!user?.id) return
+    const request = ++historyRequest.current
     try {
       // Fetch History
       const histRes = await fetch(`/api/history?user_id=${user.id}`).catch(() => null)
       if (histRes && histRes.ok) {
         const histData = await histRes.json()
-        setHistoryData(histData.data)
-        try {
-          localStorage.setItem(`cached_history_${user.id}`, JSON.stringify(histData.data))
-        } catch {}
+        if (request === historyRequest.current && Array.isArray(histData.data)) {
+          setServerHistory(histData.data)
+          try {
+            localStorage.setItem(`cached_history_${user.id}`, JSON.stringify(histData.data))
+          } catch {}
+        }
       }
       
       // Fetch Permohonan
@@ -348,23 +322,29 @@ export default function Dashboard() {
     } catch (error) {
       console.error("Failed to fetch data", error)
     } finally {
-      loadOfflinePendingToHistory();
+      await loadOfflinePendingToHistory();
     }
   }
 
   useEffect(() => {
+    loadOfflinePendingToHistory();
     fetchHistoryAndProfile()
     if (navigator.onLine) runAutoSync()
 
     const handleOnline = () => {
+      fetchHistoryAndProfile();
       runAutoSync();
     };
+    const handleVisible = () => {
+      if (document.visibilityState === 'visible' && navigator.onLine) handleOnline();
+    };
     window.addEventListener('online', handleOnline);
+    document.addEventListener('visibilitychange', handleVisible);
 
     const interval = setInterval(() => {
       if (navigator.onLine) {
         getPendingOfflineCount(user?.id).then(c => {
-          setPendingOfflineCount(c);
+          loadOfflinePendingToHistory();
           if (c > 0) {
             runAutoSync();
           }
@@ -374,6 +354,7 @@ export default function Dashboard() {
 
     return () => {
       window.removeEventListener('online', handleOnline);
+      document.removeEventListener('visibilitychange', handleVisible);
       clearInterval(interval);
     };
   }, [user])
@@ -417,23 +398,12 @@ export default function Dashboard() {
   // Deteksi sesi "Mulai Lembur" yang dimulai H-1 dan belum selesai.
   // Ini memastikan tombol "Selesai Lembur" tetap aktif di dini hari.
   // =====================================================================
-  const overtimeStartTypes = (t: string) => ['mulai lembur', 'lembur masuk', 'lembur'].includes(t.toLowerCase().replace(/_/g, ' ').trim())
-  const overtimeEndTypes   = (t: string) => ['selesai lembur', 'lembur pulang', 'lembur keluar'].includes(t.toLowerCase().replace(/_/g, ' ').trim())
-
-  // History is ordered by the actual timestamp; only the latest session can be active.
-  const latestOvertime = historyData.find(h => overtimeStartTypes(h.type) || overtimeEndTypes(h.type))
-  const latestStartDate = latestOvertime?.occurred_at
-    ? new Date(latestOvertime.occurred_at.replace(' ', 'T') + '+07:00').getTime()
-    : NaN
-  const isRecentStart = Number.isFinite(latestStartDate)
-    ? now.getTime() - latestStartDate >= 0 && now.getTime() - latestStartDate <= 24 * 60 * 60 * 1000
-    : latestOvertime?.date === todayString || latestOvertime?.date === yesterdayString
-  const todayOvertimeIn = latestOvertime && overtimeStartTypes(latestOvertime.type) && isRecentStart
-    ? latestOvertime : undefined
-  const hasActiveOvernightSession = !!todayOvertimeIn && todayOvertimeIn.date === yesterdayString
+  const overtimeSession = getOvertimeSession(historyData, now.getTime())
+  const todayOvertimeIn = overtimeSession.start
+  const hasActiveOvernightSession = !!todayOvertimeIn && (todayOvertimeIn.actual_date ?? todayOvertimeIn.date) === yesterdayString
   const isOvertimeStarted = !!todayOvertimeIn
-  const todayOvertimeOut = latestOvertime && overtimeEndTypes(latestOvertime.type)
-    && (latestOvertime.actual_date ?? latestOvertime.date) === todayString ? latestOvertime : undefined
+  const todayOvertimeOut = overtimeSession.end
+    && (overtimeSession.end.actual_date ?? overtimeSession.end.date) === todayString ? overtimeSession.end : undefined
 
   const isCurrentlyOnPermit = permitOuts.length > permitIns.length
   const lastPermitOut = isCurrentlyOnPermit ? permitOuts[0] : null
@@ -485,30 +455,7 @@ export default function Dashboard() {
     };
 
     await saveOfflineAttendance(offlineItem);
-    const count = await getPendingOfflineCount(user!.id);
-    setPendingOfflineCount(count);
-
-    // Optimistically update history so UI updates immediately
-    const optimisticHistory: HistoryItem = {
-      id: offlineItem.id,
-      date: dateStr,
-      actual_date: dateStr,
-      occurred_at: waktuOffline,
-      type: attendanceType,
-      time: timeStr,
-      status: 'Tersimpan Offline',
-      is_offline: true
-    };
-
-    setHistoryData(prev => {
-      const updated = [optimisticHistory, ...prev];
-      if (user?.id) {
-        try {
-          localStorage.setItem(`cached_history_${user.id}`, JSON.stringify(updated.filter(item => !item.is_offline)));
-        } catch {}
-      }
-      return updated;
-    });
+    await loadOfflinePendingToHistory();
 
     showToast(`Absen ${attendanceType} tersimpan di perangkat. Pengiriman dan verifikasi wajah dicoba saat koneksi kembali.`, 'info');
   };
@@ -644,10 +591,12 @@ export default function Dashboard() {
             <WifiOff size={20} color="#f59e0b" style={{ flexShrink: 0 }} />
             <div>
               <div className="offline-title">
-                {pendingOfflineCount} Absen Offline Tersimpan di HP
+                {pendingOfflineCount} Absensi Belum Terkirim
               </div>
               <div className="offline-desc">
-                Absensi menunggu pengiriman. Jika ditolak server, periksa riwayat lalu coba sinkronkan lagi.
+                {failedOfflineItems.length > 0
+                  ? `${failedOfflineItems.length} gagal dikirim. ${failedOfflineItems[0].error_message || 'Periksa riwayat untuk rinciannya.'}`
+                  : 'Data tersimpan di HP dan menunggu sinkronisasi.'}
               </div>
             </div>
           </div>

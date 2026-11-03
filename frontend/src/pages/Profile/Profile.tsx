@@ -4,7 +4,8 @@ import { useOutletContext } from 'react-router-dom'
 
 import Cropper from 'react-easy-crop'
 import getCroppedImg from '../../utils/cropImage'
-import { User, Mail, Briefcase, Phone, MapPin, Key, ChevronRight, Loader2, Camera, X, Save, Eye, EyeOff, Lock, Trash2, Scan, Bell, Clock, AlarmClock, CheckCircle2, ShieldCheck, RefreshCw } from 'lucide-react'
+import { User, Mail, Briefcase, Phone, MapPin, Key, ChevronRight, Loader2, Camera, X, Save, Eye, EyeOff, Lock, Trash2, Scan, Bell, Clock, AlarmClock, CheckCircle2, ShieldCheck, RefreshCw, Settings, ArrowLeft } from 'lucide-react'
+import LocationStatus from '../../components/LocationStatus'
 import { useAuthStore } from '../../store/auth.store'
 import { useLangStore } from '../../store/lang.store'
 import { translations } from '../../utils/translations'
@@ -26,7 +27,7 @@ interface KaryawanData {
   feature_permissions?: Record<string, boolean>
 }
 
-type ModalType = 'editProfile' | 'changePassword' | 'reminder' | 'faceDetail' | null
+type ModalType = 'settings' | 'location' | 'editProfile' | 'changePassword' | 'reminder' | 'faceDetail' | null
 
 interface ReminderSettings {
   masukEnabled: boolean
@@ -42,6 +43,13 @@ export default function Profile() {
   const [uploading, setUploading] = useState(false)
   const [isViewerOpen, setIsViewerOpen] = useState(false)
   const [activeModal, setActiveModal] = useState<ModalType>(null)
+  const settingsDialogRef = useRef<HTMLDialogElement>(null)
+  const settingsButtonRef = useRef<HTMLButtonElement>(null)
+  useEffect(() => {
+    if (activeModal === 'settings' || activeModal === 'location') {
+      settingsDialogRef.current?.showModal()
+    }
+  }, [activeModal])
   const [isAvatarMenuOpen, setIsAvatarMenuOpen] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
@@ -502,6 +510,17 @@ export default function Profile() {
       )}
 
       <div className="profile-header glass-panel">
+        <button
+          ref={settingsButtonRef}
+          type="button"
+          className="profile-settings-toggle"
+          onClick={() => setActiveModal('settings')}
+          aria-label={t.accountSettings}
+          title={t.accountSettings}
+          aria-haspopup="dialog"
+        >
+          <Settings size={22} />
+        </button>
         <div className="profile-avatar-container">
           <div className="profile-avatar-wrapper" onClick={handleAvatarClick} style={{ position: 'relative' }}>
             <div className="profile-avatar-large">
@@ -591,8 +610,28 @@ export default function Profile() {
         </div>
       </div>
 
-      <div className="profile-section glass-panel">
-        <h3 className="section-title">{t.accountSettings}</h3>
+      {(activeModal === 'settings' || activeModal === 'location') && createPortal(
+      <dialog
+        ref={settingsDialogRef}
+        className="profile-settings-dialog"
+        aria-labelledby="profile-settings-title"
+        onCancel={() => setActiveModal(null)}
+        onClose={() => settingsButtonRef.current?.focus()}
+        onClick={event => {
+          if (event.target === event.currentTarget) {
+            const bounds = event.currentTarget.getBoundingClientRect()
+            if (event.clientX < bounds.left || event.clientX > bounds.right || event.clientY < bounds.top || event.clientY > bounds.bottom) setActiveModal(null)
+          }
+        }}
+      >
+        <div className="profile-settings-heading">
+          {activeModal === 'location' && (
+            <button type="button" className="profile-settings-action" onClick={() => setActiveModal('settings')} aria-label="Kembali ke pengaturan"><ArrowLeft size={20} /></button>
+          )}
+          <h3 id="profile-settings-title">{activeModal === 'location' ? 'Lokasi Terhubung' : t.accountSettings}</h3>
+          <button type="button" className="profile-settings-action" onClick={() => setActiveModal(null)} aria-label="Tutup pengaturan"><X size={22} /></button>
+        </div>
+        {activeModal === 'location' ? <LocationStatus variant="banner" /> : (
         <div className="settings-list">
           <button className="setting-btn" onClick={openEditProfile}>
             <div className="setting-btn-left">
@@ -686,8 +725,19 @@ export default function Profile() {
               <ChevronRight size={18} />
             </div>
           </button>
+          <button type="button" className="setting-btn" onClick={() => setActiveModal('location')}>
+            <div className="setting-btn-left">
+              <div className="setting-icon-box emerald"><MapPin size={20} /></div>
+              <div className="setting-btn-content">
+                <span className="setting-btn-title">Lokasi Terhubung</span>
+                <span className="setting-btn-desc">Periksa koneksi GPS dan izin lokasi perangkat</span>
+              </div>
+            </div>
+            <div className="setting-arrow"><ChevronRight size={18} /></div>
+          </button>
         </div>
-      </div>
+        )}
+      </dialog>, document.body)}
 
       {/* Reminder Settings Section */}
       <div className="profile-section glass-panel">

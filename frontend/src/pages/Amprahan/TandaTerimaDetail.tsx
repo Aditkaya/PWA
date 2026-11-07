@@ -312,10 +312,10 @@ export default function TandaTerimaDetail() {
                             <label>{asset.lokasi === 'Di kapal' ? 'Tanggal beli' : 'Tanggal perolehan'}<input type="date" value={asset.tanggal_perolehan} onChange={e => updateAssetForm(asset.po_item_id, 'tanggal_perolehan', e.target.value)} /></label>
                             {asset.lokasi === 'Di kapal' && <>
                               <label className="receipt-asset-wide">Spesifikasi<textarea maxLength={2000} value={asset.spesifikasi} onChange={e => updateAssetForm(asset.po_item_id, 'spesifikasi', e.target.value)} /></label>
-                              <label>Kuantitas<input type="number" min="0" step="0.01" value={asset.kuantitas} onChange={e => updateAssetForm(asset.po_item_id, 'kuantitas', e.target.value)} /></label>
-                              <label>Satuan<input maxLength={50} value={asset.satuan} onChange={e => updateAssetForm(asset.po_item_id, 'satuan', e.target.value)} /></label>
                               <label>Tanggal kedaluwarsa<input type="date" value={asset.tanggal_kadaluarsa} onChange={e => updateAssetForm(asset.po_item_id, 'tanggal_kadaluarsa', e.target.value)} /></label>
                             </>}
+                            <label>Kuantitas<input type="number" min="0" step="0.01" value={asset.kuantitas} onChange={e => updateAssetForm(asset.po_item_id, 'kuantitas', e.target.value)} /></label>
+                            <label>Satuan<input maxLength={50} value={asset.satuan} onChange={e => updateAssetForm(asset.po_item_id, 'satuan', e.target.value)} /></label>
                             <label>Vendor / supplier<input maxLength={150} value={asset.vendor} onChange={e => updateAssetForm(asset.po_item_id, 'vendor', e.target.value)} /></label>
                             <label>No. faktur / invoice / PO<input maxLength={100} value={asset.nomor_faktur} onChange={e => updateAssetForm(asset.po_item_id, 'nomor_faktur', e.target.value)} /></label>
                             <h6>Dokumen & Keterangan</h6>

@@ -99,9 +99,12 @@ $pdo->exec("INSERT INTO permohonan_amprahans (id,user_id,jenis_amprahan,status) 
 $pdo->exec("INSERT INTO purchase_orders VALUES (2,5,'PO-002','Vendor B','issued')");
 $pdo->exec("INSERT INTO purchase_order_items VALUES (103,2,1,'Sepatu safety',1,'pcs',100000,1)");
 $officeForm = array_merge($form, ['po_item_id' => 103, 'kode_asset' => 'AST-PO-103',
-    'nama_asset' => 'Sepatu safety', 'lokasi' => 'Jakarta', 'lokasi_asset' => '', 'kapal_id' => '', 'kondisi' => 'Baik']);
+    'nama_asset' => 'Sepatu safety', 'lokasi' => 'Jakarta', 'lokasi_asset' => '', 'kapal_id' => '', 'kondisi' => 'Baik',
+    'kuantitas' => '100', 'satuan' => 'pcs']);
 [$code, $result] = callController(fn () => $controller->submitTandaTerima(['permohonan_id' => 5, 'assets' => [$officeForm]]));
 check($code === 200 && $result['assets_created'] === 1, 'Kategori APD harus diterima untuk lokasi kantor');
+$officeAsset = $pdo->query('SELECT kuantitas, satuan FROM assets WHERE source_id=103')->fetch();
+check($officeAsset['kuantitas'] == 100 && $officeAsset['satuan'] === 'pcs', 'Kuantitas dan satuan aset kantor harus tersimpan');
 
 [$code] = callController(fn () => $controller->submitTandaTerima(['permohonan_id' => 2, 'assets' => []]));
 check($code === 403, 'Pengguna lain tidak boleh menerima permohonan');

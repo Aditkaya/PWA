@@ -502,7 +502,7 @@ class AmprahanController {
                 };
                 if (!$validDate($tanggalPerolehan) || !$validDate($tanggalTerima)
                     || !$validDate($tanggalKadaluarsa)
-                    || ($isShip && $kuantitas !== null && $kuantitas !== ''
+                    || ($kuantitas !== null && $kuantitas !== ''
                         && (!is_numeric($kuantitas) || (float) $kuantitas < 0))) {
                     throw new \InvalidArgumentException('Tanggal atau kuantitas aset tidak valid');
                 }
@@ -540,8 +540,8 @@ class AmprahanController {
                     $isShip ? $kapalId : null,
                     $tanggalPerolehan ?: null, $tanggalTerima ?: null,
                     $isShip ? ($tanggalKadaluarsa ?: null) : null,
-                    $isShip ? ($kuantitas === '' ? null : $kuantitas) : null,
-                    $isShip ? ($satuan ?: null) : null, $kondisi,
+                    $kuantitas === '' ? null : $kuantitas,
+                    $satuan ?: null, $kondisi,
                     $status, $karyawan['id'] ?? null, $vendor ?: null,
                     $nomorFaktur ?: null, $photo, $attachment, $keterangan ?: null, $user_id]);
                 $assetId = $pdo->lastInsertId();

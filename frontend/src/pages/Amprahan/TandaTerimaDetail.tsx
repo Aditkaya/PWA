@@ -43,8 +43,8 @@ interface AssetForm {
 }
 
 const assetCategories = ['Elektronik', 'Elektronik & IT', 'Kendaraan', 'Alat Berat',
-  'Mesin & Peralatan', 'Furniture & Fixture', 'Bangunan & Properti', 'Lain-lain'];
-const shipCategories = ['Keselamatan', 'Navigasi', 'Buku', 'Perlengkapan', 'Peta'];
+  'Mesin & Peralatan', 'Furniture & Fixture', 'Bangunan & Properti', 'APD', 'Lain-lain'];
+const shipCategories = ['Keselamatan', 'Navigasi', 'Buku', 'Perlengkapan', 'Peta', 'APD'];
 const assetConditions = ['Baik', 'Rusak Ringan', 'Rusak Berat', 'Afkir'];
 const shipConditions = ['Belum diketahui', 'Bagus', 'Baru', 'Bekas', 'Bekas/Bagus',
   'Expired Batrai', 'Kurang', 'Kurang Bagus', 'Perlu Servis', 'Rusak', 'SPC/Rusak'];

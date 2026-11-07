@@ -70,7 +70,7 @@ check(!isset($request['items'][1]['masuk_asset']) || $request['items'][1]['masuk
 check($code === 422, 'Form aset wajib untuk barang yang dicentang');
 check($pdo->query('SELECT status FROM permohonan_amprahans WHERE id=1')->fetchColumn() === 'approved', 'Penerimaan gagal harus rollback');
 
-$form = ['po_item_id' => 101, 'kode_asset' => 'AST-PO-101', 'nama_asset' => 'Kasur', 'kategori' => 'Perlengkapan',
+$form = ['po_item_id' => 101, 'kode_asset' => 'AST-PO-101', 'nama_asset' => 'Kasur', 'kategori' => 'APD',
     'kondisi' => 'Baru', 'status' => 'Tersedia', 'lokasi' => 'Di kapal', 'lokasi_asset' => 'CABIN', 'kapal_id' => '1',
     'nama_merk' => 'Merk A', 'nomor_seri' => 'S-001', 'spesifikasi' => 'Ukuran besar',
     'tanggal_perolehan' => '2026-10-28', 'tanggal_tanda_terima' => '2026-10-28',
@@ -87,12 +87,21 @@ check($saved['kode_asset'] === 'AST-PO-101' && $saved['status'] === 'Tersedia'
     && $saved['spesifikasi'] === 'Ukuran besar' && $saved['kuantitas'] == 1
     && $saved['satuan'] === 'pcs' && $saved['nomor_faktur'] === 'PO-001',
     'Field kapal dan pengadaan harus tersimpan pada asset AYPSIS');
+check($pdo->query('SELECT kategori FROM assets WHERE source_id=101')->fetchColumn() === 'APD', 'Kategori APD harus tersimpan');
 [$code, $list] = callController(fn () => $controller->getMyRequests([]));
 $receivedRequest = current(array_filter($list['data'], static fn ($row) => $row['id'] == 1));
 check($code === 200 && $receivedRequest['items'][0]['asset_id'] > 0, 'Daftar harus menandai aset yang sudah tersimpan');
 
 [$code, $result] = callController(fn () => $controller->submitTandaTerima(['permohonan_id' => 3, 'assets' => []]));
 check($code === 200 && $result['assets_created'] === 0, 'Permohonan tanpa aset tetap bisa diterima');
+
+$pdo->exec("INSERT INTO permohonan_amprahans (id,user_id,jenis_amprahan,status) VALUES (5,1,'lainnya','approved')");
+$pdo->exec("INSERT INTO purchase_orders VALUES (2,5,'PO-002','Vendor B','issued')");
+$pdo->exec("INSERT INTO purchase_order_items VALUES (103,2,1,'Sepatu safety',1,'pcs',100000,1)");
+$officeForm = array_merge($form, ['po_item_id' => 103, 'kode_asset' => 'AST-PO-103',
+    'nama_asset' => 'Sepatu safety', 'lokasi' => 'Jakarta', 'lokasi_asset' => '', 'kapal_id' => '', 'kondisi' => 'Baik']);
+[$code, $result] = callController(fn () => $controller->submitTandaTerima(['permohonan_id' => 5, 'assets' => [$officeForm]]));
+check($code === 200 && $result['assets_created'] === 1, 'Kategori APD harus diterima untuk lokasi kantor');
 
 [$code] = callController(fn () => $controller->submitTandaTerima(['permohonan_id' => 2, 'assets' => []]));
 check($code === 403, 'Pengguna lain tidak boleh menerima permohonan');

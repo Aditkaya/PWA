@@ -440,8 +440,8 @@ class AmprahanController {
             }
 
             $categories = ['Elektronik', 'Elektronik & IT', 'Kendaraan', 'Alat Berat',
-                'Mesin & Peralatan', 'Furniture & Fixture', 'Bangunan & Properti', 'Lain-lain'];
-            $shipCategories = ['Keselamatan', 'Navigasi', 'Buku', 'Perlengkapan', 'Peta'];
+                'Mesin & Peralatan', 'Furniture & Fixture', 'Bangunan & Properti', 'APD', 'Lain-lain'];
+            $shipCategories = ['Keselamatan', 'Navigasi', 'Buku', 'Perlengkapan', 'Peta', 'APD'];
             $conditions = ['Baik', 'Rusak Ringan', 'Rusak Berat', 'Afkir'];
             $shipConditions = ['Belum diketahui', 'Bagus', 'Baru', 'Bekas', 'Bekas/Bagus',
                 'Expired Batrai', 'Kurang', 'Kurang Bagus', 'Perlu Servis', 'Rusak', 'SPC/Rusak'];

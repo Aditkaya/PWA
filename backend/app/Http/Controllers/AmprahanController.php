@@ -12,7 +12,12 @@ use Exception;
 class AmprahanController {
     
     public function submitRequest($postData) {
-        $user_id = $postData['user_id'] ?? null;
+        $user_id = \App\Services\PwaSession::userId();
+        if (!$user_id) {
+            http_response_code(401);
+            echo json_encode(['message' => 'Silakan masuk kembali']);
+            return;
+        }
         $jenis_amprahan = strtolower(trim((string) ($postData['jenis_amprahan'] ?? 'lainnya')));
         $kapal_id = $postData['kapal_id'] ?? null;
         $mobil_id = $postData['mobil_id'] ?? null;

@@ -16,7 +16,7 @@ $schema = [
     'CREATE TABLE users (id INTEGER PRIMARY KEY, karyawan_id INTEGER)',
     'CREATE TABLE karyawans (id INTEGER PRIMARY KEY, nama_lengkap TEXT, nik TEXT, departemen TEXT, divisi TEXT)',
     'CREATE TABLE master_kapals (id INTEGER PRIMARY KEY, nama_kapal TEXT)',
-    'CREATE TABLE permohonan_amprahans (id INTEGER PRIMARY KEY, user_id INTEGER, kapal_id INTEGER, jenis_amprahan TEXT, status TEXT, keterangan_umum TEXT, created_at TEXT, nomor_voyage TEXT, tujuan_permintaan TEXT, tanggal_diterima TEXT)',
+    'CREATE TABLE permohonan_amprahans (id INTEGER PRIMARY KEY, user_id INTEGER, kapal_id INTEGER, mobil_id INTEGER, alat_berat_id INTEGER, jenis_amprahan TEXT, status TEXT, keterangan_umum TEXT, created_at TEXT, nomor_voyage TEXT, tujuan_permintaan TEXT, tanggal_diterima TEXT)',
     'CREATE TABLE permohonan_amprahan_items (id INTEGER PRIMARY KEY, permohonan_id INTEGER, nama_barang TEXT, link_barang TEXT, jumlah REAL, jumlah_disetujui REAL, satuan TEXT, keterangan TEXT)',
     'CREATE TABLE purchase_orders (id INTEGER PRIMARY KEY, permohonan_amprahan_id INTEGER, nomor_po TEXT, vendor TEXT, status TEXT)',
     'CREATE TABLE purchase_order_items (id INTEGER PRIMARY KEY, purchase_order_id INTEGER, urutan INTEGER, deskripsi TEXT, kuantitas REAL, satuan TEXT, jumlah REAL, masuk_asset INTEGER)',
@@ -47,8 +47,19 @@ function callController(callable $call): array {
     return [http_response_code(), $body];
 }
 
+[$code] = callController(fn () => $controller->submitRequest([
+    'user_id' => 2, 'jenis_amprahan' => 'lainnya', 'tujuan_permintaan' => 'Kantor',
+    'items' => [['nama_barang' => 'Kertas', 'jumlah' => 1, 'satuan' => 'rim']],
+]));
+check($code === 200, 'Permintaan harus berhasil dibuat');
+check((int) $pdo->query("SELECT user_id FROM permohonan_amprahans WHERE tujuan_permintaan = 'Kantor'")->fetchColumn() === 1,
+    'Pemilik permintaan harus mengikuti sesi, bukan ID dari browser');
+[$code, $pendingList] = callController(fn () => $controller->getMyRequests([]));
+check($code === 200 && count(array_filter($pendingList['data'], static fn ($row) => $row['status'] === 'pending')) === 1,
+    'Permintaan baru yang menunggu harus muncul pada daftar pemilik');
+
 [$code, $list] = callController(fn () => $controller->getMyRequests([]));
-check($code === 200 && count($list['data']) === 2, 'Daftar harus dibatasi ke pemilik');
+check($code === 200 && count($list['data']) === 3, 'Daftar harus dibatasi ke pemilik');
 [$code, $ships] = callController(fn () => $controller->getAssetShips());
 check($code === 200 && $ships['data'][0]['nama_kapal'] === 'KM Contoh', 'Daftar kapal aset harus tersedia');
 $request = current(array_filter($list['data'], static fn ($row) => $row['id'] == 1));
@@ -77,7 +88,8 @@ check($saved['kode_asset'] === 'AST-PO-101' && $saved['status'] === 'Tersedia'
     && $saved['satuan'] === 'pcs' && $saved['nomor_faktur'] === 'PO-001',
     'Field kapal dan pengadaan harus tersimpan pada asset AYPSIS');
 [$code, $list] = callController(fn () => $controller->getMyRequests([]));
-check($code === 200 && $list['data'][1]['items'][0]['asset_id'] > 0, 'Daftar harus menandai aset yang sudah tersimpan');
+$receivedRequest = current(array_filter($list['data'], static fn ($row) => $row['id'] == 1));
+check($code === 200 && $receivedRequest['items'][0]['asset_id'] > 0, 'Daftar harus menandai aset yang sudah tersimpan');
 
 [$code, $result] = callController(fn () => $controller->submitTandaTerima(['permohonan_id' => 3, 'assets' => []]));
 check($code === 200 && $result['assets_created'] === 0, 'Permohonan tanpa aset tetap bisa diterima');

@@ -16,7 +16,7 @@ interface AmprahanItem {
 export default function AmprahanRequest() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { user } = useAuthStore();
+  const { token } = useAuthStore();
   const requestContext = location.state as {
     jenisAmprahan?: 'kapal' | 'kendaraan' | 'alat_berat' | 'lainnya';
     kapalId?: string;
@@ -67,10 +67,10 @@ export default function AmprahanRequest() {
       const response = await fetch('/api/amprahan/request', {
         method: 'POST',
         headers: {
-          'Content-Type': 'application/json'
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${token || ''}`,
         },
         body: JSON.stringify({
-          user_id: user?.id,
           jenis_amprahan: jenisAmprahan || 'lainnya',
           kapal_id: requestContext?.kapalId || null,
           mobil_id: requestContext?.mobilId || null,
@@ -92,7 +92,7 @@ export default function AmprahanRequest() {
       
       if (response.ok) {
         alert('Berhasil: ' + data.message);
-        navigate('/'); // redirect to home or somewhere else
+        navigate('/amprahan/tanda-terima');
       } else {
         alert('Gagal: ' + (data.message || 'Terjadi kesalahan'));
       }

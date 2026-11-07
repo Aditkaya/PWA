@@ -99,7 +99,7 @@ function formatTanggal(value: string | null) {
 }
 
 export default function TandaTerimaDetail() {
-  const { user, token } = useAuthStore();
+  const { token } = useAuthStore();
 
   const [permohonans, setPermohonans] = useState<Permohonan[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -111,12 +111,12 @@ export default function TandaTerimaDetail() {
   const [ships, setShips] = useState<Array<{ id: number; nama_kapal: string }>>([]);
 
   useEffect(() => {
-    if (user?.id) fetchData();
+    if (token) fetchData();
     else {
       setError('Data pengguna tidak tersedia. Silakan masuk kembali.');
       setIsLoading(false);
     }
-  }, [user?.id, token]);
+  }, [token]);
 
   useEffect(() => {
     if (!token) return;
@@ -127,7 +127,7 @@ export default function TandaTerimaDetail() {
   }, [token]);
 
   const fetchData = async () => {
-    if (!user?.id || !token) {
+    if (!token) {
       setError('Data pengguna tidak tersedia. Silakan masuk kembali.');
       setIsLoading(false);
       return;
@@ -282,6 +282,10 @@ export default function TandaTerimaDetail() {
                     </div>
                   ))}
                 </div>
+
+                {permohonan.status.toLowerCase() === 'pending' && (
+                  <p className="meta-text">Menunggu persetujuan. Konfirmasi penerimaan barang tersedia setelah permohonan disetujui.</p>
+                )}
 
                 {['approved', 'partially_approved'].includes(permohonan.status.toLowerCase()) && (
                   <div className="card-footer">

@@ -5,6 +5,58 @@
   position: relative;
 }
 
+.hrd-approval-page .permohonan-list {
+  scroll-margin-top: 160px;
+}
+
+.approval-pagination {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 12px 0;
+  text-align: center;
+}
+
+.approval-pagination-summary {
+  margin: 0;
+  color: var(--text-secondary);
+  font-size: 0.8rem;
+}
+
+.approval-pagination-controls {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  color: var(--text-primary);
+  font-size: 0.8rem;
+}
+
+.approval-pagination-controls button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-height: 44px;
+  padding: 8px;
+  border: 1px solid var(--glass-border);
+  border-radius: 8px;
+  background: var(--card-bg);
+  color: var(--text-primary);
+  font: inherit;
+  cursor: pointer;
+}
+
+.approval-pagination-controls button:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.approval-pagination-controls button:focus-visible {
+  outline: 2px solid var(--accent-color);
+  outline-offset: 2px;
+}
+
 .approval-header-bg {
   position: absolute;
   top: 0;

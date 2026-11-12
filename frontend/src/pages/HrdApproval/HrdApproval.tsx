@@ -1,8 +1,10 @@
-import { useState, useEffect, useMemo } from 'react'
-import { Check, X, Loader2, FileText, ChevronDown, ChevronUp, AlertTriangle, Search, Filter, Clock, CheckCircle, XCircle, Trash2, MapPin } from 'lucide-react'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { Check, X, Loader2, FileText, ChevronDown, ChevronUp, ChevronLeft, ChevronRight, AlertTriangle, Search, Filter, Clock, CheckCircle, XCircle, Trash2, MapPin } from 'lucide-react'
 import { useAuthStore } from '../../store/auth.store'
 import './HrdApproval.css'
 import { useToast } from '../../contexts/ToastContext'
+
+const PAGE_SIZE = 10
 
 interface PermohonanItem {
   id: number
@@ -36,6 +38,8 @@ export default function HrdApproval() {
   const [searchQuery, setSearchQuery] = useState('')
   const [statusFilter, setStatusFilter] = useState<string>('Pending')
   const [typeFilter, setTypeFilter] = useState<string>('Semua')
+  const [currentPage, setCurrentPage] = useState(1)
+  const listRef = useRef<HTMLDivElement>(null)
   const [expandedItems, setExpandedItems] = useState<(number | string)[]>([])
   const [actionConfirm, setActionConfirm] = useState<{ item: PermohonanItem; action: 'Disetujui' | 'Ditolak' | 'Dihapus' } | null>(null)
   const [actionLoading, setActionLoading] = useState(false)
@@ -143,6 +147,26 @@ export default function HrdApproval() {
 
     return queryMatch && statusMatch && typeMatch
   })
+
+  const totalPages = Math.max(1, Math.ceil(filteredData.length / PAGE_SIZE))
+  const activePage = Math.min(currentPage, totalPages)
+  const pageStart = (activePage - 1) * PAGE_SIZE
+  const paginatedData = filteredData.slice(pageStart, pageStart + PAGE_SIZE)
+
+  useEffect(() => {
+    setCurrentPage(1)
+    setExpandedItems([])
+  }, [searchQuery, statusFilter, typeFilter])
+
+  useEffect(() => {
+    setCurrentPage(page => Math.min(page, totalPages))
+  }, [totalPages])
+
+  const changePage = (page: number) => {
+    setCurrentPage(Math.max(1, Math.min(page, totalPages)))
+    setExpandedItems([])
+    listRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' })
+  }
 
   const toggleItem = (id: number | string) => {
     setExpandedItems(prev => prev.includes(id) ? prev.filter(item => item !== id) : [...prev, id])
@@ -316,8 +340,8 @@ export default function HrdApproval() {
           )}
         </div>
       ) : (
-        <div className="permohonan-list fade-in">
-          {filteredData.map((item, index) => {
+        <div className="permohonan-list fade-in" ref={listRef}>
+          {paginatedData.map((item, index) => {
             const uniqueId = `${item.tipe}-${item.id}`;
             const isExpanded = expandedItems.includes(uniqueId);
             
@@ -572,6 +596,22 @@ export default function HrdApproval() {
               </div>
             )
           })}
+          <nav className="approval-pagination" aria-label="Halaman pengajuan karyawan">
+            <p className="approval-pagination-summary" aria-live="polite">
+              Menampilkan {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filteredData.length)} dari {filteredData.length} pengajuan
+            </p>
+            {totalPages > 1 && (
+              <div className="approval-pagination-controls">
+                <button type="button" onClick={() => changePage(activePage - 1)} disabled={activePage === 1}>
+                  <ChevronLeft size={16} /> Sebelumnya
+                </button>
+                <span aria-live="polite">{activePage} / {totalPages}</span>
+                <button type="button" onClick={() => changePage(activePage + 1)} disabled={activePage === totalPages}>
+                  Berikutnya <ChevronRight size={16} />
+                </button>
+              </div>
+            )}
+          </nav>
         </div>
       )}
 
